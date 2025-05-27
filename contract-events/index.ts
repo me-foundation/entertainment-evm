@@ -1,6 +1,8 @@
 import { ethers } from "ethers";
 import { abi as luckyBuyAbi } from "../out/LuckyBuy.sol/LuckyBuy.json";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 
 dotenv.config();
 
@@ -27,12 +29,7 @@ function formatValue(value: any, type: string): string {
   }
   if (type.includes("uint") || type.includes("int")) {
     if (type.includes("256")) {
-      // For large numbers, format as ETH if it's a reasonable amount
-      const ethValue = ethers.formatEther(value);
-      if (parseFloat(ethValue) < 1000000) {
-        // Only format as ETH if less than 1M ETH
-        return `${ethValue} ETH`;
-      }
+      return value.toString();
     }
     return value.toString();
   }
@@ -45,9 +42,50 @@ function formatValue(value: any, type: string): string {
   return value.toString();
 }
 
+function escapeCsvValue(value: string): string {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function eventToCsvRow(
+  event: ethers.Log,
+  parsed: ethers.LogDescription,
+  fragment: ethers.EventFragment
+): string {
+  const baseFields = [
+    event.blockNumber.toString(),
+    event.transactionHash,
+    parsed.name,
+  ];
+
+  const argValues = fragment.inputs.map((input, i) => {
+    const formattedValue = formatValue(parsed.args[i], input.type);
+    return escapeCsvValue(formattedValue);
+  });
+
+  return [...baseFields, ...argValues].join(",");
+}
+
+function getCsvHeader(fragment: ethers.EventFragment): string {
+  const baseHeaders = ["Block Number", "Transaction Hash", "Event Name"];
+  const argHeaders = fragment.inputs.map((input) => input.name);
+  return [...baseHeaders, ...argHeaders].join(",");
+}
+
 export async function logEvents(events: ethers.Log[]) {
   const iface = new ethers.Interface(luckyBuyAbi);
   console.log(`Found ${events.length} events:\n`);
+
+  // Create output directory if it doesn't exist
+  const outputDir = path.join(process.cwd(), "fulfillment_output");
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir);
+  }
+
+  // Create a map to store CSV content for each event type
+  const csvContent: { [key: string]: string[] } = {};
 
   events.forEach((event, index) => {
     try {
@@ -59,9 +97,19 @@ export async function logEvents(events: ethers.Log[]) {
       console.log(`Block: ${event.blockNumber}`);
       console.log(`Transaction: ${event.transactionHash}`);
       console.log("Args:");
+
       // Get the event fragment to get the parameter names
       const fragment = iface.getEvent(parsed.name);
       if (fragment) {
+        // Initialize CSV content for this event type if not exists
+        if (!csvContent[parsed.name]) {
+          csvContent[parsed.name] = [getCsvHeader(fragment)];
+        }
+
+        // Add row to CSV content
+        csvContent[parsed.name].push(eventToCsvRow(event, parsed, fragment));
+
+        // Log to console
         fragment.inputs.forEach((input, i) => {
           const formattedValue = formatValue(parsed.args[i], input.type);
           console.log(`  ${input.name}: ${formattedValue}`);
@@ -77,6 +125,16 @@ export async function logEvents(events: ethers.Log[]) {
       console.log(`Data: ${event.data}`);
       console.log("-------------------\n");
     }
+  });
+
+  // Write CSV files for each event type
+  Object.entries(csvContent).forEach(([eventName, rows]) => {
+    const filename = path.join(
+      outputDir,
+      `${eventName.toLowerCase()}_events.csv`
+    );
+    fs.writeFileSync(filename, rows.join("\n"));
+    console.log(`Saved ${rows.length - 1} ${eventName} events to ${filename}`);
   });
 }
 

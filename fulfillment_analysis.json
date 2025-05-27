@@ -1,0 +1,2691 @@
+{
+  "basicStats": {
+    "odds": {
+      "count": 1249,
+      "mean": "1195.17",
+      "median": 268,
+      "stdDev": "1760.94",
+      "min": 100,
+      "max": 7509,
+      "q1": 101,
+      "q3": 1654
+    },
+    "rng": {
+      "count": 1249,
+      "mean": "4916.91",
+      "median": 4927,
+      "stdDev": "2886.99",
+      "min": 6,
+      "max": 9996,
+      "q1": 2360,
+      "q3": 7366
+    },
+    "overallWinRate": 12.00960768614892
+  },
+  "prngAnalysis": {
+    "distributionUniformity": [
+      {
+        "range": "0-10%",
+        "count": 120,
+        "expected": 124.9,
+        "deviation": "-3.92%",
+        "stdDevsFromMean": "-0.44",
+        "status": "PASS"
+      },
+      {
+        "range": "10-20%",
+        "count": 148,
+        "expected": 124.9,
+        "deviation": "18.49%",
+        "stdDevsFromMean": "2.07",
+        "status": "WARNING"
+      },
+      {
+        "range": "20-30%",
+        "count": 118,
+        "expected": 124.9,
+        "deviation": "-5.52%",
+        "stdDevsFromMean": "-0.62",
+        "status": "PASS"
+      },
+      {
+        "range": "30-40%",
+        "count": 133,
+        "expected": 124.9,
+        "deviation": "6.49%",
+        "stdDevsFromMean": "0.72",
+        "status": "PASS"
+      },
+      {
+        "range": "40-50%",
+        "count": 114,
+        "expected": 124.9,
+        "deviation": "-8.73%",
+        "stdDevsFromMean": "-0.98",
+        "status": "PASS"
+      },
+      {
+        "range": "50-60%",
+        "count": 132,
+        "expected": 124.9,
+        "deviation": "5.68%",
+        "stdDevsFromMean": "0.64",
+        "status": "PASS"
+      },
+      {
+        "range": "60-70%",
+        "count": 132,
+        "expected": 124.9,
+        "deviation": "5.68%",
+        "stdDevsFromMean": "0.64",
+        "status": "PASS"
+      },
+      {
+        "range": "70-80%",
+        "count": 121,
+        "expected": 124.9,
+        "deviation": "-3.12%",
+        "stdDevsFromMean": "-0.35",
+        "status": "PASS"
+      },
+      {
+        "range": "80-90%",
+        "count": 110,
+        "expected": 124.9,
+        "deviation": "-11.93%",
+        "stdDevsFromMean": "-1.33",
+        "status": "PASS"
+      },
+      {
+        "range": "90-100%",
+        "count": 121,
+        "expected": 124.9,
+        "deviation": "-3.12%",
+        "stdDevsFromMean": "-0.35",
+        "status": "PASS"
+      }
+    ],
+    "chiSquareStatistic": 9.150520416333066,
+    "sequentialCorrelation": 0.0029357742499719016,
+    "percentagePointAnalysis": {
+      "chiSquareStatistic": 100.79983987189753,
+      "significantDeviations": [
+        {
+          "percentage": 13,
+          "count": 21,
+          "expected": 12.49,
+          "deviation": 68.13450760608487,
+          "stdDevsFromMean": 2.4079548578156156,
+          "isSignificant": true
+        },
+        {
+          "percentage": 38,
+          "count": 22,
+          "expected": 12.49,
+          "deviation": 76.14091273018414,
+          "stdDevsFromMean": 2.690910775302762,
+          "isSignificant": true
+        },
+        {
+          "percentage": 41,
+          "count": 5,
+          "expected": 12.49,
+          "deviation": -59.96797437950361,
+          "stdDevsFromMean": -2.1193398219787265,
+          "isSignificant": true
+        },
+        {
+          "percentage": 43,
+          "count": 20,
+          "expected": 12.49,
+          "deviation": 60.12810248198559,
+          "stdDevsFromMean": 2.1249989403284695,
+          "isSignificant": true
+        }
+      ],
+      "distribution": [
+        {
+          "percentage": 0,
+          "count": 15,
+          "expected": 12.49,
+          "deviation": "20.10%",
+          "stdDevsFromMean": "0.71",
+          "status": "PASS"
+        },
+        {
+          "percentage": 1,
+          "count": 9,
+          "expected": 12.49,
+          "deviation": "-27.94%",
+          "stdDevsFromMean": "-0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 2,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 3,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 4,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 5,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 6,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 7,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 8,
+          "count": 11,
+          "expected": 12.49,
+          "deviation": "-11.93%",
+          "stdDevsFromMean": "-0.42",
+          "status": "PASS"
+        },
+        {
+          "percentage": 9,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 10,
+          "count": 11,
+          "expected": 12.49,
+          "deviation": "-11.93%",
+          "stdDevsFromMean": "-0.42",
+          "status": "PASS"
+        },
+        {
+          "percentage": 11,
+          "count": 17,
+          "expected": 12.49,
+          "deviation": "36.11%",
+          "stdDevsFromMean": "1.28",
+          "status": "PASS"
+        },
+        {
+          "percentage": 12,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 13,
+          "count": 21,
+          "expected": 12.49,
+          "deviation": "68.13%",
+          "stdDevsFromMean": "2.41",
+          "status": "WARNING"
+        },
+        {
+          "percentage": 14,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 15,
+          "count": 18,
+          "expected": 12.49,
+          "deviation": "44.12%",
+          "stdDevsFromMean": "1.56",
+          "status": "PASS"
+        },
+        {
+          "percentage": 16,
+          "count": 15,
+          "expected": 12.49,
+          "deviation": "20.10%",
+          "stdDevsFromMean": "0.71",
+          "status": "PASS"
+        },
+        {
+          "percentage": 17,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 18,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 19,
+          "count": 15,
+          "expected": 12.49,
+          "deviation": "20.10%",
+          "stdDevsFromMean": "0.71",
+          "status": "PASS"
+        },
+        {
+          "percentage": 20,
+          "count": 16,
+          "expected": 12.49,
+          "deviation": "28.10%",
+          "stdDevsFromMean": "0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 21,
+          "count": 9,
+          "expected": 12.49,
+          "deviation": "-27.94%",
+          "stdDevsFromMean": "-0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 22,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 23,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 24,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 25,
+          "count": 6,
+          "expected": 12.49,
+          "deviation": "-51.96%",
+          "stdDevsFromMean": "-1.84",
+          "status": "PASS"
+        },
+        {
+          "percentage": 26,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 27,
+          "count": 17,
+          "expected": 12.49,
+          "deviation": "36.11%",
+          "stdDevsFromMean": "1.28",
+          "status": "PASS"
+        },
+        {
+          "percentage": 28,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 29,
+          "count": 8,
+          "expected": 12.49,
+          "deviation": "-35.95%",
+          "stdDevsFromMean": "-1.27",
+          "status": "PASS"
+        },
+        {
+          "percentage": 30,
+          "count": 15,
+          "expected": 12.49,
+          "deviation": "20.10%",
+          "stdDevsFromMean": "0.71",
+          "status": "PASS"
+        },
+        {
+          "percentage": 31,
+          "count": 17,
+          "expected": 12.49,
+          "deviation": "36.11%",
+          "stdDevsFromMean": "1.28",
+          "status": "PASS"
+        },
+        {
+          "percentage": 32,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 33,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 34,
+          "count": 9,
+          "expected": 12.49,
+          "deviation": "-27.94%",
+          "stdDevsFromMean": "-0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 35,
+          "count": 17,
+          "expected": 12.49,
+          "deviation": "36.11%",
+          "stdDevsFromMean": "1.28",
+          "status": "PASS"
+        },
+        {
+          "percentage": 36,
+          "count": 8,
+          "expected": 12.49,
+          "deviation": "-35.95%",
+          "stdDevsFromMean": "-1.27",
+          "status": "PASS"
+        },
+        {
+          "percentage": 37,
+          "count": 6,
+          "expected": 12.49,
+          "deviation": "-51.96%",
+          "stdDevsFromMean": "-1.84",
+          "status": "PASS"
+        },
+        {
+          "percentage": 38,
+          "count": 22,
+          "expected": 12.49,
+          "deviation": "76.14%",
+          "stdDevsFromMean": "2.69",
+          "status": "WARNING"
+        },
+        {
+          "percentage": 39,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 40,
+          "count": 11,
+          "expected": 12.49,
+          "deviation": "-11.93%",
+          "stdDevsFromMean": "-0.42",
+          "status": "PASS"
+        },
+        {
+          "percentage": 41,
+          "count": 5,
+          "expected": 12.49,
+          "deviation": "-59.97%",
+          "stdDevsFromMean": "-2.12",
+          "status": "WARNING"
+        },
+        {
+          "percentage": 42,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 43,
+          "count": 20,
+          "expected": 12.49,
+          "deviation": "60.13%",
+          "stdDevsFromMean": "2.12",
+          "status": "WARNING"
+        },
+        {
+          "percentage": 44,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 45,
+          "count": 16,
+          "expected": 12.49,
+          "deviation": "28.10%",
+          "stdDevsFromMean": "0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 46,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 47,
+          "count": 11,
+          "expected": 12.49,
+          "deviation": "-11.93%",
+          "stdDevsFromMean": "-0.42",
+          "status": "PASS"
+        },
+        {
+          "percentage": 48,
+          "count": 9,
+          "expected": 12.49,
+          "deviation": "-27.94%",
+          "stdDevsFromMean": "-0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 49,
+          "count": 9,
+          "expected": 12.49,
+          "deviation": "-27.94%",
+          "stdDevsFromMean": "-0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 50,
+          "count": 16,
+          "expected": 12.49,
+          "deviation": "28.10%",
+          "stdDevsFromMean": "0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 51,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 52,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 53,
+          "count": 9,
+          "expected": 12.49,
+          "deviation": "-27.94%",
+          "stdDevsFromMean": "-0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 54,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 55,
+          "count": 11,
+          "expected": 12.49,
+          "deviation": "-11.93%",
+          "stdDevsFromMean": "-0.42",
+          "status": "PASS"
+        },
+        {
+          "percentage": 56,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 57,
+          "count": 18,
+          "expected": 12.49,
+          "deviation": "44.12%",
+          "stdDevsFromMean": "1.56",
+          "status": "PASS"
+        },
+        {
+          "percentage": 58,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 59,
+          "count": 18,
+          "expected": 12.49,
+          "deviation": "44.12%",
+          "stdDevsFromMean": "1.56",
+          "status": "PASS"
+        },
+        {
+          "percentage": 60,
+          "count": 15,
+          "expected": 12.49,
+          "deviation": "20.10%",
+          "stdDevsFromMean": "0.71",
+          "status": "PASS"
+        },
+        {
+          "percentage": 61,
+          "count": 16,
+          "expected": 12.49,
+          "deviation": "28.10%",
+          "stdDevsFromMean": "0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 62,
+          "count": 9,
+          "expected": 12.49,
+          "deviation": "-27.94%",
+          "stdDevsFromMean": "-0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 63,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 64,
+          "count": 15,
+          "expected": 12.49,
+          "deviation": "20.10%",
+          "stdDevsFromMean": "0.71",
+          "status": "PASS"
+        },
+        {
+          "percentage": 65,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 66,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 67,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 68,
+          "count": 19,
+          "expected": 12.49,
+          "deviation": "52.12%",
+          "stdDevsFromMean": "1.84",
+          "status": "PASS"
+        },
+        {
+          "percentage": 69,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 70,
+          "count": 17,
+          "expected": 12.49,
+          "deviation": "36.11%",
+          "stdDevsFromMean": "1.28",
+          "status": "PASS"
+        },
+        {
+          "percentage": 71,
+          "count": 7,
+          "expected": 12.49,
+          "deviation": "-43.96%",
+          "stdDevsFromMean": "-1.55",
+          "status": "PASS"
+        },
+        {
+          "percentage": 72,
+          "count": 8,
+          "expected": 12.49,
+          "deviation": "-35.95%",
+          "stdDevsFromMean": "-1.27",
+          "status": "PASS"
+        },
+        {
+          "percentage": 73,
+          "count": 11,
+          "expected": 12.49,
+          "deviation": "-11.93%",
+          "stdDevsFromMean": "-0.42",
+          "status": "PASS"
+        },
+        {
+          "percentage": 74,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 75,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 76,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 77,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 78,
+          "count": 15,
+          "expected": 12.49,
+          "deviation": "20.10%",
+          "stdDevsFromMean": "0.71",
+          "status": "PASS"
+        },
+        {
+          "percentage": 79,
+          "count": 11,
+          "expected": 12.49,
+          "deviation": "-11.93%",
+          "stdDevsFromMean": "-0.42",
+          "status": "PASS"
+        },
+        {
+          "percentage": 80,
+          "count": 6,
+          "expected": 12.49,
+          "deviation": "-51.96%",
+          "stdDevsFromMean": "-1.84",
+          "status": "PASS"
+        },
+        {
+          "percentage": 81,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 82,
+          "count": 9,
+          "expected": 12.49,
+          "deviation": "-27.94%",
+          "stdDevsFromMean": "-0.99",
+          "status": "PASS"
+        },
+        {
+          "percentage": 83,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 84,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 85,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 86,
+          "count": 19,
+          "expected": 12.49,
+          "deviation": "52.12%",
+          "stdDevsFromMean": "1.84",
+          "status": "PASS"
+        },
+        {
+          "percentage": 87,
+          "count": 7,
+          "expected": 12.49,
+          "deviation": "-43.96%",
+          "stdDevsFromMean": "-1.55",
+          "status": "PASS"
+        },
+        {
+          "percentage": 88,
+          "count": 7,
+          "expected": 12.49,
+          "deviation": "-43.96%",
+          "stdDevsFromMean": "-1.55",
+          "status": "PASS"
+        },
+        {
+          "percentage": 89,
+          "count": 13,
+          "expected": 12.49,
+          "deviation": "4.08%",
+          "stdDevsFromMean": "0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 90,
+          "count": 8,
+          "expected": 12.49,
+          "deviation": "-35.95%",
+          "stdDevsFromMean": "-1.27",
+          "status": "PASS"
+        },
+        {
+          "percentage": 91,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 92,
+          "count": 8,
+          "expected": 12.49,
+          "deviation": "-35.95%",
+          "stdDevsFromMean": "-1.27",
+          "status": "PASS"
+        },
+        {
+          "percentage": 93,
+          "count": 7,
+          "expected": 12.49,
+          "deviation": "-43.96%",
+          "stdDevsFromMean": "-1.55",
+          "status": "PASS"
+        },
+        {
+          "percentage": 94,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 95,
+          "count": 12,
+          "expected": 12.49,
+          "deviation": "-3.92%",
+          "stdDevsFromMean": "-0.14",
+          "status": "PASS"
+        },
+        {
+          "percentage": 96,
+          "count": 14,
+          "expected": 12.49,
+          "deviation": "12.09%",
+          "stdDevsFromMean": "0.43",
+          "status": "PASS"
+        },
+        {
+          "percentage": 97,
+          "count": 10,
+          "expected": 12.49,
+          "deviation": "-19.94%",
+          "stdDevsFromMean": "-0.70",
+          "status": "PASS"
+        },
+        {
+          "percentage": 98,
+          "count": 18,
+          "expected": 12.49,
+          "deviation": "44.12%",
+          "stdDevsFromMean": "1.56",
+          "status": "PASS"
+        },
+        {
+          "percentage": 99,
+          "count": 18,
+          "expected": 12.49,
+          "deviation": "44.12%",
+          "stdDevsFromMean": "1.56",
+          "status": "PASS"
+        }
+      ]
+    },
+    "qualityIndicators": {
+      "isUniformlyDistributed": true,
+      "hasLowSequentialCorrelation": true,
+      "hasSignificantPercentageDeviations": true,
+      "hasNoSignificantGaps": true,
+      "distributionBias": [
+        {
+          "range": "0-10%",
+          "bias": "-3.92%",
+          "stdDevsFromMean": "-0.44",
+          "status": "PASS"
+        },
+        {
+          "range": "10-20%",
+          "bias": "18.49%",
+          "stdDevsFromMean": "2.07",
+          "status": "WARNING"
+        },
+        {
+          "range": "20-30%",
+          "bias": "-5.52%",
+          "stdDevsFromMean": "-0.62",
+          "status": "PASS"
+        },
+        {
+          "range": "30-40%",
+          "bias": "6.49%",
+          "stdDevsFromMean": "0.72",
+          "status": "PASS"
+        },
+        {
+          "range": "40-50%",
+          "bias": "-8.73%",
+          "stdDevsFromMean": "-0.98",
+          "status": "PASS"
+        },
+        {
+          "range": "50-60%",
+          "bias": "5.68%",
+          "stdDevsFromMean": "0.64",
+          "status": "PASS"
+        },
+        {
+          "range": "60-70%",
+          "bias": "5.68%",
+          "stdDevsFromMean": "0.64",
+          "status": "PASS"
+        },
+        {
+          "range": "70-80%",
+          "bias": "-3.12%",
+          "stdDevsFromMean": "-0.35",
+          "status": "PASS"
+        },
+        {
+          "range": "80-90%",
+          "bias": "-11.93%",
+          "stdDevsFromMean": "-1.33",
+          "status": "PASS"
+        },
+        {
+          "range": "90-100%",
+          "bias": "-3.12%",
+          "stdDevsFromMean": "-0.35",
+          "status": "PASS"
+        }
+      ]
+    },
+    "interpretation": {
+      "chiSquare": {
+        "value": 9.150520416333066,
+        "threshold": 16.92,
+        "status": "PASS",
+        "message": "Distribution appears uniform (within 95% confidence interval)"
+      },
+      "chiSquarePerPoint": {
+        "value": 100.79983987189753,
+        "threshold": 123.225,
+        "status": "PASS",
+        "message": "Percentage point distribution appears uniform (within 95% confidence interval)"
+      },
+      "sequentialCorrelation": {
+        "value": 0.0029357742499719016,
+        "threshold": 0.1,
+        "status": "PASS",
+        "message": "Low correlation between sequential numbers (within acceptable range)"
+      },
+      "significantDeviations": {
+        "count": 4,
+        "threshold": 5,
+        "status": "PASS",
+        "message": "Acceptable number of significant deviations (within 2 standard deviations)"
+      },
+      "ksTest": {
+        "value": 0.02218542834267412,
+        "pValue": 0.5702820031589046,
+        "status": "PASS",
+        "message": "K-S test indicates uniform distribution (p > 0.05)"
+      },
+      "gapTest": {
+        "results": [
+          {
+            "range": "0-10%",
+            "meanGap": 9.369747899159664,
+            "expectedGap": 9,
+            "chiSquare": 5.073724406392924,
+            "pValue": 0.22263369533154076,
+            "status": "PASS"
+          },
+          {
+            "range": "10-20%",
+            "meanGap": 7.292517006802721,
+            "expectedGap": 9,
+            "chiSquare": 8.081820676470226,
+            "pValue": 0.07450071028920435,
+            "status": "PASS"
+          },
+          {
+            "range": "20-30%",
+            "meanGap": 9.615384615384615,
+            "expectedGap": 9,
+            "chiSquare": 2.108463917119874,
+            "pValue": 0.7988575365071143,
+            "status": "PASS"
+          },
+          {
+            "range": "30-40%",
+            "meanGap": 8.393939393939394,
+            "expectedGap": 9,
+            "chiSquare": 2.7939139554131396,
+            "pValue": 0.6549267388446549,
+            "status": "PASS"
+          },
+          {
+            "range": "40-50%",
+            "meanGap": 9.973451327433628,
+            "expectedGap": 9,
+            "chiSquare": 9.9072634571505,
+            "pValue": 0.005332281837612363,
+            "status": "WARNING"
+          },
+          {
+            "range": "50-60%",
+            "meanGap": 8.374045801526718,
+            "expectedGap": 9,
+            "chiSquare": 2.5630775707879963,
+            "pValue": 0.8509967012084192,
+            "status": "PASS"
+          },
+          {
+            "range": "60-70%",
+            "meanGap": 8.366412213740459,
+            "expectedGap": 9,
+            "chiSquare": 10.362417673979122,
+            "pValue": 0.00350383207634275,
+            "status": "WARNING"
+          },
+          {
+            "range": "70-80%",
+            "meanGap": 9.283333333333333,
+            "expectedGap": 9,
+            "chiSquare": 3.983447469474582,
+            "pValue": 0.401271392408158,
+            "status": "PASS"
+          },
+          {
+            "range": "80-90%",
+            "meanGap": 10.385321100917432,
+            "expectedGap": 9,
+            "chiSquare": 2.0129785703913847,
+            "pValue": 0.8170203198700396,
+            "status": "PASS"
+          },
+          {
+            "range": "90-100%",
+            "meanGap": 9.141666666666667,
+            "expectedGap": 9,
+            "chiSquare": 4.630575145911115,
+            "pValue": 0.4756343170746047,
+            "status": "PASS"
+          }
+        ],
+        "status": "PASS",
+        "message": "Gap test indicates no significant clustering or cycles"
+      }
+    },
+    "gapTest": {
+      "results": [
+        {
+          "range": "0-10%",
+          "meanGap": 9.369747899159664,
+          "expectedGap": 9,
+          "chiSquare": 5.073724406392924,
+          "pValue": 0.22263369533154076,
+          "status": "PASS"
+        },
+        {
+          "range": "10-20%",
+          "meanGap": 7.292517006802721,
+          "expectedGap": 9,
+          "chiSquare": 8.081820676470226,
+          "pValue": 0.07450071028920435,
+          "status": "PASS"
+        },
+        {
+          "range": "20-30%",
+          "meanGap": 9.615384615384615,
+          "expectedGap": 9,
+          "chiSquare": 2.108463917119874,
+          "pValue": 0.7988575365071143,
+          "status": "PASS"
+        },
+        {
+          "range": "30-40%",
+          "meanGap": 8.393939393939394,
+          "expectedGap": 9,
+          "chiSquare": 2.7939139554131396,
+          "pValue": 0.6549267388446549,
+          "status": "PASS"
+        },
+        {
+          "range": "40-50%",
+          "meanGap": 9.973451327433628,
+          "expectedGap": 9,
+          "chiSquare": 9.9072634571505,
+          "pValue": 0.005332281837612363,
+          "status": "WARNING"
+        },
+        {
+          "range": "50-60%",
+          "meanGap": 8.374045801526718,
+          "expectedGap": 9,
+          "chiSquare": 2.5630775707879963,
+          "pValue": 0.8509967012084192,
+          "status": "PASS"
+        },
+        {
+          "range": "60-70%",
+          "meanGap": 8.366412213740459,
+          "expectedGap": 9,
+          "chiSquare": 10.362417673979122,
+          "pValue": 0.00350383207634275,
+          "status": "WARNING"
+        },
+        {
+          "range": "70-80%",
+          "meanGap": 9.283333333333333,
+          "expectedGap": 9,
+          "chiSquare": 3.983447469474582,
+          "pValue": 0.401271392408158,
+          "status": "PASS"
+        },
+        {
+          "range": "80-90%",
+          "meanGap": 10.385321100917432,
+          "expectedGap": 9,
+          "chiSquare": 2.0129785703913847,
+          "pValue": 0.8170203198700396,
+          "status": "PASS"
+        },
+        {
+          "range": "90-100%",
+          "meanGap": 9.141666666666667,
+          "expectedGap": 9,
+          "chiSquare": 4.630575145911115,
+          "pValue": 0.4756343170746047,
+          "status": "PASS"
+        }
+      ],
+      "overallStatus": "PASS"
+    }
+  },
+  "percentageAnalysis": {
+    "averageDeviation": 16.072701179146698,
+    "significantDeviations": [
+      {
+        "percentage": 13,
+        "count": 7,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 13,
+        "deviation": -13
+      },
+      {
+        "percentage": 22,
+        "count": 6,
+        "winCount": 2,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 22,
+        "deviation": 11.333333333333329
+      },
+      {
+        "percentage": 23,
+        "count": 8,
+        "winCount": 1,
+        "winRate": 12.5,
+        "expectedWinRate": 23,
+        "deviation": -10.5
+      },
+      {
+        "percentage": 26,
+        "count": 2,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 26,
+        "deviation": -26
+      },
+      {
+        "percentage": 27,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 27,
+        "deviation": -27
+      },
+      {
+        "percentage": 28,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 28,
+        "deviation": -28
+      },
+      {
+        "percentage": 29,
+        "count": 4,
+        "winCount": 2,
+        "winRate": 50,
+        "expectedWinRate": 29,
+        "deviation": 21
+      },
+      {
+        "percentage": 30,
+        "count": 23,
+        "winCount": 4,
+        "winRate": 17.391304347826086,
+        "expectedWinRate": 30,
+        "deviation": -12.608695652173914
+      },
+      {
+        "percentage": 31,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 31,
+        "deviation": -31
+      },
+      {
+        "percentage": 33,
+        "count": 6,
+        "winCount": 1,
+        "winRate": 16.666666666666664,
+        "expectedWinRate": 33,
+        "deviation": -16.333333333333336
+      },
+      {
+        "percentage": 34,
+        "count": 5,
+        "winCount": 1,
+        "winRate": 20,
+        "expectedWinRate": 34,
+        "deviation": -14
+      },
+      {
+        "percentage": 36,
+        "count": 4,
+        "winCount": 3,
+        "winRate": 75,
+        "expectedWinRate": 36,
+        "deviation": 39
+      },
+      {
+        "percentage": 40,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 40,
+        "deviation": -40
+      },
+      {
+        "percentage": 42,
+        "count": 3,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 42,
+        "deviation": -42
+      },
+      {
+        "percentage": 44,
+        "count": 1,
+        "winCount": 1,
+        "winRate": 100,
+        "expectedWinRate": 44,
+        "deviation": 56
+      },
+      {
+        "percentage": 45,
+        "count": 12,
+        "winCount": 3,
+        "winRate": 25,
+        "expectedWinRate": 45,
+        "deviation": -20
+      },
+      {
+        "percentage": 46,
+        "count": 2,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 46,
+        "deviation": -46
+      },
+      {
+        "percentage": 47,
+        "count": 1,
+        "winCount": 1,
+        "winRate": 100,
+        "expectedWinRate": 47,
+        "deviation": 53
+      },
+      {
+        "percentage": 48,
+        "count": 3,
+        "winCount": 1,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 48,
+        "deviation": -14.666666666666671
+      },
+      {
+        "percentage": 49,
+        "count": 3,
+        "winCount": 1,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 49,
+        "deviation": -15.666666666666671
+      },
+      {
+        "percentage": 50,
+        "count": 6,
+        "winCount": 2,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 50,
+        "deviation": -16.66666666666667
+      },
+      {
+        "percentage": 51,
+        "count": 6,
+        "winCount": 2,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 51,
+        "deviation": -17.66666666666667
+      },
+      {
+        "percentage": 58,
+        "count": 1,
+        "winCount": 1,
+        "winRate": 100,
+        "expectedWinRate": 58,
+        "deviation": 42
+      },
+      {
+        "percentage": 59,
+        "count": 4,
+        "winCount": 3,
+        "winRate": 75,
+        "expectedWinRate": 59,
+        "deviation": 16
+      },
+      {
+        "percentage": 61,
+        "count": 1,
+        "winCount": 1,
+        "winRate": 100,
+        "expectedWinRate": 61,
+        "deviation": 39
+      },
+      {
+        "percentage": 63,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 63,
+        "deviation": -63
+      },
+      {
+        "percentage": 65,
+        "count": 3,
+        "winCount": 1,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 65,
+        "deviation": -31.66666666666667
+      },
+      {
+        "percentage": 67,
+        "count": 3,
+        "winCount": 3,
+        "winRate": 100,
+        "expectedWinRate": 67,
+        "deviation": 33
+      },
+      {
+        "percentage": 73,
+        "count": 4,
+        "winCount": 4,
+        "winRate": 100,
+        "expectedWinRate": 73,
+        "deviation": 27
+      },
+      {
+        "percentage": 75,
+        "count": 27,
+        "winCount": 24,
+        "winRate": 88.88888888888889,
+        "expectedWinRate": 75,
+        "deviation": 13.888888888888886
+      }
+    ],
+    "detailedAnalysis": [
+      {
+        "percentage": 1,
+        "count": 594,
+        "winCount": 10,
+        "winRate": 1.6835016835016834,
+        "expectedWinRate": 1,
+        "deviation": 0.6835016835016834
+      },
+      {
+        "percentage": 2,
+        "count": 43,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 2,
+        "deviation": -2
+      },
+      {
+        "percentage": 3,
+        "count": 24,
+        "winCount": 1,
+        "winRate": 4.166666666666666,
+        "expectedWinRate": 3,
+        "deviation": 1.166666666666666
+      },
+      {
+        "percentage": 4,
+        "count": 26,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 4,
+        "deviation": -4
+      },
+      {
+        "percentage": 5,
+        "count": 37,
+        "winCount": 2,
+        "winRate": 5.405405405405405,
+        "expectedWinRate": 5,
+        "deviation": 0.40540540540540526
+      },
+      {
+        "percentage": 6,
+        "count": 29,
+        "winCount": 4,
+        "winRate": 13.793103448275861,
+        "expectedWinRate": 6,
+        "deviation": 7.793103448275861
+      },
+      {
+        "percentage": 7,
+        "count": 15,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 7,
+        "deviation": -7
+      },
+      {
+        "percentage": 8,
+        "count": 17,
+        "winCount": 3,
+        "winRate": 17.647058823529413,
+        "expectedWinRate": 8,
+        "deviation": 9.647058823529413
+      },
+      {
+        "percentage": 9,
+        "count": 22,
+        "winCount": 1,
+        "winRate": 4.545454545454546,
+        "expectedWinRate": 9,
+        "deviation": -4.454545454545454
+      },
+      {
+        "percentage": 10,
+        "count": 30,
+        "winCount": 2,
+        "winRate": 6.666666666666667,
+        "expectedWinRate": 10,
+        "deviation": -3.333333333333333
+      },
+      {
+        "percentage": 11,
+        "count": 12,
+        "winCount": 2,
+        "winRate": 16.666666666666664,
+        "expectedWinRate": 11,
+        "deviation": 5.666666666666664
+      },
+      {
+        "percentage": 12,
+        "count": 22,
+        "winCount": 4,
+        "winRate": 18.181818181818183,
+        "expectedWinRate": 12,
+        "deviation": 6.181818181818183
+      },
+      {
+        "percentage": 13,
+        "count": 7,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 13,
+        "deviation": -13
+      },
+      {
+        "percentage": 14,
+        "count": 19,
+        "winCount": 4,
+        "winRate": 21.052631578947366,
+        "expectedWinRate": 14,
+        "deviation": 7.052631578947366
+      },
+      {
+        "percentage": 15,
+        "count": 37,
+        "winCount": 6,
+        "winRate": 16.216216216216218,
+        "expectedWinRate": 15,
+        "deviation": 1.2162162162162176
+      },
+      {
+        "percentage": 16,
+        "count": 9,
+        "winCount": 2,
+        "winRate": 22.22222222222222,
+        "expectedWinRate": 16,
+        "deviation": 6.222222222222221
+      },
+      {
+        "percentage": 17,
+        "count": 16,
+        "winCount": 4,
+        "winRate": 25,
+        "expectedWinRate": 17,
+        "deviation": 8
+      },
+      {
+        "percentage": 18,
+        "count": 15,
+        "winCount": 4,
+        "winRate": 26.666666666666668,
+        "expectedWinRate": 18,
+        "deviation": 8.666666666666668
+      },
+      {
+        "percentage": 19,
+        "count": 17,
+        "winCount": 4,
+        "winRate": 23.52941176470588,
+        "expectedWinRate": 19,
+        "deviation": 4.5294117647058805
+      },
+      {
+        "percentage": 20,
+        "count": 40,
+        "winCount": 8,
+        "winRate": 20,
+        "expectedWinRate": 20,
+        "deviation": 0
+      },
+      {
+        "percentage": 21,
+        "count": 24,
+        "winCount": 5,
+        "winRate": 20.833333333333336,
+        "expectedWinRate": 21,
+        "deviation": -0.1666666666666643
+      },
+      {
+        "percentage": 22,
+        "count": 6,
+        "winCount": 2,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 22,
+        "deviation": 11.333333333333329
+      },
+      {
+        "percentage": 23,
+        "count": 8,
+        "winCount": 1,
+        "winRate": 12.5,
+        "expectedWinRate": 23,
+        "deviation": -10.5
+      },
+      {
+        "percentage": 24,
+        "count": 5,
+        "winCount": 1,
+        "winRate": 20,
+        "expectedWinRate": 24,
+        "deviation": -4
+      },
+      {
+        "percentage": 25,
+        "count": 3,
+        "winCount": 1,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 25,
+        "deviation": 8.333333333333329
+      },
+      {
+        "percentage": 26,
+        "count": 2,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 26,
+        "deviation": -26
+      },
+      {
+        "percentage": 27,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 27,
+        "deviation": -27
+      },
+      {
+        "percentage": 28,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 28,
+        "deviation": -28
+      },
+      {
+        "percentage": 29,
+        "count": 4,
+        "winCount": 2,
+        "winRate": 50,
+        "expectedWinRate": 29,
+        "deviation": 21
+      },
+      {
+        "percentage": 30,
+        "count": 23,
+        "winCount": 4,
+        "winRate": 17.391304347826086,
+        "expectedWinRate": 30,
+        "deviation": -12.608695652173914
+      },
+      {
+        "percentage": 31,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 31,
+        "deviation": -31
+      },
+      {
+        "percentage": 32,
+        "count": 16,
+        "winCount": 5,
+        "winRate": 31.25,
+        "expectedWinRate": 32,
+        "deviation": -0.75
+      },
+      {
+        "percentage": 33,
+        "count": 6,
+        "winCount": 1,
+        "winRate": 16.666666666666664,
+        "expectedWinRate": 33,
+        "deviation": -16.333333333333336
+      },
+      {
+        "percentage": 34,
+        "count": 5,
+        "winCount": 1,
+        "winRate": 20,
+        "expectedWinRate": 34,
+        "deviation": -14
+      },
+      {
+        "percentage": 36,
+        "count": 4,
+        "winCount": 3,
+        "winRate": 75,
+        "expectedWinRate": 36,
+        "deviation": 39
+      },
+      {
+        "percentage": 37,
+        "count": 3,
+        "winCount": 1,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 37,
+        "deviation": -3.6666666666666714
+      },
+      {
+        "percentage": 39,
+        "count": 3,
+        "winCount": 1,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 39,
+        "deviation": -5.666666666666671
+      },
+      {
+        "percentage": 40,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 40,
+        "deviation": -40
+      },
+      {
+        "percentage": 42,
+        "count": 3,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 42,
+        "deviation": -42
+      },
+      {
+        "percentage": 44,
+        "count": 1,
+        "winCount": 1,
+        "winRate": 100,
+        "expectedWinRate": 44,
+        "deviation": 56
+      },
+      {
+        "percentage": 45,
+        "count": 12,
+        "winCount": 3,
+        "winRate": 25,
+        "expectedWinRate": 45,
+        "deviation": -20
+      },
+      {
+        "percentage": 46,
+        "count": 2,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 46,
+        "deviation": -46
+      },
+      {
+        "percentage": 47,
+        "count": 1,
+        "winCount": 1,
+        "winRate": 100,
+        "expectedWinRate": 47,
+        "deviation": 53
+      },
+      {
+        "percentage": 48,
+        "count": 3,
+        "winCount": 1,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 48,
+        "deviation": -14.666666666666671
+      },
+      {
+        "percentage": 49,
+        "count": 3,
+        "winCount": 1,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 49,
+        "deviation": -15.666666666666671
+      },
+      {
+        "percentage": 50,
+        "count": 6,
+        "winCount": 2,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 50,
+        "deviation": -16.66666666666667
+      },
+      {
+        "percentage": 51,
+        "count": 6,
+        "winCount": 2,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 51,
+        "deviation": -17.66666666666667
+      },
+      {
+        "percentage": 52,
+        "count": 2,
+        "winCount": 1,
+        "winRate": 50,
+        "expectedWinRate": 52,
+        "deviation": -2
+      },
+      {
+        "percentage": 57,
+        "count": 2,
+        "winCount": 1,
+        "winRate": 50,
+        "expectedWinRate": 57,
+        "deviation": -7
+      },
+      {
+        "percentage": 58,
+        "count": 1,
+        "winCount": 1,
+        "winRate": 100,
+        "expectedWinRate": 58,
+        "deviation": 42
+      },
+      {
+        "percentage": 59,
+        "count": 4,
+        "winCount": 3,
+        "winRate": 75,
+        "expectedWinRate": 59,
+        "deviation": 16
+      },
+      {
+        "percentage": 60,
+        "count": 7,
+        "winCount": 4,
+        "winRate": 57.14285714285714,
+        "expectedWinRate": 60,
+        "deviation": -2.857142857142861
+      },
+      {
+        "percentage": 61,
+        "count": 1,
+        "winCount": 1,
+        "winRate": 100,
+        "expectedWinRate": 61,
+        "deviation": 39
+      },
+      {
+        "percentage": 63,
+        "count": 1,
+        "winCount": 0,
+        "winRate": 0,
+        "expectedWinRate": 63,
+        "deviation": -63
+      },
+      {
+        "percentage": 65,
+        "count": 3,
+        "winCount": 1,
+        "winRate": 33.33333333333333,
+        "expectedWinRate": 65,
+        "deviation": -31.66666666666667
+      },
+      {
+        "percentage": 67,
+        "count": 3,
+        "winCount": 3,
+        "winRate": 100,
+        "expectedWinRate": 67,
+        "deviation": 33
+      },
+      {
+        "percentage": 69,
+        "count": 3,
+        "winCount": 2,
+        "winRate": 66.66666666666666,
+        "expectedWinRate": 69,
+        "deviation": -2.333333333333343
+      },
+      {
+        "percentage": 73,
+        "count": 4,
+        "winCount": 4,
+        "winRate": 100,
+        "expectedWinRate": 73,
+        "deviation": 27
+      },
+      {
+        "percentage": 74,
+        "count": 7,
+        "winCount": 5,
+        "winRate": 71.42857142857143,
+        "expectedWinRate": 74,
+        "deviation": -2.5714285714285694
+      },
+      {
+        "percentage": 75,
+        "count": 27,
+        "winCount": 24,
+        "winRate": 88.88888888888889,
+        "expectedWinRate": 75,
+        "deviation": 13.888888888888886
+      }
+    ],
+    "rngVsOddsAnalysis": [
+      {
+        "percentage": 1,
+        "correlation": -0.04460252345995352,
+        "count": 594
+      },
+      {
+        "percentage": 2,
+        "correlation": 0.02316971588514637,
+        "count": 43
+      },
+      {
+        "percentage": 3,
+        "correlation": 0.19158729835887175,
+        "count": 24
+      },
+      {
+        "percentage": 4,
+        "correlation": 0.14301532546501622,
+        "count": 26
+      },
+      {
+        "percentage": 5,
+        "correlation": -0.018467248491993868,
+        "count": 37
+      },
+      {
+        "percentage": 6,
+        "correlation": -0.18179822969062978,
+        "count": 29
+      },
+      {
+        "percentage": 7,
+        "correlation": -0.3159117210031639,
+        "count": 15
+      },
+      {
+        "percentage": 8,
+        "correlation": -0.10674422949782406,
+        "count": 17
+      },
+      {
+        "percentage": 9,
+        "correlation": 0.2831712619421216,
+        "count": 22
+      },
+      {
+        "percentage": 10,
+        "correlation": 0.20496633459629748,
+        "count": 30
+      },
+      {
+        "percentage": 11,
+        "correlation": -0.4603562485581707,
+        "count": 12
+      },
+      {
+        "percentage": 12,
+        "correlation": -0.22387496185543465,
+        "count": 22
+      },
+      {
+        "percentage": 13,
+        "correlation": 0.6889502708799782,
+        "count": 7
+      },
+      {
+        "percentage": 14,
+        "correlation": 0.11979599812189771,
+        "count": 19
+      },
+      {
+        "percentage": 15,
+        "correlation": 0.011344706282345006,
+        "count": 37
+      },
+      {
+        "percentage": 16,
+        "correlation": -0.390441919141385,
+        "count": 9
+      },
+      {
+        "percentage": 17,
+        "correlation": -0.35747401311842675,
+        "count": 16
+      },
+      {
+        "percentage": 18,
+        "correlation": 0.005067323518557739,
+        "count": 15
+      },
+      {
+        "percentage": 19,
+        "correlation": 0.10379841498688812,
+        "count": 17
+      },
+      {
+        "percentage": 20,
+        "correlation": 0.12259219207338899,
+        "count": 40
+      },
+      {
+        "percentage": 21,
+        "correlation": 0.2116559060252802,
+        "count": 24
+      },
+      {
+        "percentage": 22,
+        "correlation": -0.10196471385608857,
+        "count": 6
+      },
+      {
+        "percentage": 23,
+        "correlation": 0.6870612489259007,
+        "count": 8
+      },
+      {
+        "percentage": 24,
+        "correlation": -0.43477203075641535,
+        "count": 5
+      },
+      {
+        "percentage": 25,
+        "correlation": 0.6601168762457915,
+        "count": 3
+      },
+      {
+        "percentage": 26,
+        "correlation": 1,
+        "count": 2
+      },
+      {
+        "percentage": 27,
+        "correlation": 0,
+        "count": 1
+      },
+      {
+        "percentage": 28,
+        "correlation": 0,
+        "count": 1
+      },
+      {
+        "percentage": 29,
+        "correlation": 0.8055478073178416,
+        "count": 4
+      },
+      {
+        "percentage": 30,
+        "correlation": 0.007857377002507819,
+        "count": 23
+      },
+      {
+        "percentage": 31,
+        "correlation": 0,
+        "count": 1
+      },
+      {
+        "percentage": 32,
+        "correlation": -0.248414710278385,
+        "count": 16
+      },
+      {
+        "percentage": 33,
+        "correlation": 0.2765693915504518,
+        "count": 6
+      },
+      {
+        "percentage": 34,
+        "correlation": -0.37022155133430484,
+        "count": 5
+      },
+      {
+        "percentage": 36,
+        "correlation": 0.47215225872757666,
+        "count": 4
+      },
+      {
+        "percentage": 37,
+        "correlation": -0.7039204933798779,
+        "count": 3
+      },
+      {
+        "percentage": 39,
+        "correlation": 0.6338288199344053,
+        "count": 3
+      },
+      {
+        "percentage": 40,
+        "correlation": 0,
+        "count": 1
+      },
+      {
+        "percentage": 42,
+        "correlation": -0.6361975643847231,
+        "count": 3
+      },
+      {
+        "percentage": 44,
+        "correlation": 0,
+        "count": 1
+      },
+      {
+        "percentage": 45,
+        "correlation": -0.25877595977151335,
+        "count": 12
+      },
+      {
+        "percentage": 46,
+        "correlation": -1,
+        "count": 2
+      },
+      {
+        "percentage": 47,
+        "correlation": 0,
+        "count": 1
+      },
+      {
+        "percentage": 48,
+        "correlation": -0.9877665726219875,
+        "count": 3
+      },
+      {
+        "percentage": 49,
+        "correlation": 0.09161306801223404,
+        "count": 3
+      },
+      {
+        "percentage": 50,
+        "correlation": -0.6377918837897849,
+        "count": 6
+      },
+      {
+        "percentage": 51,
+        "correlation": 0.2863676139631932,
+        "count": 6
+      },
+      {
+        "percentage": 52,
+        "correlation": -1,
+        "count": 2
+      },
+      {
+        "percentage": 57,
+        "correlation": -1,
+        "count": 2
+      },
+      {
+        "percentage": 58,
+        "correlation": 0,
+        "count": 1
+      },
+      {
+        "percentage": 59,
+        "correlation": -0.9363342261069527,
+        "count": 4
+      },
+      {
+        "percentage": 60,
+        "correlation": 0.6301670924095839,
+        "count": 7
+      },
+      {
+        "percentage": 61,
+        "correlation": 0,
+        "count": 1
+      },
+      {
+        "percentage": 63,
+        "correlation": 0,
+        "count": 1
+      },
+      {
+        "percentage": 65,
+        "correlation": -0.30788998747008045,
+        "count": 3
+      },
+      {
+        "percentage": 67,
+        "correlation": -0.9080273126384486,
+        "count": 3
+      },
+      {
+        "percentage": 69,
+        "correlation": -0.18673424416648138,
+        "count": 3
+      },
+      {
+        "percentage": 73,
+        "correlation": 0.28139879962213715,
+        "count": 4
+      },
+      {
+        "percentage": 74,
+        "correlation": 0.06938158993165228,
+        "count": 7
+      },
+      {
+        "percentage": 75,
+        "correlation": -0.32504560551629297,
+        "count": 27
+      }
+    ],
+    "winRateConfidenceIntervals": [
+      {
+        "percentage": 1,
+        "lowerBound": 0.6488770188502193,
+        "upperBound": 2.718126348153148,
+        "expectedRate": 1,
+        "isSignificant": false
+      },
+      {
+        "percentage": 2,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 2,
+        "isSignificant": true
+      },
+      {
+        "percentage": 3,
+        "lowerBound": -3.8280509180425804,
+        "upperBound": 12.161384251375912,
+        "expectedRate": 3,
+        "isSignificant": false
+      },
+      {
+        "percentage": 4,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 4,
+        "isSignificant": true
+      },
+      {
+        "percentage": 5,
+        "lowerBound": -1.880818370781289,
+        "upperBound": 12.691629181592099,
+        "expectedRate": 5,
+        "isSignificant": false
+      },
+      {
+        "percentage": 6,
+        "lowerBound": 1.2426599025164964,
+        "upperBound": 26.34354699403523,
+        "expectedRate": 6,
+        "isSignificant": false
+      },
+      {
+        "percentage": 7,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 7,
+        "isSignificant": true
+      },
+      {
+        "percentage": 8,
+        "lowerBound": -0.4749916007884297,
+        "upperBound": 35.769109247847254,
+        "expectedRate": 8,
+        "isSignificant": false
+      },
+      {
+        "percentage": 9,
+        "lowerBound": -4.158802295454786,
+        "upperBound": 13.249711386363877,
+        "expectedRate": 9,
+        "isSignificant": false
+      },
+      {
+        "percentage": 10,
+        "lowerBound": -2.2595660005692504,
+        "upperBound": 15.592899333902583,
+        "expectedRate": 10,
+        "isSignificant": false
+      },
+      {
+        "percentage": 11,
+        "lowerBound": -4.41957599601816,
+        "upperBound": 37.75290932935149,
+        "expectedRate": 11,
+        "isSignificant": false
+      },
+      {
+        "percentage": 12,
+        "lowerBound": 2.064666308025001,
+        "upperBound": 34.29897005561136,
+        "expectedRate": 12,
+        "isSignificant": false
+      },
+      {
+        "percentage": 13,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 13,
+        "isSignificant": true
+      },
+      {
+        "percentage": 14,
+        "lowerBound": 2.720992625139668,
+        "upperBound": 39.38427053275507,
+        "expectedRate": 14,
+        "isSignificant": false
+      },
+      {
+        "percentage": 15,
+        "lowerBound": 4.339128678499918,
+        "upperBound": 28.09330375393252,
+        "expectedRate": 15,
+        "isSignificant": false
+      },
+      {
+        "percentage": 16,
+        "lowerBound": -4.939438807692315,
+        "upperBound": 49.383883252136755,
+        "expectedRate": 16,
+        "isSignificant": false
+      },
+      {
+        "percentage": 17,
+        "lowerBound": 3.7823776072812536,
+        "upperBound": 46.21762239271875,
+        "expectedRate": 17,
+        "isSignificant": false
+      },
+      {
+        "percentage": 18,
+        "lowerBound": 4.28741701850342,
+        "upperBound": 49.04591631482991,
+        "expectedRate": 18,
+        "isSignificant": false
+      },
+      {
+        "percentage": 19,
+        "lowerBound": 3.365055539969361,
+        "upperBound": 43.6937679894424,
+        "expectedRate": 19,
+        "isSignificant": false
+      },
+      {
+        "percentage": 20,
+        "lowerBound": 7.603871572139953,
+        "upperBound": 32.39612842786005,
+        "expectedRate": 20,
+        "isSignificant": false
+      },
+      {
+        "percentage": 21,
+        "lowerBound": 4.585292140851315,
+        "upperBound": 37.081374525815356,
+        "expectedRate": 21,
+        "isSignificant": false
+      },
+      {
+        "percentage": 22,
+        "lowerBound": -4.386884253722223,
+        "upperBound": 71.05355092038887,
+        "expectedRate": 22,
+        "isSignificant": false
+      },
+      {
+        "percentage": 23,
+        "lowerBound": -10.417651493990391,
+        "upperBound": 35.41765149399039,
+        "expectedRate": 23,
+        "isSignificant": false
+      },
+      {
+        "percentage": 24,
+        "lowerBound": -15.06154588719671,
+        "upperBound": 55.061545887196715,
+        "expectedRate": 24,
+        "isSignificant": false
+      },
+      {
+        "percentage": 25,
+        "lowerBound": -20.01110995394477,
+        "upperBound": 86.67777662061143,
+        "expectedRate": 25,
+        "isSignificant": false
+      },
+      {
+        "percentage": 26,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 26,
+        "isSignificant": true
+      },
+      {
+        "percentage": 27,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 27,
+        "isSignificant": true
+      },
+      {
+        "percentage": 28,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 28,
+        "isSignificant": true
+      },
+      {
+        "percentage": 29,
+        "lowerBound": 1.0000000000000009,
+        "upperBound": 99,
+        "expectedRate": 29,
+        "isSignificant": false
+      },
+      {
+        "percentage": 30,
+        "lowerBound": 1.9006018441137722,
+        "upperBound": 32.88200685153841,
+        "expectedRate": 30,
+        "isSignificant": false
+      },
+      {
+        "percentage": 31,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 31,
+        "isSignificant": true
+      },
+      {
+        "percentage": 32,
+        "lowerBound": 8.537892133269532,
+        "upperBound": 53.96210786673047,
+        "expectedRate": 32,
+        "isSignificant": false
+      },
+      {
+        "percentage": 33,
+        "lowerBound": -13.153783686392378,
+        "upperBound": 46.4871170197257,
+        "expectedRate": 33,
+        "isSignificant": false
+      },
+      {
+        "percentage": 34,
+        "lowerBound": -15.06154588719671,
+        "upperBound": 55.061545887196715,
+        "expectedRate": 34,
+        "isSignificant": false
+      },
+      {
+        "percentage": 36,
+        "lowerBound": 32.56475521456251,
+        "upperBound": 117.4352447854375,
+        "expectedRate": 36,
+        "isSignificant": false
+      },
+      {
+        "percentage": 37,
+        "lowerBound": -20.01110995394477,
+        "upperBound": 86.67777662061143,
+        "expectedRate": 37,
+        "isSignificant": false
+      },
+      {
+        "percentage": 39,
+        "lowerBound": -20.01110995394477,
+        "upperBound": 86.67777662061143,
+        "expectedRate": 39,
+        "isSignificant": false
+      },
+      {
+        "percentage": 40,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 40,
+        "isSignificant": true
+      },
+      {
+        "percentage": 42,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 42,
+        "isSignificant": true
+      },
+      {
+        "percentage": 44,
+        "lowerBound": 100,
+        "upperBound": 100,
+        "expectedRate": 44,
+        "isSignificant": true
+      },
+      {
+        "percentage": 45,
+        "lowerBound": 0.5000000000000004,
+        "upperBound": 49.5,
+        "expectedRate": 45,
+        "isSignificant": false
+      },
+      {
+        "percentage": 46,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 46,
+        "isSignificant": true
+      },
+      {
+        "percentage": 47,
+        "lowerBound": 100,
+        "upperBound": 100,
+        "expectedRate": 47,
+        "isSignificant": true
+      },
+      {
+        "percentage": 48,
+        "lowerBound": -20.01110995394477,
+        "upperBound": 86.67777662061143,
+        "expectedRate": 48,
+        "isSignificant": false
+      },
+      {
+        "percentage": 49,
+        "lowerBound": -20.01110995394477,
+        "upperBound": 86.67777662061143,
+        "expectedRate": 49,
+        "isSignificant": false
+      },
+      {
+        "percentage": 50,
+        "lowerBound": -4.386884253722223,
+        "upperBound": 71.05355092038887,
+        "expectedRate": 50,
+        "isSignificant": false
+      },
+      {
+        "percentage": 51,
+        "lowerBound": -4.386884253722223,
+        "upperBound": 71.05355092038887,
+        "expectedRate": 51,
+        "isSignificant": false
+      },
+      {
+        "percentage": 52,
+        "lowerBound": -19.296464556281656,
+        "upperBound": 119.29646455628165,
+        "expectedRate": 52,
+        "isSignificant": false
+      },
+      {
+        "percentage": 57,
+        "lowerBound": -19.296464556281656,
+        "upperBound": 119.29646455628165,
+        "expectedRate": 57,
+        "isSignificant": false
+      },
+      {
+        "percentage": 58,
+        "lowerBound": 100,
+        "upperBound": 100,
+        "expectedRate": 58,
+        "isSignificant": true
+      },
+      {
+        "percentage": 59,
+        "lowerBound": 32.56475521456251,
+        "upperBound": 117.4352447854375,
+        "expectedRate": 59,
+        "isSignificant": false
+      },
+      {
+        "percentage": 60,
+        "lowerBound": 20.48225158321042,
+        "upperBound": 93.80346270250386,
+        "expectedRate": 60,
+        "isSignificant": false
+      },
+      {
+        "percentage": 61,
+        "lowerBound": 100,
+        "upperBound": 100,
+        "expectedRate": 61,
+        "isSignificant": true
+      },
+      {
+        "percentage": 63,
+        "lowerBound": 0,
+        "upperBound": 0,
+        "expectedRate": 63,
+        "isSignificant": true
+      },
+      {
+        "percentage": 65,
+        "lowerBound": -20.01110995394477,
+        "upperBound": 86.67777662061143,
+        "expectedRate": 65,
+        "isSignificant": false
+      },
+      {
+        "percentage": 67,
+        "lowerBound": 100,
+        "upperBound": 100,
+        "expectedRate": 67,
+        "isSignificant": true
+      },
+      {
+        "percentage": 69,
+        "lowerBound": 13.322223379388554,
+        "upperBound": 120.01110995394475,
+        "expectedRate": 69,
+        "isSignificant": false
+      },
+      {
+        "percentage": 73,
+        "lowerBound": 100,
+        "upperBound": 100,
+        "expectedRate": 73,
+        "isSignificant": true
+      },
+      {
+        "percentage": 74,
+        "lowerBound": 37.96217036720841,
+        "upperBound": 104.89497248993445,
+        "expectedRate": 74,
+        "isSignificant": false
+      },
+      {
+        "percentage": 75,
+        "lowerBound": 77.03456815838263,
+        "upperBound": 100.74320961939513,
+        "expectedRate": 75,
+        "isSignificant": true
+      }
+    ]
+  },
+  "additionalAnalysis": {
+    "runsTest": {
+      "zScore": -2.9459697621629704,
+      "pValue": 0.00003098625369846175,
+      "interpretation": "Non-random pattern detected (p < 0.05)"
+    },
+    "autocorrelation": [
+      0.0029358442770442894,
+      -0.010007036068044588,
+      0.021682251727578754,
+      -0.03162470715321116,
+      -0.0006803920049384741,
+      0.010645752990310153,
+      -0.024539957258542234,
+      -0.07915317799489144,
+      0.05514713955960127,
+      -0.004499708981808649
+    ]
+  }
+}
