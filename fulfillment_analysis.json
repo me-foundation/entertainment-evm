@@ -951,6 +951,7 @@
       "hasLowSequentialCorrelation": true,
       "hasSignificantPercentageDeviations": true,
       "hasNoSignificantGaps": true,
+      "hasRandomDigits": false,
       "distributionBias": [
         {
           "range": "0-10%",
@@ -1130,92 +1131,48 @@
         ],
         "status": "PASS",
         "message": "Gap test indicates no significant clustering or cycles"
+      },
+      "pokerTest": {
+        "results": [
+          {
+            "pattern": "Four of a Kind",
+            "observed": 0,
+            "expected": 0.12490000000000001,
+            "deviation": -100,
+            "status": "WARNING"
+          },
+          {
+            "pattern": "Three of a Kind",
+            "observed": 39,
+            "expected": 4.996,
+            "deviation": 680.6244995996797,
+            "status": "WARNING"
+          },
+          {
+            "pattern": "Two Pairs",
+            "observed": 11,
+            "expected": 33.723,
+            "deviation": -67.38131245737331,
+            "status": "WARNING"
+          },
+          {
+            "pattern": "One Pair",
+            "observed": 301,
+            "expected": 539.568,
+            "deviation": -44.21463096403048,
+            "status": "WARNING"
+          },
+          {
+            "pattern": "No Pattern",
+            "observed": 898,
+            "expected": 670.5881,
+            "deviation": 33.912307719149794,
+            "status": "WARNING"
+          }
+        ],
+        "status": "WARNING",
+        "message": "Poker test indicates potential digit patterns"
       }
-    },
-    "gapTest": {
-      "results": [
-        {
-          "range": "0-10%",
-          "meanGap": 9.369747899159664,
-          "expectedGap": 9,
-          "chiSquare": 5.073724406392924,
-          "pValue": 0.22263369533154076,
-          "status": "PASS"
-        },
-        {
-          "range": "10-20%",
-          "meanGap": 7.292517006802721,
-          "expectedGap": 9,
-          "chiSquare": 8.081820676470226,
-          "pValue": 0.07450071028920435,
-          "status": "PASS"
-        },
-        {
-          "range": "20-30%",
-          "meanGap": 9.615384615384615,
-          "expectedGap": 9,
-          "chiSquare": 2.108463917119874,
-          "pValue": 0.7988575365071143,
-          "status": "PASS"
-        },
-        {
-          "range": "30-40%",
-          "meanGap": 8.393939393939394,
-          "expectedGap": 9,
-          "chiSquare": 2.7939139554131396,
-          "pValue": 0.6549267388446549,
-          "status": "PASS"
-        },
-        {
-          "range": "40-50%",
-          "meanGap": 9.973451327433628,
-          "expectedGap": 9,
-          "chiSquare": 9.9072634571505,
-          "pValue": 0.005332281837612363,
-          "status": "WARNING"
-        },
-        {
-          "range": "50-60%",
-          "meanGap": 8.374045801526718,
-          "expectedGap": 9,
-          "chiSquare": 2.5630775707879963,
-          "pValue": 0.8509967012084192,
-          "status": "PASS"
-        },
-        {
-          "range": "60-70%",
-          "meanGap": 8.366412213740459,
-          "expectedGap": 9,
-          "chiSquare": 10.362417673979122,
-          "pValue": 0.00350383207634275,
-          "status": "WARNING"
-        },
-        {
-          "range": "70-80%",
-          "meanGap": 9.283333333333333,
-          "expectedGap": 9,
-          "chiSquare": 3.983447469474582,
-          "pValue": 0.401271392408158,
-          "status": "PASS"
-        },
-        {
-          "range": "80-90%",
-          "meanGap": 10.385321100917432,
-          "expectedGap": 9,
-          "chiSquare": 2.0129785703913847,
-          "pValue": 0.8170203198700396,
-          "status": "PASS"
-        },
-        {
-          "range": "90-100%",
-          "meanGap": 9.141666666666667,
-          "expectedGap": 9,
-          "chiSquare": 4.630575145911115,
-          "pValue": 0.4756343170746047,
-          "status": "PASS"
-        }
-      ],
-      "overallStatus": "PASS"
     }
   },
   "percentageAnalysis": {
@@ -2245,447 +2202,6 @@
         "correlation": -0.32504560551629297,
         "count": 27
       }
-    ],
-    "winRateConfidenceIntervals": [
-      {
-        "percentage": 1,
-        "lowerBound": 0.6488770188502193,
-        "upperBound": 2.718126348153148,
-        "expectedRate": 1,
-        "isSignificant": false
-      },
-      {
-        "percentage": 2,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 2,
-        "isSignificant": true
-      },
-      {
-        "percentage": 3,
-        "lowerBound": -3.8280509180425804,
-        "upperBound": 12.161384251375912,
-        "expectedRate": 3,
-        "isSignificant": false
-      },
-      {
-        "percentage": 4,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 4,
-        "isSignificant": true
-      },
-      {
-        "percentage": 5,
-        "lowerBound": -1.880818370781289,
-        "upperBound": 12.691629181592099,
-        "expectedRate": 5,
-        "isSignificant": false
-      },
-      {
-        "percentage": 6,
-        "lowerBound": 1.2426599025164964,
-        "upperBound": 26.34354699403523,
-        "expectedRate": 6,
-        "isSignificant": false
-      },
-      {
-        "percentage": 7,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 7,
-        "isSignificant": true
-      },
-      {
-        "percentage": 8,
-        "lowerBound": -0.4749916007884297,
-        "upperBound": 35.769109247847254,
-        "expectedRate": 8,
-        "isSignificant": false
-      },
-      {
-        "percentage": 9,
-        "lowerBound": -4.158802295454786,
-        "upperBound": 13.249711386363877,
-        "expectedRate": 9,
-        "isSignificant": false
-      },
-      {
-        "percentage": 10,
-        "lowerBound": -2.2595660005692504,
-        "upperBound": 15.592899333902583,
-        "expectedRate": 10,
-        "isSignificant": false
-      },
-      {
-        "percentage": 11,
-        "lowerBound": -4.41957599601816,
-        "upperBound": 37.75290932935149,
-        "expectedRate": 11,
-        "isSignificant": false
-      },
-      {
-        "percentage": 12,
-        "lowerBound": 2.064666308025001,
-        "upperBound": 34.29897005561136,
-        "expectedRate": 12,
-        "isSignificant": false
-      },
-      {
-        "percentage": 13,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 13,
-        "isSignificant": true
-      },
-      {
-        "percentage": 14,
-        "lowerBound": 2.720992625139668,
-        "upperBound": 39.38427053275507,
-        "expectedRate": 14,
-        "isSignificant": false
-      },
-      {
-        "percentage": 15,
-        "lowerBound": 4.339128678499918,
-        "upperBound": 28.09330375393252,
-        "expectedRate": 15,
-        "isSignificant": false
-      },
-      {
-        "percentage": 16,
-        "lowerBound": -4.939438807692315,
-        "upperBound": 49.383883252136755,
-        "expectedRate": 16,
-        "isSignificant": false
-      },
-      {
-        "percentage": 17,
-        "lowerBound": 3.7823776072812536,
-        "upperBound": 46.21762239271875,
-        "expectedRate": 17,
-        "isSignificant": false
-      },
-      {
-        "percentage": 18,
-        "lowerBound": 4.28741701850342,
-        "upperBound": 49.04591631482991,
-        "expectedRate": 18,
-        "isSignificant": false
-      },
-      {
-        "percentage": 19,
-        "lowerBound": 3.365055539969361,
-        "upperBound": 43.6937679894424,
-        "expectedRate": 19,
-        "isSignificant": false
-      },
-      {
-        "percentage": 20,
-        "lowerBound": 7.603871572139953,
-        "upperBound": 32.39612842786005,
-        "expectedRate": 20,
-        "isSignificant": false
-      },
-      {
-        "percentage": 21,
-        "lowerBound": 4.585292140851315,
-        "upperBound": 37.081374525815356,
-        "expectedRate": 21,
-        "isSignificant": false
-      },
-      {
-        "percentage": 22,
-        "lowerBound": -4.386884253722223,
-        "upperBound": 71.05355092038887,
-        "expectedRate": 22,
-        "isSignificant": false
-      },
-      {
-        "percentage": 23,
-        "lowerBound": -10.417651493990391,
-        "upperBound": 35.41765149399039,
-        "expectedRate": 23,
-        "isSignificant": false
-      },
-      {
-        "percentage": 24,
-        "lowerBound": -15.06154588719671,
-        "upperBound": 55.061545887196715,
-        "expectedRate": 24,
-        "isSignificant": false
-      },
-      {
-        "percentage": 25,
-        "lowerBound": -20.01110995394477,
-        "upperBound": 86.67777662061143,
-        "expectedRate": 25,
-        "isSignificant": false
-      },
-      {
-        "percentage": 26,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 26,
-        "isSignificant": true
-      },
-      {
-        "percentage": 27,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 27,
-        "isSignificant": true
-      },
-      {
-        "percentage": 28,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 28,
-        "isSignificant": true
-      },
-      {
-        "percentage": 29,
-        "lowerBound": 1.0000000000000009,
-        "upperBound": 99,
-        "expectedRate": 29,
-        "isSignificant": false
-      },
-      {
-        "percentage": 30,
-        "lowerBound": 1.9006018441137722,
-        "upperBound": 32.88200685153841,
-        "expectedRate": 30,
-        "isSignificant": false
-      },
-      {
-        "percentage": 31,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 31,
-        "isSignificant": true
-      },
-      {
-        "percentage": 32,
-        "lowerBound": 8.537892133269532,
-        "upperBound": 53.96210786673047,
-        "expectedRate": 32,
-        "isSignificant": false
-      },
-      {
-        "percentage": 33,
-        "lowerBound": -13.153783686392378,
-        "upperBound": 46.4871170197257,
-        "expectedRate": 33,
-        "isSignificant": false
-      },
-      {
-        "percentage": 34,
-        "lowerBound": -15.06154588719671,
-        "upperBound": 55.061545887196715,
-        "expectedRate": 34,
-        "isSignificant": false
-      },
-      {
-        "percentage": 36,
-        "lowerBound": 32.56475521456251,
-        "upperBound": 117.4352447854375,
-        "expectedRate": 36,
-        "isSignificant": false
-      },
-      {
-        "percentage": 37,
-        "lowerBound": -20.01110995394477,
-        "upperBound": 86.67777662061143,
-        "expectedRate": 37,
-        "isSignificant": false
-      },
-      {
-        "percentage": 39,
-        "lowerBound": -20.01110995394477,
-        "upperBound": 86.67777662061143,
-        "expectedRate": 39,
-        "isSignificant": false
-      },
-      {
-        "percentage": 40,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 40,
-        "isSignificant": true
-      },
-      {
-        "percentage": 42,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 42,
-        "isSignificant": true
-      },
-      {
-        "percentage": 44,
-        "lowerBound": 100,
-        "upperBound": 100,
-        "expectedRate": 44,
-        "isSignificant": true
-      },
-      {
-        "percentage": 45,
-        "lowerBound": 0.5000000000000004,
-        "upperBound": 49.5,
-        "expectedRate": 45,
-        "isSignificant": false
-      },
-      {
-        "percentage": 46,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 46,
-        "isSignificant": true
-      },
-      {
-        "percentage": 47,
-        "lowerBound": 100,
-        "upperBound": 100,
-        "expectedRate": 47,
-        "isSignificant": true
-      },
-      {
-        "percentage": 48,
-        "lowerBound": -20.01110995394477,
-        "upperBound": 86.67777662061143,
-        "expectedRate": 48,
-        "isSignificant": false
-      },
-      {
-        "percentage": 49,
-        "lowerBound": -20.01110995394477,
-        "upperBound": 86.67777662061143,
-        "expectedRate": 49,
-        "isSignificant": false
-      },
-      {
-        "percentage": 50,
-        "lowerBound": -4.386884253722223,
-        "upperBound": 71.05355092038887,
-        "expectedRate": 50,
-        "isSignificant": false
-      },
-      {
-        "percentage": 51,
-        "lowerBound": -4.386884253722223,
-        "upperBound": 71.05355092038887,
-        "expectedRate": 51,
-        "isSignificant": false
-      },
-      {
-        "percentage": 52,
-        "lowerBound": -19.296464556281656,
-        "upperBound": 119.29646455628165,
-        "expectedRate": 52,
-        "isSignificant": false
-      },
-      {
-        "percentage": 57,
-        "lowerBound": -19.296464556281656,
-        "upperBound": 119.29646455628165,
-        "expectedRate": 57,
-        "isSignificant": false
-      },
-      {
-        "percentage": 58,
-        "lowerBound": 100,
-        "upperBound": 100,
-        "expectedRate": 58,
-        "isSignificant": true
-      },
-      {
-        "percentage": 59,
-        "lowerBound": 32.56475521456251,
-        "upperBound": 117.4352447854375,
-        "expectedRate": 59,
-        "isSignificant": false
-      },
-      {
-        "percentage": 60,
-        "lowerBound": 20.48225158321042,
-        "upperBound": 93.80346270250386,
-        "expectedRate": 60,
-        "isSignificant": false
-      },
-      {
-        "percentage": 61,
-        "lowerBound": 100,
-        "upperBound": 100,
-        "expectedRate": 61,
-        "isSignificant": true
-      },
-      {
-        "percentage": 63,
-        "lowerBound": 0,
-        "upperBound": 0,
-        "expectedRate": 63,
-        "isSignificant": true
-      },
-      {
-        "percentage": 65,
-        "lowerBound": -20.01110995394477,
-        "upperBound": 86.67777662061143,
-        "expectedRate": 65,
-        "isSignificant": false
-      },
-      {
-        "percentage": 67,
-        "lowerBound": 100,
-        "upperBound": 100,
-        "expectedRate": 67,
-        "isSignificant": true
-      },
-      {
-        "percentage": 69,
-        "lowerBound": 13.322223379388554,
-        "upperBound": 120.01110995394475,
-        "expectedRate": 69,
-        "isSignificant": false
-      },
-      {
-        "percentage": 73,
-        "lowerBound": 100,
-        "upperBound": 100,
-        "expectedRate": 73,
-        "isSignificant": true
-      },
-      {
-        "percentage": 74,
-        "lowerBound": 37.96217036720841,
-        "upperBound": 104.89497248993445,
-        "expectedRate": 74,
-        "isSignificant": false
-      },
-      {
-        "percentage": 75,
-        "lowerBound": 77.03456815838263,
-        "upperBound": 100.74320961939513,
-        "expectedRate": 75,
-        "isSignificant": true
-      }
-    ]
-  },
-  "additionalAnalysis": {
-    "runsTest": {
-      "zScore": -2.9459697621629704,
-      "pValue": 0.00003098625369846175,
-      "interpretation": "Non-random pattern detected (p < 0.05)"
-    },
-    "autocorrelation": [
-      0.0029358442770442894,
-      -0.010007036068044588,
-      0.021682251727578754,
-      -0.03162470715321116,
-      -0.0006803920049384741,
-      0.010645752990310153,
-      -0.024539957258542234,
-      -0.07915317799489144,
-      0.05514713955960127,
-      -0.004499708981808649
     ]
   }
 }

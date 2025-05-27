@@ -96,32 +96,6 @@ function analyzeFulfillmentData(csvPath: string) {
     (p) => Math.abs(p.correlation) > 0.3
   );
 
-  // New: Calculate confidence intervals for win rates
-  const winRateConfidenceIntervals = validPercentages.map((p) => {
-    const z = 1.96; // 95% confidence level
-    const p_hat = p.winRate / 100;
-    const n = p.count;
-    const margin = z * Math.sqrt((p_hat * (1 - p_hat)) / n);
-    return {
-      percentage: p.percentage,
-      lowerBound: (p_hat - margin) * 100,
-      upperBound: (p_hat + margin) * 100,
-      expectedRate: p.expectedWinRate,
-      isSignificant:
-        p.expectedWinRate < (p_hat - margin) * 100 ||
-        p.expectedWinRate > (p_hat + margin) * 100,
-    };
-  });
-
-  // New: Calculate runs test for randomness
-  const runsTest = calculateRunsTest(events.map((e) => e.win));
-
-  // New: Calculate autocorrelation at different lags
-  const autocorrelation = calculateAutocorrelation(
-    events.map((e) => e.rng),
-    10
-  );
-
   // Export results to JSON
   const results = {
     basicStats: {
@@ -136,18 +110,12 @@ function analyzeFulfillmentData(csvPath: string) {
       percentagePointAnalysis: prngAnalysis.percentagePointAnalysis,
       qualityIndicators: prngAnalysis.qualityIndicators,
       interpretation: prngAnalysis.interpretation,
-      gapTest: prngAnalysis.gapTest,
     },
     percentageAnalysis: {
       averageDeviation: avgDeviation,
       significantDeviations,
       detailedAnalysis: validPercentages,
       rngVsOddsAnalysis: rngVsOddsByPercentage,
-      winRateConfidenceIntervals,
-    },
-    additionalAnalysis: {
-      runsTest,
-      autocorrelation,
     },
   };
 
@@ -217,6 +185,18 @@ function analyzeFulfillmentData(csvPath: string) {
     `\nOverall Gap Test Status: ${prngAnalysis.gapTest.overallStatus}`
   );
 
+  console.log("\nPoker Test Analysis:");
+  prngAnalysis.pokerTest.results.forEach((result) => {
+    console.log(`\n${result.pattern}:`);
+    console.log(`  Observed: ${result.observed}`);
+    console.log(`  Expected: ${result.expected.toFixed(2)}`);
+    console.log(`  Deviation: ${result.deviation.toFixed(2)}%`);
+    console.log(`  Status: ${result.status}`);
+  });
+  console.log(
+    `\nOverall Poker Test Status: ${prngAnalysis.pokerTest.overallStatus}`
+  );
+
   console.log("\n3. Win Rate Analysis");
   console.log("-------------------");
   console.log(
@@ -248,19 +228,7 @@ function analyzeFulfillmentData(csvPath: string) {
     });
   }
 
-  console.log("\n5. Additional Statistical Tests");
-  console.log("-----------------------------");
-  console.log("\nRuns Test for Randomness:");
-  console.log(`Z-score: ${runsTest.zScore.toFixed(2)}`);
-  console.log(`P-value: ${runsTest.pValue.toFixed(4)}`);
-  console.log(`Interpretation: ${runsTest.interpretation}`);
-
-  console.log("\nAutocorrelation Analysis (first 10 lags):");
-  autocorrelation.forEach((ac, lag) => {
-    console.log(`Lag ${lag + 1}: ${ac.toFixed(4)}`);
-  });
-
-  console.log("\n6. Statistical Interpretation");
+  console.log("\n5. Statistical Interpretation");
   console.log("---------------------------");
   console.log("\nKey Findings:");
   console.log(
@@ -275,20 +243,11 @@ function analyzeFulfillmentData(csvPath: string) {
   console.log(
     `4. Significant Deviations: ${prngAnalysis.interpretation.significantDeviations.message}`
   );
-
-  const significantConfidenceIntervals = winRateConfidenceIntervals.filter(
-    (ci) => ci.isSignificant
+  console.log(`5. K-S Test: ${prngAnalysis.interpretation.ksTest.message}`);
+  console.log(`6. Gap Test: ${prngAnalysis.interpretation.gapTest.message}`);
+  console.log(
+    `7. Poker Test: ${prngAnalysis.interpretation.pokerTest.message}`
   );
-  if (significantConfidenceIntervals.length > 0) {
-    console.log("\nWin Rates Outside 95% Confidence Intervals:");
-    significantConfidenceIntervals.forEach((ci) => {
-      console.log(
-        `${ci.percentage}%: ${ci.lowerBound.toFixed(
-          2
-        )}% - ${ci.upperBound.toFixed(2)}% (Expected: ${ci.expectedRate}%)`
-      );
-    });
-  }
 
   console.log(
     "\nAnalysis results have been saved to fulfillment_analysis.json"
@@ -346,6 +305,9 @@ function analyzePRNGPerformance(events: Array<{ rng: number }>) {
 
   // Gap Test Analysis
   const gapTest = performGapTest(rngValues);
+
+  // Poker Test Analysis
+  const pokerTest = performPokerTest(rngValues);
 
   // 1. Distribution Analysis - Percentage Points
   const percentageDistribution = new Array(100).fill(0);
@@ -478,6 +440,14 @@ function analyzePRNGPerformance(events: Array<{ rng: number }>) {
           ? "Gap test indicates no significant clustering or cycles"
           : "Gap test indicates potential clustering or cyclic patterns",
     },
+    pokerTest: {
+      results: pokerTest.results,
+      status: pokerTest.overallStatus,
+      message:
+        pokerTest.overallStatus === "PASS"
+          ? "Poker test indicates random digit distribution"
+          : "Poker test indicates potential digit patterns",
+    },
   };
 
   // PRNG Quality Assessment
@@ -487,6 +457,7 @@ function analyzePRNGPerformance(events: Array<{ rng: number }>) {
     sequentialCorrelation,
     ksTest,
     gapTest,
+    pokerTest,
     percentagePointAnalysis: {
       chiSquareStatistic: chiSquarePerPoint,
       significantDeviations,
@@ -510,6 +481,7 @@ function analyzePRNGPerformance(events: Array<{ rng: number }>) {
       hasLowSequentialCorrelation: Math.abs(sequentialCorrelation) < 0.1,
       hasSignificantPercentageDeviations: significantDeviations.length > 0,
       hasNoSignificantGaps: gapTest.overallStatus === "PASS",
+      hasRandomDigits: pokerTest.overallStatus === "PASS",
       distributionBias: distributionUniformity.map((d) => ({
         range: d.range,
         bias: d.deviation,
@@ -673,6 +645,93 @@ function performGapTest(data: number[]): {
     results.filter((r) => r.status === "WARNING").length > 2
       ? "WARNING"
       : "PASS";
+
+  return { results, overallStatus };
+}
+
+// Add Poker Test implementation
+function performPokerTest(data: number[]): {
+  results: Array<{
+    pattern: string;
+    observed: number;
+    expected: number;
+    deviation: number;
+    status: "PASS" | "WARNING";
+  }>;
+  overallStatus: "PASS" | "WARNING";
+} {
+  // Define patterns and their expected probabilities
+  const patterns = [
+    { name: "Four of a Kind", probability: 0.0001 }, // 4 same digits
+    { name: "Three of a Kind", probability: 0.004 }, // 3 same digits
+    { name: "Two Pairs", probability: 0.027 }, // 2 pairs of same digits
+    { name: "One Pair", probability: 0.432 }, // 1 pair of same digits
+    { name: "No Pattern", probability: 0.5369 }, // All digits different
+  ];
+
+  // Count occurrences of each pattern
+  const counts = new Array(patterns.length).fill(0);
+
+  data.forEach((value) => {
+    // Convert to 4-digit string with leading zeros
+    const digits = value.toString().padStart(4, "0");
+
+    // Find runs of identical digits
+    let runs: number[] = [];
+    let i = 0;
+    while (i < digits.length) {
+      let runLength = 1;
+      while (
+        i + runLength < digits.length &&
+        digits[i] === digits[i + runLength]
+      ) {
+        runLength++;
+      }
+      runs.push(runLength);
+      i += runLength;
+    }
+    runs = runs.sort((a, b) => b - a);
+
+    // Classify based on runs
+    if (runs[0] === 4) counts[0]++; // Four of a Kind
+    else if (runs[0] === 3) counts[1]++; // Three of a Kind
+    else if (runs[0] === 2 && runs[1] === 2) counts[2]++; // Two Pairs
+    else if (runs[0] === 2) counts[3]++; // One Pair
+    else counts[4]++; // No Pattern
+  });
+
+  // Calculate chi-square statistic
+  const total = data.length;
+  const results = patterns.map((pattern, i) => {
+    const observed = counts[i];
+    const expected = total * pattern.probability;
+    const deviation = ((observed - expected) / expected) * 100;
+
+    // Calculate chi-square contribution
+    const chiSquare = Math.pow(observed - expected, 2) / expected;
+
+    // Determine status based on deviation
+    const status: "PASS" | "WARNING" =
+      Math.abs(deviation) > 20 ? "WARNING" : "PASS";
+
+    return {
+      pattern: pattern.name,
+      observed,
+      expected,
+      deviation,
+      status,
+    };
+  });
+
+  // Calculate overall chi-square
+  const totalChiSquare = results.reduce(
+    (sum, r) => sum + Math.pow(r.observed - r.expected, 2) / r.expected,
+    0
+  );
+  const pValue = 1 - normalCDF(Math.sqrt(2 * totalChiSquare) - Math.sqrt(7)); // 4 degrees of freedom
+
+  // Overall status
+  const overallStatus: "PASS" | "WARNING" = pValue > 0.05 ? "PASS" : "WARNING";
 
   return { results, overallStatus };
 }
