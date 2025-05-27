@@ -53,7 +53,8 @@ contract TestLuckyBuyCommit is Test {
     address cosigner;
     uint256 protocolFee = 0;
     uint256 flatFee = 0;
-    uint256 seed = 12345;
+    // seed is env var SEED
+    uint256 seed = vm.envUint("SEED");
     address marketplace = address(0);
     uint256 orderAmount = 1 ether;
     bytes32 orderData = hex"00";
