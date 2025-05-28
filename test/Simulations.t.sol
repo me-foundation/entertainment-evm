@@ -79,7 +79,7 @@ contract TestLuckyBuyCommit is Test {
         vm.deal(admin, 1000000 ether);
         vm.deal(user, 100000 ether);
 
-        (bool success, ) = address(luckyBuy).call{value: 100 ether}("");
+        (bool success, ) = address(luckyBuy).call{value: 300 ether}("");
         require(success, "Failed to deploy contract");
 
         // Set up cosigner with known private key
@@ -123,26 +123,26 @@ contract TestLuckyBuyCommit is Test {
 
     function testSimulatePlay() public {
         if (skipTest) return;
-
+        console.log(address(luckyBuy).balance);
         // out of base points
         uint256 protocolFee = 500;
         vm.prank(admin);
         luckyBuy.setProtocolFee(protocolFee);
 
+        // Calculate odds: amount/reward = 0.1/1 = 10%
+
+        uint256 commitAmount = 7.5 ether;
+        uint256 rewardAmount = 15 ether;
+        uint256 feeAmount = luckyBuy.calculateProtocolFee(commitAmount); // This should be .005 ether
+
         // Create order hash for a simple ETH transfer - this stays the same for all plays
         bytes32 orderHash = luckyBuy.hashOrder(
             address(0), // to address(0)
-            1 ether, // amount 1 ether (reward amount)
+            rewardAmount, // amount 1 ether (reward amount)
             "", // no data
             address(0), // no token
             0 // no token id
         );
-
-        // Calculate odds: amount/reward = 0.1/1 = 10%
-
-        uint256 commitAmount = 0.5 ether;
-        uint256 rewardAmount = 1 ether;
-        uint256 feeAmount = luckyBuy.calculateProtocolFee(commitAmount); // This should be .005 ether
 
         uint256 commitTxAmount = commitAmount + feeAmount;
         console.log("commitTxAmount", commitTxAmount);
@@ -154,7 +154,7 @@ contract TestLuckyBuyCommit is Test {
         console.log("Reward Amount:", rewardAmount);
         console.log("\nStarting 40k game simulations...\n");
 
-        for (uint256 i = 0; i < 2_000; i++) {
+        for (uint256 i = 0; i < 1_000; i++) {
             console.log("Game", i + 1, ":");
 
             vm.startPrank(user);
