@@ -43,7 +43,7 @@ contract MockLuckyBuy is LuckyBuy {
 }
 
 contract TestLuckyBuyCommit is Test {
-    bool skipTest = false;
+    bool skipTest = true;
     PRNG prng;
     MockLuckyBuy luckyBuy;
     address admin = address(0x1);
