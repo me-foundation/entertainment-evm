@@ -699,7 +699,7 @@ contract LuckyBuy is
         address token,
         address to,
         uint256 amount
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(RESCUE_ROLE) {
         address[] memory tokens = new address[](1);
         address[] memory tos = new address[](1);
         uint256[] memory amounts = new uint256[](1);
@@ -715,7 +715,7 @@ contract LuckyBuy is
         address token,
         address to,
         uint256 tokenId
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(RESCUE_ROLE) {
         address[] memory tokens = new address[](1);
         address[] memory tos = new address[](1);
         uint256[] memory tokenIds = new uint256[](1);
@@ -732,7 +732,7 @@ contract LuckyBuy is
         address to,
         uint256 tokenId,
         uint256 amount
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(RESCUE_ROLE) {
         address[] memory tokens = new address[](1);
         address[] memory tos = new address[](1);
         uint256[] memory tokenIds = new uint256[](1);
@@ -750,7 +750,7 @@ contract LuckyBuy is
         address[] calldata tokens,
         address[] calldata tos,
         uint256[] calldata amounts
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(RESCUE_ROLE) {
         _rescueERC20Batch(tokens, tos, amounts);
     }
 
@@ -758,7 +758,7 @@ contract LuckyBuy is
         address[] calldata tokens,
         address[] calldata tos,
         uint256[] calldata tokenIds
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(RESCUE_ROLE) {
         _rescueERC721Batch(tokens, tos, tokenIds);
     }
 
@@ -767,7 +767,7 @@ contract LuckyBuy is
         address[] calldata tos,
         uint256[] calldata tokenIds,
         uint256[] calldata amounts
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(RESCUE_ROLE) {
         _rescueERC1155Batch(tokens, tos, tokenIds, amounts);
     }
 

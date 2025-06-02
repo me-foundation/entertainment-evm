@@ -6,6 +6,7 @@ import "../src/common/TokenRescuer.sol";
 import "forge-std/interfaces/IERC20.sol";
 import "forge-std/interfaces/IERC721.sol";
 import "forge-std/interfaces/IERC1155.sol";
+import "../src/common/MEAccessControl.sol";
 
 // Mock ERC20 token for testing
 contract MockERC20 is IERC20 {
@@ -200,12 +201,12 @@ contract MockERC1155 is IERC1155 {
 }
 
 // Concrete implementation of TokenRescuer for testing
-contract TestTokenRescuer is TokenRescuer {
+contract TestTokenRescuer is TokenRescuer, MEAccessControl {
     function rescueERC20Batch(
         address[] calldata tokens,
         address[] calldata to,
         uint256[] calldata amounts
-    ) external {
+    ) external onlyRole(RESCUE_ROLE) {
         _rescueERC20Batch(tokens, to, amounts);
     }
 
@@ -213,7 +214,7 @@ contract TestTokenRescuer is TokenRescuer {
         address[] calldata tokens,
         address[] calldata to,
         uint256[] calldata tokenIds
-    ) external {
+    ) external onlyRole(RESCUE_ROLE) {
         _rescueERC721Batch(tokens, to, tokenIds);
     }
 
@@ -222,7 +223,7 @@ contract TestTokenRescuer is TokenRescuer {
         address[] calldata to,
         uint256[] calldata tokenIds,
         uint256[] calldata amounts
-    ) external {
+    ) external onlyRole(RESCUE_ROLE) {
         _rescueERC1155Batch(tokens, to, tokenIds, amounts);
     }
 }
@@ -238,6 +239,7 @@ contract TokenRescuerTest is Test {
     address public alice = address(0x1);
     address public bob = address(0x2);
     address public charlie = address(0x3);
+    bytes32 public constant RESCUE_ROLE = keccak256("RESCUE_ROLE");
 
     function setUp() public {
         rescuer = new TestTokenRescuer();
@@ -261,6 +263,9 @@ contract TokenRescuerTest is Test {
         erc721_2.setApprovalForAll(address(rescuer), true);
         erc1155.setApprovalForAll(address(rescuer), true);
         erc1155_2.setApprovalForAll(address(rescuer), true);
+
+        // Grant RESCUE_ROLE to alice for testing
+        rescuer.addRescueUser(alice);
     }
 
     function test_RescueERC20Batch() public {
@@ -437,6 +442,96 @@ contract TokenRescuerTest is Test {
         amounts[1] = 100;
 
         vm.expectRevert(TokenRescuer.TokenRescuerArrayLengthMismatch.selector);
+        rescuer.rescueERC1155Batch(tokens, to, tokenIds, amounts);
+    }
+
+    // Role-based access control tests
+    function test_RescueERC20Batch_OnlyRescueRole() public {
+        address[] memory tokens = new address[](1);
+        address[] memory to = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+
+        tokens[0] = address(erc20);
+        to[0] = bob;
+        amounts[0] = 100 ether;
+
+        // Test that bob (without RESCUE_ROLE) cannot call the function
+        vm.prank(bob);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(
+                    keccak256(
+                        "AccessControlUnauthorizedAccount(address,bytes32)"
+                    )
+                ),
+                bob,
+                RESCUE_ROLE
+            )
+        );
+        rescuer.rescueERC20Batch(tokens, to, amounts);
+
+        // Test that alice (with RESCUE_ROLE) can call the function
+        vm.prank(alice);
+        rescuer.rescueERC20Batch(tokens, to, amounts);
+    }
+
+    function test_RescueERC721Batch_OnlyRescueRole() public {
+        address[] memory tokens = new address[](1);
+        address[] memory to = new address[](1);
+        uint256[] memory tokenIds = new uint256[](1);
+
+        tokens[0] = address(erc721);
+        to[0] = bob;
+        tokenIds[0] = 1;
+
+        // Test that bob (without RESCUE_ROLE) cannot call the function
+        vm.prank(bob);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(
+                    keccak256(
+                        "AccessControlUnauthorizedAccount(address,bytes32)"
+                    )
+                ),
+                bob,
+                RESCUE_ROLE
+            )
+        );
+        rescuer.rescueERC721Batch(tokens, to, tokenIds);
+
+        // Test that alice (with RESCUE_ROLE) can call the function
+        vm.prank(alice);
+        rescuer.rescueERC721Batch(tokens, to, tokenIds);
+    }
+
+    function test_RescueERC1155Batch_OnlyRescueRole() public {
+        address[] memory tokens = new address[](1);
+        address[] memory to = new address[](1);
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory amounts = new uint256[](1);
+
+        tokens[0] = address(erc1155);
+        to[0] = bob;
+        tokenIds[0] = 1;
+        amounts[0] = 50;
+
+        // Test that bob (without RESCUE_ROLE) cannot call the function
+        vm.prank(bob);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(
+                    keccak256(
+                        "AccessControlUnauthorizedAccount(address,bytes32)"
+                    )
+                ),
+                bob,
+                RESCUE_ROLE
+            )
+        );
+        rescuer.rescueERC1155Batch(tokens, to, tokenIds, amounts);
+
+        // Test that alice (with RESCUE_ROLE) can call the function
+        vm.prank(alice);
         rescuer.rescueERC1155Batch(tokens, to, tokenIds, amounts);
     }
 }
