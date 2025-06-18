@@ -582,13 +582,10 @@ contract LuckyBuyInitializable is
             );
         } else {
             // The order failed to fulfill, it could be bought already or invalid, make the best effort to send the user the value of the order they won.
-            treasuryBalance -= orderAmount_;
-
-            // This can also revert if the receiver is a contract that doesn't accept ETH
-            (bool success, ) = commitData.receiver.call{value: orderAmount_}(
-                ""
-            );
-            if (!success) revert TransferFailed();
+            (bool success, ) = commitData.receiver.call{value: orderAmount_}("");
+            if (success) {
+                treasuryBalance -= orderAmount_;
+            }
 
             emit Fulfillment(
                 msg.sender,
@@ -668,10 +665,12 @@ contract LuckyBuyInitializable is
 
         uint256 transferAmount = commitAmount + protocolFeesPaid;
 
-        (bool success, ) = payable(commitData.receiver).call{
-            value: transferAmount
-        }("");
-        if (!success) revert TransferFailed();
+        (bool success, ) = payable(commitData.receiver).call{value: transferAmount}("");
+        if (!success) {
+            // Transfer failed; account the funds as treasury so that they can
+            // be managed later by the admin.
+            treasuryBalance += transferAmount;
+        }
 
         emit CommitExpired(commitId_, hash(commitData));
     }
