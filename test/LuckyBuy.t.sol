@@ -1457,6 +1457,7 @@ contract TestLuckyBuyCommit is Test {
         uint256 _collectionCreatorBalance = collectionCreator.balance;
         uint256 _treasuryBalance = luckyBuy.treasuryBalance();
         uint256 _protocolBalance = luckyBuy.protocolBalance();
+        uint256 _feeReceiverBalance = address(this).balance;
         luckyBuy.fulfillWithFeeSplit(
             commitId,
             address(0), // marketplace
@@ -1470,22 +1471,24 @@ contract TestLuckyBuyCommit is Test {
         );
         vm.stopPrank();
 
+        uint256 splitAmount = (protocolFee * creatorFeeSplitPercentage) /
+            luckyBuy.BASE_POINTS();
+
         assertEq(
             collectionCreator.balance,
-            _collectionCreatorBalance +
-                (creatorFeeSplitPercentage * protocolFee) /
-                10000
+            _collectionCreatorBalance + splitAmount
         );
 
         assertEq(luckyBuy.protocolBalance(), _protocolBalance - protocolFee);
         assertEq(
             luckyBuy.treasuryBalance(),
-            _treasuryBalance +
-                commitAmount +
-                (creatorFeeSplitPercentage * protocolFee) /
-                10000
+            _treasuryBalance + commitAmount
         );
         assertEq(luckyBuy.commitBalance(), 0);
+        assertEq(
+            address(this).balance,
+            _feeReceiverBalance + (protocolFee - splitAmount)
+        );
     }
 
     function testFeeSplitInvalidPercentage() public {

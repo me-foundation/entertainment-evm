@@ -320,6 +320,7 @@ contract LuckyBuyInitializable is
         uint256 tokenId_,
         bytes calldata signature_
     ) public payable whenNotPaused {
+        uint256 protocolFeesPaid = feesPaid[commitId_];
         _fulfill(
             commitId_,
             marketplace_,
@@ -329,6 +330,8 @@ contract LuckyBuyInitializable is
             tokenId_,
             signature_
         );
+
+        _sendProtocolFees(commitId_, protocolFeesPaid);
     }
 
     /// @notice Fulfills a commit with the result of the random number generation
@@ -391,6 +394,9 @@ contract LuckyBuyInitializable is
             // Subtract the split amount from the treasury balance
             treasuryBalance -= splitAmount;
         }
+
+        uint256 remainingProtocolFees = protocolFeesPaid - splitAmount;
+        _sendProtocolFees(commitId_, remainingProtocolFees);
 
         emit FeeSplit(
             commitId_,
@@ -1020,5 +1026,26 @@ contract LuckyBuyInitializable is
         address oldFeeReceiver = feeReceiver;
         feeReceiver = payable(feeReceiver_);
         emit FeeReceiverUpdated(oldFeeReceiver, feeReceiver_);
+    }
+
+     /// @notice Forwards protocol fees held in treasury to the fee receiver
+    /// @param commitId_ The ID of the commit whose fees are being sent
+    /// @param amount_ The amount of fees to send
+    /// @dev If transfer fails, emits FeeTransferFailure and leaves funds in treasury
+    function _sendProtocolFees(uint256 commitId_, uint256 amount_) internal {
+        if (amount_ == 0) return;
+        if (feeReceiver == address(0)) return;
+
+        (bool success, ) = feeReceiver.call{value: amount_}("");
+        if (success) {
+            treasuryBalance -= amount_;
+        } else {
+            emit FeeTransferFailure(
+                commitId_,
+                feeReceiver,
+                amount_,
+                hash(luckyBuys[commitId_])
+            );
+        }
     }
 }
