@@ -38,7 +38,7 @@ contract LuckyBuyInitializable is
     uint256 public minReward;
     uint256 public flatFee;
 
-    uint256 public commitExpireTime = 1 days;
+    uint256 public commitExpireTime;
     mapping(uint256 commitId => uint256 expiresAt) public commitExpiresAt;
 
     uint256 public constant MIN_COMMIT_EXPIRE_TIME = 1 minutes;
@@ -207,6 +207,9 @@ contract LuckyBuyInitializable is
         // Initialize reward limits
         maxReward = 50 ether;
         minReward = BASE_POINTS;
+
+        // Initialize commit expire time
+        commitExpireTime = 1 days;
     }
 
     /// @dev Overriden to prevent unauthorized upgrades.
