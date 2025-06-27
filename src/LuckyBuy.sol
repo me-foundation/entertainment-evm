@@ -204,31 +204,21 @@ contract LuckyBuy is
         uint256 reward_
     ) public payable whenNotPaused returns (uint256) {
         if (msg.value == 0) revert InvalidAmount();
-        if (!isCosigner[cosigner_]) revert InvalidCosigner();
-        if (cosigner_ == address(0)) revert InvalidCosigner();
-        if (receiver_ == address(0)) revert InvalidReceiver();
-        if (reward_ > maxReward) revert InvalidReward();
-        if (reward_ < minReward) revert InvalidReward();
-        if (reward_ == 0) revert InvalidReward();
 
         uint256 amountWithoutFlatFee = msg.value - flatFee;
-
-        // We collect the flat fee regardless of the amount. It is not returned to the user, ever.
-        treasuryBalance += flatFee;
 
         // This is the amount the user wants to commit
         uint256 commitAmount = calculateContributionWithoutFee(
             amountWithoutFlatFee
         );
 
-        // The commit amount must be greater than one percent of the reward
-        if (commitAmount < (reward_ / ONE_PERCENT)) revert InvalidAmount();
+        _validateCommit(receiver_, cosigner_, reward_, commitAmount);
+
+        // We collect the flat fee regardless of the amount. It is not returned to the user, ever.
+        treasuryBalance += flatFee;
 
         // The fee is the amount without the flat fee minus the amount without the protocol fee
         uint256 protocolFee = amountWithoutFlatFee - commitAmount;
-
-        // The commit amount must be less than the reward
-        if (commitAmount > reward_) revert InvalidAmount();
 
         // Check if odds are greater than 100%
         if ((commitAmount * BASE_POINTS) / reward_ > BASE_POINTS)
@@ -389,33 +379,20 @@ contract LuckyBuy is
         uint256 tokenId_,
         bytes calldata signature_
     ) internal nonReentrant {
-        // validate tx
         if (msg.value > 0) _depositTreasury(msg.value);
-        if (orderAmount_ > treasuryBalance) revert InsufficientBalance();
-        if (isFulfilled[commitId_]) revert AlreadyFulfilled();
-        if (isExpired[commitId_]) revert CommitIsExpired();
-        if (commitId_ >= luckyBuys.length) revert InvalidCommitId();
+
+        (CommitData memory commitData, bytes32 digest) = _validateFulfillment(
+            commitId_,
+            marketplace_,
+            orderData_,
+            orderAmount_,
+            token_,
+            tokenId_,
+            signature_
+        );
 
         // mark the commit as fulfilled
         isFulfilled[commitId_] = true;
-
-        // validate commit data matches tx data
-        CommitData memory commitData = luckyBuys[commitId_];
-
-        // validate the order hash
-        if (
-            commitData.orderHash !=
-            hashOrder(marketplace_, orderAmount_, orderData_, token_, tokenId_)
-        ) revert InvalidOrderHash();
-
-        // validate the reward amount
-        if (orderAmount_ != commitData.reward) revert InvalidAmount();
-
-        // hash commit, check signature. digest is needed later for logging
-        bytes32 digest = hash(commitData);
-        address cosigner = _verifyDigest(digest, signature_);
-        if (cosigner != commitData.cosigner) revert InvalidCosigner();
-        if (!isCosigner[cosigner]) revert InvalidCosigner();
 
         // Collect the commit balance and protocol fees
         // transfer the commit balance to the contract
@@ -675,6 +652,9 @@ contract LuckyBuy is
         return (amount * BASE_POINTS) / (BASE_POINTS + protocolFee);
     }
 
+    // Internal validation helpers have been moved to the dedicated
+    // INTERNAL FUNCTIONS section further below.
+
     function onERC1155Received(
         address operator,
         address from,
@@ -914,6 +894,64 @@ contract LuckyBuy is
     /// @dev Required for contract to receive ETH
     receive() external payable {
         _depositTreasury(msg.value);
+    }
+
+    // ############################################################
+    // ############ INTERNAL FUNCTIONS ############
+    // ############################################################
+
+    function _validateCommit(
+        address receiver_,
+        address cosigner_,
+        uint256 reward_,
+        uint256 commitAmount
+    ) internal view {
+        if (cosigner_ == address(0) || !isCosigner[cosigner_]) {
+            revert InvalidCosigner();
+        }
+        if (receiver_ == address(0)) {
+            revert InvalidReceiver();
+        }
+        if (reward_ == 0 || reward_ > maxReward || reward_ < minReward) {
+            revert InvalidReward();
+        }
+        if (
+            commitAmount < (reward_ / ONE_PERCENT) || commitAmount > reward_
+        ) {
+            revert InvalidAmount();
+        }
+    }
+
+    function _validateFulfillment(
+        uint256 commitId_,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        bytes calldata signature_
+    ) internal view returns (CommitData memory, bytes32) {
+        if (orderAmount_ > treasuryBalance) revert InsufficientBalance();
+        if (commitId_ >= luckyBuys.length) revert InvalidCommitId();
+        if (isFulfilled[commitId_]) revert AlreadyFulfilled();
+        if (isExpired[commitId_]) revert CommitIsExpired();
+
+        CommitData memory commitData = luckyBuys[commitId_];
+
+        if (
+            commitData.orderHash !=
+            hashOrder(marketplace_, orderAmount_, orderData_, token_, tokenId_)
+        ) revert InvalidOrderHash();
+
+        if (orderAmount_ != commitData.reward) revert InvalidAmount();
+
+        bytes32 digest = hash(commitData);
+        address cosigner = _verifyDigest(digest, signature_);
+        if (cosigner != commitData.cosigner || !isCosigner[cosigner]) {
+            revert InvalidCosigner();
+        }
+
+        return (commitData, digest);
     }
 
     /// @notice Calculates the odds of winning based on amount and reward
