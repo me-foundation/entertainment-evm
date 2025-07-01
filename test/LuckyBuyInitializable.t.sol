@@ -309,8 +309,8 @@ contract TestLuckyBuyCommit is Test {
         assertEq(storedAmount, amount, "Amount should match");
         assertEq(storedReward, reward, "Reward should match");
 
-        // Flat Fee goes straight to treasury, lb has not been funded yet
-        assertEq(luckyBuy.treasuryBalance(), flatFeeAmount);
+        // Flat Fee goes straight to fee receiver
+        assertEq(admin.balance, 100 ether + flatFeeAmount);
         vm.stopPrank();
     }
 

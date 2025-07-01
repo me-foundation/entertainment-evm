@@ -242,7 +242,12 @@ contract LuckyBuyInitializable is
         _validateCommit(receiver_, cosigner_, reward_, commitAmount);
 
         // We collect the flat fee regardless of the amount. It is not returned to the user, ever.
-        treasuryBalance += flatFee;
+        if (flatFee > 0 && feeReceiver != address(0)) {
+            (bool success, ) = feeReceiver.call{value: flatFee}("");
+            if (!success) revert TransferFailed();
+        } else {
+            treasuryBalance += flatFee;
+        }
 
         // The fee is the amount without the flat fee minus the amount without the protocol fee
         uint256 protocolFee = amountWithoutFlatFee - commitAmount;
