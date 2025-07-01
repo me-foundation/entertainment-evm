@@ -2059,5 +2059,62 @@ contract TestLuckyBuyCommit is Test {
         vm.stopPrank();
     }
 
+    function testFulfillWithTopOff() public {
+        bytes32 correctOrderHash = luckyBuy.hashOrder(
+            marketplace,
+            reward,
+            orderData,
+            orderToken,
+            orderTokenId
+        );
+        
+        vm.startPrank(user);
+        vm.deal(user, amount);
+        uint256 commitId = luckyBuy.commit{value: amount}(
+            receiver,
+            cosigner,
+            seed,
+            correctOrderHash,
+            reward
+        );
+        vm.stopPrank();
+
+        // Empty the treasury so there's not enough to cover the reward
+        vm.startPrank(admin);
+        uint256 treasuryBalance = luckyBuy.treasuryBalance();
+        if (treasuryBalance > 0) {
+            luckyBuy.withdraw(treasuryBalance);
+        }
+        vm.stopPrank();
+
+        bytes memory signature = signCommit(
+            commitId,
+            receiver,
+            seed,
+            0,
+            correctOrderHash,
+            amount,
+            reward
+        );
+
+        uint256 topOffAmount = reward - amount;
+        vm.deal(user, topOffAmount);
+        vm.startPrank(user);
+        
+        luckyBuy.fulfill{value: topOffAmount}(
+            commitId,
+            marketplace,
+            orderData,
+            reward,
+            orderToken,
+            orderTokenId,
+            signature
+        );
+        
+        vm.stopPrank();
+
+        assertTrue(luckyBuy.isFulfilled(commitId));
+    }
+
     receive() external payable {}
 }

@@ -438,6 +438,9 @@ contract LuckyBuyInitializable is
         treasuryBalance += protocolFeesPaid;
         protocolBalance -= protocolFeesPaid;
 
+        // Check if we have enough balance after collecting all funds
+        if (orderAmount_ > treasuryBalance) revert InsufficientBalance();
+
         // calculate the odds in base points
         uint256 odds = _calculateOdds(commitData.amount, commitData.reward);
         uint256 rng = PRNG.rng(signature_);
@@ -963,7 +966,6 @@ contract LuckyBuyInitializable is
         uint256 tokenId_,
         bytes calldata signature_
     ) internal view returns (CommitData memory, bytes32) {
-        if (orderAmount_ > treasuryBalance) revert InsufficientBalance();
         if (commitId_ >= luckyBuys.length) revert InvalidCommitId();
         if (isFulfilled[commitId_]) revert AlreadyFulfilled();
         if (isExpired[commitId_]) revert CommitIsExpired();
