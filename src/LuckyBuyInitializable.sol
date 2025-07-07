@@ -76,8 +76,8 @@ contract LuckyBuyInitializable is
     event CosignerRemoved(address indexed cosigner);
     event Fulfillment(
         bytes32 indexed digest,
+        address indexed receiver,
         uint256 commitId,
-        address receiver,
         address cosigner,
         uint256 commitAmount,
         uint256 orderAmount,
@@ -88,8 +88,7 @@ contract LuckyBuyInitializable is
         bool win,
         bool orderSuccess,
         uint256 protocolFee,
-        uint256 flatFee,
-        bytes signature
+        uint256 flatFee
     );
     event MaxRewardUpdated(uint256 oldMaxReward, uint256 newMaxReward);
     event ProtocolFeeUpdated(uint256 oldProtocolFee, uint256 newProtocolFee);
@@ -476,8 +475,8 @@ contract LuckyBuyInitializable is
             // emit the failure
             emit Fulfillment(
                 digest,
-                commitData.id,
                 commitData.receiver,
+                commitData.id,
                 commitData.cosigner,
                 commitData.amount,
                 commitData.reward,
@@ -488,8 +487,7 @@ contract LuckyBuyInitializable is
                 win,
                 false,
                 protocolFeesPaid,
-                flatFee,
-                signature_
+                flatFee
             );
         }
     }
@@ -580,8 +578,8 @@ contract LuckyBuyInitializable is
             // emit a success transfer for the nft
             emit Fulfillment(
                 digest,
-                commitData.id,
                 commitData.receiver,
+                commitData.id,
                 commitData.cosigner,
                 commitData.amount,
                 orderAmount_,
@@ -592,8 +590,7 @@ contract LuckyBuyInitializable is
                 win_,
                 success,
                 protocolFeesPaid,
-                flatFee,
-                signature_
+                flatFee
             );
         } else {
             // The order failed to fulfill, it could be bought already or invalid, make the best effort to send the user the value of the order they won.
@@ -606,8 +603,8 @@ contract LuckyBuyInitializable is
 
             emit Fulfillment(
                 digest,
-                commitData.id,
                 commitData.receiver,
+                commitData.id,
                 commitData.cosigner,
                 commitData.amount,
                 orderAmount_,
@@ -618,8 +615,7 @@ contract LuckyBuyInitializable is
                 win_,
                 false,
                 protocolFeesPaid,
-                flatFee,
-                signature_
+                flatFee
             );
         }
     }
