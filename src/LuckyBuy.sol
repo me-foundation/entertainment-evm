@@ -73,17 +73,21 @@ contract LuckyBuy is
     event CosignerAdded(address indexed cosigner);
     event CosignerRemoved(address indexed cosigner);
     event Fulfillment(
-        address indexed sender,
-        uint256 indexed commitId,
+        bytes32 indexed digest,
+        uint256 commitId,
+        address receiver,
+        address cosigner,
+        uint256 commitAmount,
+        uint256 orderAmount,
+        address token,
+        uint256 tokenId,
         uint256 rng,
         uint256 odds,
         bool win,
-        address token,
-        uint256 tokenId,
-        uint256 amount,
-        address receiver,
-        uint256 fee,
-        bytes32 digest
+        bool orderSuccess,
+        uint256 protocolFee,
+        uint256 flatFee,
+        bytes signature
     );
     event MaxRewardUpdated(uint256 oldMaxReward, uint256 newMaxReward);
     event ProtocolFeeUpdated(uint256 oldProtocolFee, uint256 newProtocolFee);
@@ -430,7 +434,8 @@ contract LuckyBuy is
                 token_,
                 tokenId_,
                 protocolFeesPaid,
-                digest
+                digest,
+                signature_
             );
         } else {
             if (openEditionToken != address(0)) {
@@ -442,17 +447,21 @@ contract LuckyBuy is
             }
             // emit the failure
             emit Fulfillment(
-                msg.sender,
-                commitId_,
+                digest,
+                commitData.id,
+                commitData.receiver,
+                commitData.cosigner,
+                commitData.amount,
+                commitData.reward,
+                token_,
+                tokenId_,
                 rng,
                 odds,
                 win,
-                address(0),
-                0,
-                0,
-                commitData.receiver,
+                false,
                 protocolFeesPaid,
-                digest
+                flatFee,
+                signature_
             );
         }
     }
@@ -532,7 +541,8 @@ contract LuckyBuy is
         address token_,
         uint256 tokenId_,
         uint256 protocolFeesPaid,
-        bytes32 digest
+        bytes32 digest,
+        bytes calldata signature_
     ) internal {
         // execute the market data to transfer the nft
         bool success = _fulfillOrder(marketplace_, orderData_, orderAmount_);
@@ -541,17 +551,21 @@ contract LuckyBuy is
             treasuryBalance -= orderAmount_;
             // emit a success transfer for the nft
             emit Fulfillment(
-                msg.sender,
+                digest,
                 commitData.id,
+                commitData.receiver,
+                commitData.cosigner,
+                commitData.amount,
+                orderAmount_,
+                token_,
+                tokenId_,
                 rng_,
                 odds_,
                 win_,
-                token_,
-                tokenId_,
-                orderAmount_,
-                commitData.receiver,
+                success,
                 protocolFeesPaid,
-                digest
+                flatFee,
+                signature_
             );
         } else {
             // The order failed to fulfill, it could be bought already or invalid, make the best effort to send the user the value of the order they won.
@@ -563,17 +577,21 @@ contract LuckyBuy is
             }
 
             emit Fulfillment(
-                msg.sender,
+                digest,
                 commitData.id,
+                commitData.receiver,
+                commitData.cosigner,
+                commitData.amount,
+                orderAmount_,
+                token_,
+                tokenId_,
                 rng_,
                 odds_,
                 win_,
-                address(0),
-                0,
-                orderAmount_,
-                commitData.receiver,
+                false,
                 protocolFeesPaid,
-                digest
+                flatFee,
+                signature_
             );
         }
     }
