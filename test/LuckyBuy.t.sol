@@ -2087,5 +2087,69 @@ contract TestLuckyBuyCommit is Test {
         assertTrue(luckyBuy.isFulfilled(commitId));
     }
 
+    function testPayoutOnWin() public {
+        vm.deal(address(this), 15 ether);
+        (bool success, ) = address(luckyBuy).call{value: 15 ether}("");
+        assertTrue(success, "Treasury funding should succeed");
+        
+        uint256 commitAmount = reward;
+        
+        bytes32 correctOrderHash = luckyBuy.hashOrder(
+            marketplace,
+            reward,
+            orderData,
+            orderToken,
+            orderTokenId
+        );
+        
+        vm.startPrank(user);
+        vm.deal(user, commitAmount);
+        uint256 commitId = luckyBuy.commit{value: commitAmount}(
+            receiver,
+            cosigner,
+            seed,
+            correctOrderHash,
+            reward,
+            true
+        );
+        vm.stopPrank();
+
+        assertTrue(luckyBuy.isPayoutOnWin(commitId));
+
+        bytes memory signature = signCommit(
+            commitId,
+            receiver,
+            seed,
+            0,
+            correctOrderHash,
+            commitAmount,
+            reward
+        );
+
+        uint256 initialReceiverBalance = receiver.balance;
+        uint256 initialFeeReceiverBalance = admin.balance;
+        uint256 treasuryBalanceBeforeCommit = 15 ether;
+
+        vm.startPrank(user);
+        luckyBuy.fulfill(
+            commitId,
+            marketplace,
+            orderData,
+            reward,
+            orderToken,
+            orderTokenId,
+            signature
+        );
+        vm.stopPrank();
+
+        uint256 payoutFee = (reward * luckyBuy.PAYOUT_FEE_BP()) / luckyBuy.BASE_POINTS();
+        uint256 userAmount = reward - payoutFee;
+
+        assertEq(receiver.balance, initialReceiverBalance + userAmount, "Receiver should get 98% of reward");
+        assertEq(admin.balance, initialFeeReceiverBalance + payoutFee, "Fee receiver should get 2% of reward");
+        assertEq(luckyBuy.treasuryBalance(), treasuryBalanceBeforeCommit, "Treasury should return to original balance");
+        assertTrue(luckyBuy.isFulfilled(commitId));
+    }
+
     receive() external payable {}
 }
