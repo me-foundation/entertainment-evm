@@ -567,7 +567,6 @@ contract LuckyBuy is
         bytes32 digest,
         bytes calldata signature_
     ) internal {
-        // Determine if this win should pay out ETH directly
         if (isPayoutOnWin[commitData.id]) {
             uint256 payoutFee = (commitData.reward * PAYOUT_FEE_BP) / BASE_POINTS;
             uint256 userAmount = commitData.reward - payoutFee;
@@ -583,7 +582,6 @@ contract LuckyBuy is
             }
 
             if (payoutFee > 0) {
-                // reuse existing fee forwarding helper
                 _sendProtocolFees(commitData.id, payoutFee);
             }
 
