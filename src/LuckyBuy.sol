@@ -38,6 +38,7 @@ contract LuckyBuy is
     uint256 public protocolFee = 0;
     uint256 public minReward = BASE_POINTS;
     uint256 public flatFee = 0;
+    uint256 public payoutFee = 200;
 
     uint256 public commitExpireTime = 1 days;
     mapping(uint256 commitId => uint256 expiresAt) public commitExpiresAt;
@@ -45,7 +46,6 @@ contract LuckyBuy is
     uint256 public constant MIN_COMMIT_EXPIRE_TIME = 1 minutes;
     uint256 public constant ONE_PERCENT = 100;
     uint256 public constant BASE_POINTS = 10000;
-    uint256 public constant PAYOUT_FEE_BP = 200; // 2% payout fee
 
     bytes32 public constant FEE_RECEIVER_MANAGER_ROLE =
         keccak256("FEE_RECEIVER_MANAGER_ROLE");
@@ -141,6 +141,7 @@ contract LuckyBuy is
         uint256 amount,
         bytes32 digest
     );
+    event PayoutFeeUpdated(uint256 oldPayoutFee, uint256 newPayoutFee);
 
     error AlreadyCosigner();
     error AlreadyFulfilled();
@@ -568,8 +569,8 @@ contract LuckyBuy is
         bytes calldata signature_
     ) internal {
         if (isPayoutOnWin[commitData.id]) {
-            uint256 payoutFee = (commitData.reward * PAYOUT_FEE_BP) / BASE_POINTS;
-            uint256 userAmount = commitData.reward - payoutFee;
+            uint256 payoutFeeAmount = (commitData.reward * payoutFee) / BASE_POINTS;
+            uint256 userAmount = commitData.reward - payoutFeeAmount;
 
             bool userSuccess;
             if (userAmount > 0) {
@@ -581,11 +582,11 @@ contract LuckyBuy is
                 }
             }
 
-            if (payoutFee > 0) {
-                _sendProtocolFees(commitData.id, payoutFee);
+            if (payoutFeeAmount > 0) {
+                _sendProtocolFees(commitData.id, payoutFeeAmount);
             }
 
-            uint256 totalProtocolFee = protocolFeesPaid + payoutFee;
+            uint256 totalProtocolFee = protocolFeesPaid + payoutFeeAmount;
 
             emit Fulfillment(
                 digest,
@@ -1144,5 +1145,16 @@ contract LuckyBuy is
                 hash(luckyBuys[commitId_])
             );
         }
+    }
+
+    function setPayoutFee(uint256 payoutFee_) external onlyRole(OPS_ROLE) {
+        _setPayoutFee(payoutFee_);
+    }
+
+    function _setPayoutFee(uint256 payoutFee_) internal {
+        if (payoutFee_ > BASE_POINTS) revert InvalidProtocolFee();
+        uint256 oldPayoutFee = payoutFee;
+        payoutFee = payoutFee_;
+        emit PayoutFeeUpdated(oldPayoutFee, payoutFee_);
     }
 }

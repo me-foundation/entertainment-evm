@@ -2170,7 +2170,7 @@ contract TestLuckyBuyCommit is Test {
         );
         vm.stopPrank();
 
-        uint256 payoutFee = (reward * luckyBuy.PAYOUT_FEE_BP()) / luckyBuy.BASE_POINTS();
+        uint256 payoutFee = (reward * luckyBuy.payoutFee()) / luckyBuy.BASE_POINTS();
         uint256 userAmount = reward - payoutFee;
 
         assertEq(receiver.balance, initialReceiverBalance + userAmount, "Receiver should get 98% of reward");
