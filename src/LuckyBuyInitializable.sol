@@ -55,7 +55,6 @@ contract LuckyBuyInitializable is
     mapping(uint256 commitId => bool expired) public isExpired;
     // We track this because we can change the fees at any time. This allows open commits to be fulfilled/returned with the fees at the time of commit
     mapping(uint256 commitId => uint256 fee) public feesPaid;
-    mapping(uint256 commitId => bool payoutOnWin) public isPayoutOnWin;
 
     // Storage gap for future upgrades
     uint256[50] private __gap;
@@ -241,17 +240,6 @@ contract LuckyBuyInitializable is
         bytes32 orderHash_,
         uint256 reward_
     ) public payable whenNotPaused returns (uint256) {
-        return commit(receiver_, cosigner_, seed_, orderHash_, reward_, false);
-    }
-
-    function commit(
-        address receiver_,
-        address cosigner_,
-        uint256 seed_,
-        bytes32 orderHash_,
-        uint256 reward_,
-        bool payoutOnWin_
-    ) public payable whenNotPaused returns (uint256) {
         if (msg.value == 0) revert InvalidAmount();
 
         uint256 amountWithoutFlatFee = msg.value - flatFee;
@@ -296,7 +284,6 @@ contract LuckyBuyInitializable is
 
         luckyBuys.push(commitData);
         commitExpiresAt[commitId] = block.timestamp + commitExpireTime;
-        isPayoutOnWin[commitId] = payoutOnWin_;
 
         bytes32 digest = hash(commitData);
         commitIdByDigest[digest] = commitId;
@@ -460,7 +447,7 @@ contract LuckyBuyInitializable is
         protocolBalance -= protocolFeesPaid;
 
         // Check if we have enough balance after collecting all funds
-        bool payoutMode = isPayoutOnWin[commitData.id];
+        bool payoutMode = (marketplace_ == address(0));
         uint256 requiredAmount = payoutMode ? commitData.reward : orderAmount_;
         if (requiredAmount > treasuryBalance) revert InsufficientBalance();
 
@@ -590,7 +577,7 @@ contract LuckyBuyInitializable is
         bytes32 digest,
         bytes calldata signature_
     ) internal {
-        if (isPayoutOnWin[commitData.id]) {
+        if (marketplace_ == address(0)) {
             uint256 payoutFeeAmount = (commitData.reward * payoutFee) / BASE_POINTS;
             uint256 userAmount = commitData.reward - payoutFeeAmount;
 

@@ -2109,12 +2109,10 @@ contract TestLuckyBuyCommit is Test {
             cosigner,
             seed,
             correctOrderHash,
-            reward,
-            true
+            reward
         );
         vm.stopPrank();
 
-        assertTrue(luckyBuy.isPayoutOnWin(commitId));
 
         bytes memory signature = signCommit(
             commitId,
@@ -2133,7 +2131,7 @@ contract TestLuckyBuyCommit is Test {
         vm.startPrank(user);
         luckyBuy.fulfill(
             commitId,
-            marketplace,
+            address(0),
             orderData,
             reward,
             orderToken,
