@@ -27,6 +27,7 @@ contract TestLuckyBuyCosigners is Test {
         luckyBuy = new LuckyBuy(
             protocolFee,
             flatFee,
+            0,
             msg.sender,
             address(prng),
             feeReceiverManager
