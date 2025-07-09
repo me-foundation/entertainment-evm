@@ -202,6 +202,19 @@ contract LuckyBuy is
         uint256 feeSplitPercentage;
     }
 
+    struct FeeSplitPayment {
+        address recipient;
+        uint256 amount;
+        uint256 commitId;
+        uint256 feeSplitPercentage;
+        uint256 protocolFeesPaid;
+    }
+
+    struct ProtocolFeePayment {
+        uint256 commitId;
+        uint256 amount;
+    }
+
     modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
         if (
             luckyBuys[commitId_].receiver != msg.sender &&
@@ -265,7 +278,7 @@ contract LuckyBuy is
     /// @notice Allows a user to commit funds for multiple chances to win in a single transaction
     /// @param requests_ Array of commit requests
     /// @dev User must send exact total amount needed for all commits including fees
-    /// @dev Applies a bulk commit premium fee (on top of protocol fee) to each individual commit
+    /// @dev Applies a bulk commit premium fee (calculated on the commit amount) separate from protocol fee
     /// @dev Emits a Commit event for each successful commit with the same bulkSessionId for tracking
     /// @return commitIds Array of created commit IDs
     function bulkCommit(
@@ -277,13 +290,8 @@ contract LuckyBuy is
         commitIds = new uint256[](requests_.length);
         uint256 totalUsed = 0;
         
-                // Generate unique bulk session ID for this transaction
-        uint256 currentBulkSessionId = ++bulkSessionCounter;
-        
-        // Calculate total fee rate for bulk commits (protocol fee + bulk premium)
-        uint256 totalFeeRate = protocolFee + bulkCommitFee;
-
-        // Process each commit and validate amounts as we go
+        // Validate amounts and calculate bulk fee
+        uint256 totalBulkFee = 0;
         for (uint256 i = 0; i < requests_.length; i++) {
             CommitRequest calldata request = requests_[i];
 
@@ -294,11 +302,34 @@ contract LuckyBuy is
             // Early check if we're exceeding msg.value
             if (totalUsed > msg.value) revert InvalidAmount();
 
-            commitIds[i] = _processCommit(request, totalFeeRate, currentBulkSessionId);
+            // Calculate bulk fee for this commit (applied on the commit amount portion)
+            uint256 amountWithoutFlatFee = request.amount - flatFee;
+            uint256 commitAmount = calculateContributionWithoutFee(amountWithoutFlatFee, protocolFee);
+            uint256 bulkFeeForCommit = (commitAmount * bulkCommitFee) / BASE_POINTS;
+            totalBulkFee += bulkFeeForCommit;
         }
 
         // Final validation that exact amount was sent
         if (totalUsed != msg.value) revert InvalidAmount();
+
+        uint256 currentBulkSessionId = ++bulkSessionCounter;
+
+        // Process each commit after validation (using only protocol fee, bulk fee handled separately)
+        for (uint256 i = 0; i < requests_.length; i++) {
+            commitIds[i] = _processCommit(requests_[i], protocolFee, currentBulkSessionId);
+        }
+
+        // Collect bulk fee
+        if (totalBulkFee > 0) {
+            if (feeReceiver != address(0)) {
+                (bool success, ) = feeReceiver.call{value: totalBulkFee}("");
+                if (!success) {
+                    treasuryBalance += totalBulkFee;
+                }
+            } else {
+                treasuryBalance += totalBulkFee;
+            }
+        }
 
         // Emit event after successful completion
         emit BulkCommit(msg.sender, currentBulkSessionId, requests_.length);
@@ -317,7 +348,16 @@ contract LuckyBuy is
         uint256 bulkSessionId_
     ) internal returns (uint256 commitId) {
         uint256 amountWithoutFlatFee = request_.amount - flatFee;
-        uint256 commitAmount = calculateContributionWithoutFee(amountWithoutFlatFee, feeRate_);
+        
+        // For bulk commits, deduct the bulk fee from the available amount
+        uint256 availableAmount = amountWithoutFlatFee;
+        if (bulkSessionId_ > 0) {
+            uint256 commitAmountBase = calculateContributionWithoutFee(amountWithoutFlatFee, feeRate_);
+            uint256 bulkFee = (commitAmountBase * bulkCommitFee) / BASE_POINTS;
+            availableAmount = amountWithoutFlatFee - bulkFee;
+        }
+        
+        uint256 commitAmount = calculateContributionWithoutFee(availableAmount, feeRate_);
         
         // All validations handled by _validateCommit
         _validateCommit(request_.receiver, request_.cosigner, request_.reward, commitAmount);
@@ -325,8 +365,8 @@ contract LuckyBuy is
         // Handle flat fee payment
         _handleFlatFeePayment();
         
-        // Calculate protocol fee using the provided fee rate
-        uint256 protocolFeeAmount = amountWithoutFlatFee - commitAmount;
+        // Calculate protocol fee using the available amount (after bulk fee deduction)
+        uint256 protocolFeeAmount = availableAmount - commitAmount;
         
         // Create commit
         commitId = luckyBuys.length;
@@ -598,9 +638,17 @@ contract LuckyBuy is
         FulfillRequest[] calldata requests_
     ) public payable whenNotPaused {
         if (requests_.length == 0) revert InvalidAmount();
+        if (requests_.length > maxBulkSize) revert InvalidBulkSize();
         
         if (msg.value > 0) _depositTreasury(msg.value);
         
+        // Arrays to collect payments for later execution
+        FeeSplitPayment[] memory feeSplitPayments = new FeeSplitPayment[](requests_.length);
+        ProtocolFeePayment[] memory protocolFeePayments = new ProtocolFeePayment[](requests_.length);
+        uint256 feeSplitCount = 0;
+        uint256 protocolFeeCount = 0;
+        
+        // Phase 1: Validation and fulfillment (internal state changes only)
         for (uint256 i = 0; i < requests_.length; i++) {
             FulfillRequest calldata request = requests_[i];
             uint256 commitId = commitIdByDigest[request.commitDigest];
@@ -614,6 +662,7 @@ contract LuckyBuy is
             
             uint256 protocolFeesPaid = feesPaid[commitId];
             
+            // Fulfill the commit (this will make external calls but is contained)
             _fulfill(
                 commitId,
                 request.marketplace,
@@ -624,36 +673,72 @@ contract LuckyBuy is
                 request.signature
             );
             
-            // Handle fee splitting if enabled for this request
+            // Prepare fee split payment if enabled
             if (request.feeSplitReceiver != address(0) && request.feeSplitPercentage > 0) {
                 uint256 splitAmount = (protocolFeesPaid * request.feeSplitPercentage) / BASE_POINTS;
                 
-                (bool success, ) = payable(request.feeSplitReceiver).call{value: splitAmount}("");
-                if (!success) {
-                    emit FeeTransferFailure(
-                        commitId,
-                        request.feeSplitReceiver,
-                        splitAmount,
-                        hash(luckyBuys[commitId])
-                    );
-                } else {
-                    treasuryBalance -= splitAmount;
-                }
+                treasuryBalance -= splitAmount;
                 
+                // Store fee split payment for later execution
+                feeSplitPayments[feeSplitCount] = FeeSplitPayment({
+                    recipient: request.feeSplitReceiver,
+                    amount: splitAmount,
+                    commitId: commitId,
+                    feeSplitPercentage: request.feeSplitPercentage,
+                    protocolFeesPaid: protocolFeesPaid
+                });
+                feeSplitCount++;
+                
+                // Store remaining protocol fees for later payment
                 uint256 remainingProtocolFees = protocolFeesPaid - splitAmount;
-                _sendProtocolFees(commitId, remainingProtocolFees);
-                
-                emit FeeSplit(
-                    commitId,
-                    request.feeSplitReceiver,
-                    request.feeSplitPercentage,
-                    protocolFeesPaid,
-                    splitAmount
-                );
+                if (remainingProtocolFees > 0) {
+                    protocolFeePayments[protocolFeeCount] = ProtocolFeePayment({
+                        commitId: commitId,
+                        amount: remainingProtocolFees
+                    });
+                    protocolFeeCount++;
+                }
             } else {
-                // No fee split, send all protocol fees normally
-                _sendProtocolFees(commitId, protocolFeesPaid);
+                // Store full protocol fees for later payment
+                if (protocolFeesPaid > 0) {
+                    protocolFeePayments[protocolFeeCount] = ProtocolFeePayment({
+                        commitId: commitId,
+                        amount: protocolFeesPaid
+                    });
+                    protocolFeeCount++;
+                }
             }
+        }
+        
+        // Phase 2: External calls for fee splits (state already updated)
+        for (uint256 i = 0; i < feeSplitCount; i++) {
+            FeeSplitPayment memory payment = feeSplitPayments[i];
+            
+            (bool success, ) = payable(payment.recipient).call{value: payment.amount}("");
+            if (!success) {
+                // Restore treasury balance on failed transfer
+                treasuryBalance += payment.amount;
+                emit FeeTransferFailure(
+                    payment.commitId,
+                    payment.recipient,
+                    payment.amount,
+                    hash(luckyBuys[payment.commitId])
+                );
+            }
+            
+            emit FeeSplit(
+                payment.commitId,
+                payment.recipient,
+                payment.feeSplitPercentage,
+                payment.protocolFeesPaid,
+                payment.amount
+            );
+        }
+        
+        // Phase 3: External calls for protocol fees (state already updated in _sendProtocolFees)
+        for (uint256 i = 0; i < protocolFeeCount; i++) {
+            ProtocolFeePayment memory payment = protocolFeePayments[i];
+            _sendProtocolFees(payment.commitId, payment.amount);
         }
     }
 
@@ -776,7 +861,7 @@ contract LuckyBuy is
     /// @dev Emits a BulkExpire event after successful completion
     function bulkExpire(
         uint256[] calldata commitIds_
-    ) external nonReentrant {
+    ) external {
         if (commitIds_.length == 0) revert InvalidAmount();
         if (commitIds_.length > maxBulkSize) revert InvalidBulkSize();
 

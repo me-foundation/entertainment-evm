@@ -208,6 +208,19 @@ contract LuckyBuyInitializable is
         uint256 feeSplitPercentage;
     }
 
+    struct FeeSplitPayment {
+        address recipient;
+        uint256 amount;
+        uint256 commitId;
+        uint256 feeSplitPercentage;
+        uint256 protocolFeesPaid;
+    }
+
+    struct ProtocolFeePayment {
+        uint256 commitId;
+        uint256 amount;
+    }
+
     modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
         if (
             luckyBuys[commitId_].receiver != msg.sender &&
@@ -645,8 +658,18 @@ contract LuckyBuyInitializable is
         FulfillRequest[] calldata requests_
     ) public payable whenNotPaused {
         if (requests_.length == 0) revert InvalidAmount();
+        if (requests_.length > maxBulkSize) revert InvalidBulkSize();
 
         if (msg.value > 0) _depositTreasury(msg.value);
+
+        FeeSplitPayment[] memory feeSplitPayments = new FeeSplitPayment[](
+            requests_.length
+        );
+        ProtocolFeePayment[] memory protocolFeePayments = new ProtocolFeePayment[](
+            requests_.length
+        );
+        uint256 feeSplitCount = 0;
+        uint256 protocolFeeCount = 0;
 
         for (uint256 i = 0; i < requests_.length; i++) {
             FulfillRequest calldata request = requests_[i];
@@ -685,34 +708,70 @@ contract LuckyBuyInitializable is
                 uint256 splitAmount = (protocolFeesPaid *
                     request.feeSplitPercentage) / BASE_POINTS;
 
-                (bool success, ) = payable(request.feeSplitReceiver).call{
-                    value: splitAmount
-                }("");
-                if (!success) {
-                    emit FeeTransferFailure(
-                        commitId,
-                        request.feeSplitReceiver,
-                        splitAmount,
-                        hash(luckyBuys[commitId])
-                    );
-                } else {
-                    treasuryBalance -= splitAmount;
-                }
+                treasuryBalance -= splitAmount;
 
+                // Store fee split payment for later execution
+                feeSplitPayments[feeSplitCount] = FeeSplitPayment({
+                    recipient: request.feeSplitReceiver,
+                    amount: splitAmount,
+                    commitId: commitId,
+                    feeSplitPercentage: request.feeSplitPercentage,
+                    protocolFeesPaid: protocolFeesPaid
+                });
+                feeSplitCount++;
+
+                // Store remaining protocol fees for later payment
                 uint256 remainingProtocolFees = protocolFeesPaid - splitAmount;
-                _sendProtocolFees(commitId, remainingProtocolFees);
-
-                emit FeeSplit(
-                    commitId,
-                    request.feeSplitReceiver,
-                    request.feeSplitPercentage,
-                    protocolFeesPaid,
-                    splitAmount
-                );
+                if (remainingProtocolFees > 0) {
+                    protocolFeePayments[protocolFeeCount] = ProtocolFeePayment({
+                        commitId: commitId,
+                        amount: remainingProtocolFees
+                    });
+                    protocolFeeCount++;
+                }
             } else {
-                // No fee split, send all protocol fees normally
-                _sendProtocolFees(commitId, protocolFeesPaid);
+                // Store full protocol fees for later payment
+                if (protocolFeesPaid > 0) {
+                    protocolFeePayments[protocolFeeCount] = ProtocolFeePayment({
+                        commitId: commitId,
+                        amount: protocolFeesPaid
+                    });
+                    protocolFeeCount++;
+                }
             }
+        }
+
+        // Phase 2: External calls for fee splits (state already updated)
+        for (uint256 i = 0; i < feeSplitCount; i++) {
+            FeeSplitPayment memory payment = feeSplitPayments[i];
+
+            (bool success, ) = payable(payment.recipient).call{
+                value: payment.amount
+            }("");
+            if (!success) {
+                // Restore treasury balance on failed transfer
+                treasuryBalance += payment.amount;
+                emit FeeTransferFailure(
+                    payment.commitId,
+                    payment.recipient,
+                    payment.amount,
+                    hash(luckyBuys[payment.commitId])
+                );
+            }
+
+            emit FeeSplit(
+                payment.commitId,
+                payment.recipient,
+                payment.feeSplitPercentage,
+                payment.protocolFeesPaid,
+                payment.amount
+            );
+        }
+
+        // Phase 3: External calls for protocol fees (state already updated in _sendProtocolFees)
+        for (uint256 i = 0; i < protocolFeeCount; i++) {
+            ProtocolFeePayment memory payment = protocolFeePayments[i];
+            _sendProtocolFees(payment.commitId, payment.amount);
         }
     }
 
@@ -840,7 +899,7 @@ contract LuckyBuyInitializable is
     /// @dev Emits a BulkExpire event after successful completion
     function bulkExpire(
         uint256[] calldata commitIds_
-    ) external nonReentrant {
+    ) external {
         if (commitIds_.length == 0) revert InvalidAmount();
         if (commitIds_.length > maxBulkSize) revert InvalidBulkSize();
 
