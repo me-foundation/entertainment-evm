@@ -118,11 +118,8 @@ contract LuckyBuy is
     event BulkCommit(
         address indexed sender,
         uint256 indexed bulkSessionId,
-        uint256 numberOfCommits
-    );
-    event BulkExpire(
-        address indexed sender,
-        uint256 numberOfCommits
+        uint256 numberOfCommits,
+        uint256[] commitIds
     );
     event FeeReceiverUpdated(
         address indexed oldFeeReceiver,
@@ -332,7 +329,7 @@ contract LuckyBuy is
         }
 
         // Emit event after successful completion
-        emit BulkCommit(msg.sender, currentBulkSessionId, requests_.length);
+        emit BulkCommit(msg.sender, currentBulkSessionId, requests_.length, commitIds);
 
         return commitIds;
     }
@@ -878,8 +875,6 @@ contract LuckyBuy is
             _expire(commitId);
         }
 
-        // Emit event after successful completion
-        emit BulkExpire(msg.sender, commitIds_.length);
     }
 
     /// @notice Internal function to expire a commit
