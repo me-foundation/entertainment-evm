@@ -153,11 +153,8 @@ contract LuckyBuyInitializable is
     event BulkCommit(
         address indexed sender,
         uint256 indexed bulkSessionId,
-        uint256 numberOfCommits
-    );
-    event BulkExpire(
-        address indexed sender,
-        uint256 numberOfCommits
+        uint256 numberOfCommits,
+        uint256[] commitIds
     );
 
     error AlreadyCosigner();
@@ -356,7 +353,8 @@ contract LuckyBuyInitializable is
         emit BulkCommit(
             msg.sender,
             currentBulkSessionId,
-            requests_.length
+            requests_.length,
+            commitIds
         );
 
         return commitIds;
@@ -916,8 +914,6 @@ contract LuckyBuyInitializable is
             _expire(commitId);
         }
 
-        // Emit event after successful completion
-        emit BulkExpire(msg.sender, commitIds_.length);
     }
 
     /// @notice Internal function to expire a commit
