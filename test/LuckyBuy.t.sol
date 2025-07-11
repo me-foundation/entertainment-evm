@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
 import "src/PRNG.sol";
+import "src/common/interfaces/ISignatureVerifier.sol";
 import {TokenRescuer} from "../src/common/TokenRescuer.sol";
 import {MEAccessControl} from "../src/common/MEAccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -41,6 +42,7 @@ contract MockLuckyBuy is LuckyBuy {
     constructor(
         uint256 protocolFee_,
         uint256 flatFee_,
+        uint256 bulkCommitFee_,
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
@@ -48,6 +50,7 @@ contract MockLuckyBuy is LuckyBuy {
         LuckyBuy(
             protocolFee_,
             flatFee_,
+            bulkCommitFee_,
             feeReceiver_,
             prng_,
             feeReceiverManager_
@@ -114,7 +117,8 @@ contract TestLuckyBuyCommit is Test {
         uint256 reward,
         uint256 fee,
         uint256 flatFee,
-        bytes32 digest
+        bytes32 digest,
+        uint256 bulkSessionId
     );
     event CommitExpireTimeUpdated(
         uint256 oldCommitExpireTime,
@@ -129,6 +133,10 @@ contract TestLuckyBuyCommit is Test {
     );
 
     event MaxRewardUpdated(uint256 oldMaxReward, uint256 newMaxReward);
+    event BulkExpire(
+        address indexed sender,
+        uint256 numberOfCommits
+    );
 
     function setUp() public {
         vm.startPrank(admin);
@@ -136,6 +144,7 @@ contract TestLuckyBuyCommit is Test {
         luckyBuy = new MockLuckyBuy(
             protocolFee,
             flatFee,
+            0,
             admin,
             address(prng),
             feeReceiverManager
@@ -166,7 +175,8 @@ contract TestLuckyBuyCommit is Test {
             reward,
             0,
             0,
-            bytes32(0)
+            bytes32(0),
+            0 // bulkSessionId - 0 for individual commits
         );
 
         luckyBuy.commit{value: amount}(
@@ -236,7 +246,8 @@ contract TestLuckyBuyCommit is Test {
             reward,
             0,
             flatFeeAmount,
-            bytes32(0)
+            bytes32(0),
+            0 // bulkSessionId - 0 for individual commits
         );
 
         luckyBuy.commit{value: amount + flatFeeAmount}(
@@ -693,6 +704,7 @@ contract TestLuckyBuyCommit is Test {
         LuckyBuy newLuckyBuy = new LuckyBuy(
             protocolFee,
             flatFee,
+            0,
             msg.sender,
             address(prng),
             feeReceiverManager
@@ -790,7 +802,9 @@ contract TestLuckyBuyCommit is Test {
             reward,
             address(0),
             0,
-            new bytes(0)
+            new bytes(0),
+            address(0),
+            0
         );
     }
 
@@ -925,7 +939,7 @@ contract TestLuckyBuyCommit is Test {
         uint256 amountWithFee = amount + fee;
 
         uint256 amountWithoutFeeCheck = luckyBuy
-            .calculateContributionWithoutFee(amountWithFee);
+            .calculateContributionWithoutFee(amountWithFee, protocolFee);
 
         assertEq(amountWithoutFeeCheck, amount);
 
@@ -1325,7 +1339,9 @@ contract TestLuckyBuyCommit is Test {
             reward,
             address(0),
             0,
-            new bytes(0)
+            new bytes(0),
+            address(0),
+            0
         );
     }
 
@@ -1458,7 +1474,7 @@ contract TestLuckyBuyCommit is Test {
         uint256 _treasuryBalance = luckyBuy.treasuryBalance();
         uint256 _protocolBalance = luckyBuy.protocolBalance();
         uint256 _feeReceiverBalance = address(this).balance;
-        luckyBuy.fulfillWithFeeSplit(
+        luckyBuy.fulfill(
             commitId,
             address(0), // marketplace
             "", // orderData
@@ -1528,7 +1544,7 @@ contract TestLuckyBuyCommit is Test {
             reward
         );
         vm.expectRevert(LuckyBuy.InvalidFeeSplitPercentage.selector);
-        luckyBuy.fulfillWithFeeSplit(
+        luckyBuy.fulfill(
             commitId,
             marketplace,
             orderData,
@@ -1578,7 +1594,7 @@ contract TestLuckyBuyCommit is Test {
             reward
         );
         vm.expectRevert(LuckyBuy.InvalidFeeSplitReceiver.selector);
-        luckyBuy.fulfillWithFeeSplit(
+        luckyBuy.fulfill(
             commitId,
             marketplace,
             orderData,
@@ -2079,7 +2095,9 @@ contract TestLuckyBuyCommit is Test {
             reward,
             orderToken,
             orderTokenId,
-            signature
+            signature,
+            address(0),
+            0
         );
         
         vm.stopPrank();
@@ -2088,4 +2106,131 @@ contract TestLuckyBuyCommit is Test {
     }
 
     receive() external payable {}
+
+    function testBulkCommitAndBulkExpire() public {
+        // Create bulk commit requests
+        LuckyBuy.CommitRequest[] memory commitRequests = new LuckyBuy.CommitRequest[](3);
+        for (uint256 i = 0; i < 3; i++) {
+            commitRequests[i] = LuckyBuy.CommitRequest({
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed + i,
+                orderHash: orderHash,
+                reward: reward,
+                amount: 1 ether
+            });
+        }
+
+        // Execute bulk commit
+        vm.startPrank(user);
+        vm.deal(user, 3 ether);
+        uint256[] memory commitIds = luckyBuy.bulkCommit{value: 3 ether}(commitRequests);
+        vm.stopPrank();
+
+        // Verify all commits were created
+        assertEq(commitIds.length, 3);
+        assertEq(luckyBuy.luckyBuyCount(receiver), 3);
+
+        // Advance time to make commits expirable
+        vm.warp(block.timestamp + 25 hours);
+
+        // Get initial receiver balance
+        uint256 initialReceiverBalance = receiver.balance;
+
+        // Execute bulk expire
+        vm.prank(receiver);
+        luckyBuy.bulkExpire(commitIds);
+
+        // Verify all commits are expired
+        for (uint256 i = 0; i < 3; i++) {
+            assertTrue(luckyBuy.isExpired(commitIds[i]));
+        }
+
+        // Verify receiver got refunds (commit amount + fees)
+        uint256 expectedRefund = 3 ether; // 3 ether total commits (no fees in this test)
+        assertEq(receiver.balance, initialReceiverBalance + expectedRefund);
+    }
+
+    function testBulkCommitAndBulkFulfill() public {
+        // Set up bulk commit fee
+        vm.startPrank(admin);
+        luckyBuy.setBulkCommitFee(250); // 2.5%
+        luckyBuy.setProtocolFee(500); // 5%
+        vm.stopPrank();
+
+        // Create the correct order hash for fulfillment
+        bytes32 correctOrderHash = luckyBuy.hashOrder(
+            address(0), // marketplace
+            reward, // orderAmount
+            "", // orderData
+            address(0), // token
+            0 // tokenId
+        );
+
+        // Create bulk commit requests
+        LuckyBuy.CommitRequest[] memory commitRequests = new LuckyBuy.CommitRequest[](3);
+        for (uint256 i = 0; i < 3; i++) {
+            commitRequests[i] = LuckyBuy.CommitRequest({
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed + i,
+                orderHash: correctOrderHash,
+                reward: reward,
+                amount: 1 ether
+            });
+        }
+
+        // Execute bulk commit
+        vm.startPrank(user);
+        vm.deal(user, 3 ether);
+        uint256[] memory commitIds = luckyBuy.bulkCommit{value: 3 ether}(commitRequests);
+        vm.stopPrank();
+
+        // Verify all commits were created
+        assertEq(commitIds.length, 3);
+        assertEq(luckyBuy.luckyBuyCount(receiver), 3);
+
+        // Fund contract for fulfillments - need to deposit to treasury
+        vm.deal(address(this), 50 ether);
+        (bool success, ) = address(luckyBuy).call{value: 50 ether}("");
+        assertTrue(success, "Initial funding should succeed");
+
+        // Create bulk fulfill requests
+        LuckyBuy.FulfillRequest[] memory fulfillRequests = new LuckyBuy.FulfillRequest[](3);
+        
+        for (uint256 i = 0; i < 3; i++) {
+            (, , , , , , uint256 commitAmount, ) = luckyBuy.luckyBuys(commitIds[i]);
+            
+            bytes32 digest = luckyBuy.hash(ISignatureVerifier.CommitData({
+                id: commitIds[i],
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed + i,
+                counter: i,
+                orderHash: correctOrderHash,
+                amount: commitAmount,
+                reward: reward
+            }));
+
+            fulfillRequests[i] = LuckyBuy.FulfillRequest({
+                commitDigest: digest,
+                marketplace: address(0),
+                orderData: "",
+                orderAmount: reward,
+                token: address(0),
+                tokenId: 0,
+                signature: signCommit(commitIds[i], receiver, seed + i, i, correctOrderHash, commitAmount, reward),
+                feeSplitReceiver: address(0),
+                feeSplitPercentage: 0
+            });
+        }
+
+        // Execute bulk fulfill
+        luckyBuy.bulkFulfill(fulfillRequests);
+
+        // Verify all commits are fulfilled
+        for (uint256 i = 0; i < 3; i++) {
+            assertTrue(luckyBuy.isFulfilled(commitIds[i]));
+        }
+    }
 }

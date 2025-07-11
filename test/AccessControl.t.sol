@@ -29,6 +29,7 @@ contract AccessControlTest is Test {
         luckyBuy = new LuckyBuy(
             0,
             0,
+            0,
             msg.sender,
             address(prng),
             feeReceiverManager
