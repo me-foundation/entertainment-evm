@@ -40,7 +40,7 @@ contract LuckyBuyInitializable is
 
     uint256 public maxBulkSize;
 
-    uint256 public bulkSessionCounter;
+    uint256 public bulkSessionCounter = 0;
 
     uint256 public commitExpireTime;
     mapping(uint256 commitId => uint256 expiresAt) public commitExpiresAt;

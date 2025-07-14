@@ -133,10 +133,6 @@ contract TestLuckyBuyCommit is Test {
     );
 
     event MaxRewardUpdated(uint256 oldMaxReward, uint256 newMaxReward);
-    event BulkExpire(
-        address indexed sender,
-        uint256 numberOfCommits
-    );
 
     function setUp() public {
         vm.startPrank(admin);
