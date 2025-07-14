@@ -16,9 +16,9 @@ Amount: 1
 
 The protocol works in three steps:
 
-1. **Commit**: Users commit ETH with a proportional chance to win (e.g., commit 0.1 ETH on a 1 ETH NFT for a 10% chance to win)
+1. **Commit**: Users commit ETH with a proportional chance to win (e.g., commit 0.1 ETH on a 1 ETH NFT for a 10% chance to win). Users can also perform bulk commits for multiple chances in one tx.
 2. **Verify**: Trusted cosigners verify and sign valid commits
-3. **Fulfill**: The protocol attempts to purchase the NFT if the user wins, or keeps the ETH if they lose
+3. **Fulfill**: The protocol attempts to purchase the NFT if the user wins, or keeps the ETH if they lose. Bulk fulfillment is supported for processing multiple commits in one tx.
 
 ### Key Features
 
@@ -28,7 +28,9 @@ The protocol works in three steps:
 - Fallback ETH transfer if NFT purchase fails
 - Multi-cosigner support for redundancy
 - Commit expiration system
+- Bulk operations (commit, fulfill, expire)
 - Configurable protocol fees and minimum rewards
+- Bulk-specific fee structure with configurable premium
 - Access control system
 - Fee Receiver: 0x85d31445AF0b0fF26851bf3C5e27e90058Df3270
 
@@ -106,7 +108,7 @@ These security considerations should be carefully reviewed during the security a
 
 ## Fee Calculations
 
-The LuckyBuy protocol implements a two-tier fee structure:
+The LuckyBuy protocol implements a multi-tier fee structure:
 
 ### Fee Structure
 
@@ -121,27 +123,47 @@ The LuckyBuy protocol implements a two-tier fee structure:
    - The protocol fee is tracked separately in the `protocolBalance`
    - It is returned to the user if the commit expires
 
+3. **Bulk Commit Fee**: An additional premium fee for bulk operations
+   - Applied on top of the protocol fee for bulk commits
+   - Configurable by contract admin (default 2.5%, bringing total to 7.5%)
+
 ### Fee Calculation Process
 
 When a user commits funds, the following calculations occur:
 
+**For Individual Commits:**
 1. The flat fee is subtracted from the total amount sent: `amountAfterFlatFee = msg.value - flatFee`
 2. The commit amount is calculated by applying the protocol fee formula to the amount after flat fee: `commitAmount = (amountAfterFlatFee * BASE_POINTS) / (BASE_POINTS + protocolFee)`
 3. The protocol fee is calculated as the difference: `protocolFee = amountAfterFlatFee - commitAmount`
 
+**For Bulk Commits:**
+1. The flat fee is subtracted from each individual commit amount
+2. The effective fee rate combines protocol fee and bulk commit fee: `effectiveFeeRate = protocolFee + bulkCommitFee`
+3. The commit amount is calculated using the effective fee rate: `commitAmount = (amountAfterFlatFee * BASE_POINTS) / (BASE_POINTS + effectiveFeeRate)`
+
 ### Example Calculation
 
-For a commit with:
-
+**Individual Commit:**
 - Total amount sent: 1.01 ETH
 - Flat fee: 0.01 ETH
 - Protocol fee: 5% (500 basis points)
 
 The calculation would be:
-
 1. Amount after flat fee: 1.01 ETH - 0.01 ETH = 1 ETH
 2. Protocol fee: 1 ETH \* 5% = 0.05 ETH
 3. Commit amount: 0.95 ETH
+
+**Bulk Commit:**
+- Total amount sent: 1.01 ETH
+- Flat fee: 0.01 ETH
+- Protocol fee: 5% (500 basis points)
+- Bulk commit fee: 2.5% (250 basis points)
+
+The calculation would be:
+1. Amount after flat fee: 1.01 ETH - 0.01 ETH = 1 ETH
+2. Effective fee rate: 5% + 2.5% = 7.5%
+3. Total fee: 1 ETH \* 7.5% = 0.075 ETH
+4. Commit amount: 0.925 ETH
 
 ### Fee Configuration
 
@@ -149,8 +171,10 @@ The fees can be configured by the contract admin:
 
 - `setFlatFee(uint256 flatFee_)`: Sets the flat fee amount
 - `setProtocolFee(uint256 protocolFee_)`: Sets the protocol fee percentage (in basis points)
+- `setBulkCommitFee(uint256 bulkCommitFee_)`: Sets the bulk commit fee percentage (in basis points)
+- `setMaxBulkSize(uint256 maxBulkSize_)`: Sets the maximum number of commits allowed in a single bulk operation
 
-The protocol fee is limited to a maximum of 100% (10000 basis points).
+The protocol fee is limited to a maximum of 100% (10000 basis points). The bulk commit fee is applied in addition to the protocol fee for bulk operations.
 
 ## Deployment
 
@@ -162,4 +186,4 @@ Example depoyment script for Ethereum Sepolia testnet:
 
 ## Verification
 
-`forge verify-contract 0x0178070d088C235e1Dc2696D257f90B3ded475a3 src/LuckyBuy.sol:LuckyBuy --constructor-args $(cast abi-encode "constructor(uint256,uint256,address,address,address)" 500 825000000000000 0x2918F39540df38D4c33cda3bCA9edFccd8471cBE 0xBdAa680FcD544acc373c5f190449575768Ac4822 0x7C51fAEe5666B47b2F7E81b7a6A8DEf4C76D47E3) --chain-id 1 --watch`
+`forge verify-contract 0x0178070d088C235e1Dc2696D257f90B3ded475a3 src/LuckyBuy.sol:LuckyBuy --constructor-args $(cast abi-encode "constructor(uint256,uint256,uint256,address,address,address)" 500 825000000000000 250 0x2918F39540df38D4c33cda3bCA9edFccd8471cBE 0xBdAa680FcD544acc373c5f190449575768Ac4822 0x7C51fAEe5666B47b2F7E81b7a6A8DEf4C76D47E3) --chain-id 1 --watch`

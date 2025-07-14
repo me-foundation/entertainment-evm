@@ -42,7 +42,7 @@ contract LuckyBuy is
 
     uint256 public maxBulkSize = 20;
 
-    uint256 public bulkSessionCounter;
+    uint256 public bulkSessionCounter = 0;
 
     uint256 public commitExpireTime = 1 days;
     mapping(uint256 commitId => uint256 expiresAt) public commitExpiresAt;
