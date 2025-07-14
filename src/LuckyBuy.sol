@@ -259,7 +259,7 @@ contract LuckyBuy is
             amount: msg.value
         });
 
-        return _processCommit(request, protocolFee, 0); // 0 = individual commit
+        return _processCommit(request, protocolFee);
     }
 
     /// @notice Allows a user to commit funds for multiple chances to win in a single transaction
@@ -286,12 +286,7 @@ contract LuckyBuy is
             
             remainingValue -= request.amount;
 
-            // Process individual commit with enhanced fee rate (protocol + bulk)
-            commitIds[i] = _processCommit(
-                request,
-                effectiveFeeRate,
-                currentBulkSessionId
-            );
+            commitIds[i] = _processCommit(request, effectiveFeeRate, currentBulkSessionId);
         }
 
         if (remainingValue != 0) revert InvalidAmount();
@@ -306,9 +301,20 @@ contract LuckyBuy is
         return commitIds;
     }
 
-    /// @notice Internal function to process a single commit
+    /// @notice Internal function to process an individual commit
     /// @param request_ The commit request to process
-    /// @param feeRate_ The fee rate to apply (in basis points, includes protocol + bulk fee for bulk commits)
+    /// @param feeRate_ The fee rate to apply (in basis points)
+    /// @return commitId The ID of the created commit
+    function _processCommit(
+        CommitRequest memory request_,
+        uint256 feeRate_
+    ) internal returns (uint256 commitId) {
+        return _processCommit(request_, feeRate_, 0);
+    }
+
+    /// @notice Internal function to process a commit (individual or bulk)
+    /// @param request_ The commit request to process
+    /// @param feeRate_ The fee rate to apply (in basis points)
     /// @param bulkSessionId_ The bulk session ID (0 for individual commits, >0 for bulk commits)
     /// @return commitId The ID of the created commit
     function _processCommit(
