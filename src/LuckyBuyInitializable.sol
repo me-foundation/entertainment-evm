@@ -27,13 +27,13 @@ contract LuckyBuyInitializable is LuckyBuy {
         if (_initialized) revert InitializableAlreadyInitialized();
 
         _initialized = true;
-
         __ReentrancyGuard_init();
+        __MEAccessControl_init();
+        __Pausable_init();
+        __SignatureVerifier_init("LuckyBuy", "1");
 
         maxReward = 50 ether;
-        protocolFee = 0;
         minReward = BASE_POINTS;
-        flatFee = 0;
 
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner_);
         _grantRole(OPS_ROLE, initialOwner_);

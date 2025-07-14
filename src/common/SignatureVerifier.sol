@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "./interfaces/ISignatureVerifier.sol";
 
-contract SignatureVerifier is ISignatureVerifier, EIP712 {
+abstract contract SignatureVerifier is ISignatureVerifier, EIP712Upgradeable {
     using ECDSA for bytes32;
 
-    constructor(
+    function __SignatureVerifier_init(
         string memory name,
         string memory version
-    ) EIP712(name, version) {}
+    ) internal {
+        __EIP712_init(name, version);
+    }
 
     function hashOrder(
         address to,

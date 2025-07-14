@@ -8,13 +8,13 @@ import {IERC1155MInitializableV1_0_2} from "./common/interfaces/IERC1155MInitial
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./common/MEAccessControl.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IPRNG} from "./common/interfaces/IPRNG.sol";
 import {TokenRescuer} from "./common/TokenRescuer.sol";
 
 contract LuckyBuy is
     MEAccessControl,
-    Pausable,
+    PausableUpgradeable,
     SignatureVerifier,
     ReentrancyGuardUpgradeable,
     TokenRescuer
@@ -178,7 +178,10 @@ contract LuckyBuy is
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
-    ) initializer MEAccessControl() SignatureVerifier("LuckyBuy", "1") {
+    ) initializer {
+        __MEAccessControl_init();
+        __Pausable_init();
+        __SignatureVerifier_init("LuckyBuy", "1");
         __ReentrancyGuard_init();
 
         uint256 existingBalance = address(this).balance;
