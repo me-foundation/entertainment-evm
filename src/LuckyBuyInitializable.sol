@@ -27,6 +27,10 @@ contract LuckyBuyInitializable is LuckyBuy {
         if (_initialized) revert InitializableAlreadyInitialized();
 
         _initialized = true;
+        maxReward = 50 ether;
+        protocolFee = 0;
+        minReward = BASE_POINTS;
+        flatFee = 0;
 
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner_);
         _grantRole(OPS_ROLE, initialOwner_);

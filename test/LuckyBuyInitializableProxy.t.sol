@@ -4,49 +4,262 @@ pragma solidity 0.8.28;
 import {Test, console} from "forge-std/Test.sol";
 import {LuckyBuyInitializable} from "../src/LuckyBuyInitializable.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {IPRNG} from "../src/common/interfaces/IPRNG.sol";
+import {PRNG} from "../src/PRNG.sol";
+import {LuckyBuy} from "../src/LuckyBuy.sol";
+
+contract MockLuckyBuyInitializable is LuckyBuyInitializable {
+    function setIsFulfilled(uint256 commitId_, bool isFulfilled_) public {
+        isFulfilled[commitId_] = isFulfilled_;
+    }
+
+    function calculateProtocolFee(
+        uint256 _amount
+    ) external view returns (uint256) {
+        return _calculateProtocolFee(_amount);
+    }
+
+    function _calculateProtocolFee(
+        uint256 _amount
+    ) internal view returns (uint256) {
+        return (_amount * protocolFee) / BASE_POINTS;
+    }
+}
+
+contract MockLuckyBuy is LuckyBuy {
+    constructor(
+        uint256 protocolFee_,
+        uint256 flatFee_,
+        address feeReceiver_,
+        address prng_,
+        address feeReceiverManager_
+    )
+        LuckyBuy(
+            protocolFee_,
+            flatFee_,
+            feeReceiver_,
+            prng_,
+            feeReceiverManager_
+        )
+    {}
+
+    function setIsFulfilled(uint256 commitId_, bool isFulfilled_) public {
+        isFulfilled[commitId_] = isFulfilled_;
+    }
+
+    function calculateProtocolFee(
+        uint256 _amount
+    ) external view returns (uint256) {
+        return _calculateProtocolFee(_amount);
+    }
+
+    function _calculateProtocolFee(
+        uint256 _amount
+    ) internal view returns (uint256) {
+        return (_amount * protocolFee) / BASE_POINTS;
+    }
+}
 
 contract LuckyBuyInitializableProxyTest is Test {
-    address public owner = address(0x1);
-    address public feeReceiver = address(0x2);
-    address public prng = address(0x3);
-    address public feeReceiverManager = address(0x4);
+    PRNG prng;
+    MockLuckyBuyInitializable luckyBuy;
+    MockLuckyBuy regularLuckyBuy;
+    address admin = address(0x1);
+    address user = address(0x2);
+    address receiver = address(0x3);
+    uint256 constant COSIGNER_PRIVATE_KEY = 1234;
+    address cosigner = vm.addr(COSIGNER_PRIVATE_KEY);
+    address feeReceiverManager = address(0x4);
+    uint256 protocolFee = 0;
+    uint256 flatFee = 0;
 
-    function test_DeployAndProxy() public {
-        LuckyBuyInitializable implementation = new LuckyBuyInitializable();
-        bytes memory initData = abi.encodeWithSelector(
-            LuckyBuyInitializable.initialize.selector,
-            address(0x1),
-            100,
-            0.01 ether,
-            address(0x2),
-            address(0x3),
-            address(0x4)
+    uint256 seed = 12345;
+    bytes32 orderHash = hex"1234";
+    uint256 amount = 1 ether;
+    uint256 reward = 1.5 ether; // 66% odds
+
+    // Add missing variables for fee split tests
+    address marketplace = address(0);
+    bytes orderData = hex"00";
+    uint256 orderAmount = 1 ether;
+    address orderToken = address(0);
+    uint256 orderTokenId = 0;
+
+    address bob = address(0xB0B);
+    address charlie = address(0xC0FFEE);
+
+    function setUp() public {
+        vm.startPrank(admin);
+        prng = new PRNG();
+
+        // Deploy implementation
+        MockLuckyBuyInitializable implementation = new MockLuckyBuyInitializable();
+
+        // Encode initializer call
+        bytes memory initData = abi.encodeWithSignature(
+            "initialize(address,uint256,uint256,address,address,address)",
+            admin,
+            protocolFee,
+            flatFee,
+            admin,
+            address(prng),
+            feeReceiverManager
         );
+
+        // Deploy proxy and cast the address for convenience
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(implementation),
             initData
         );
-        console.log("Proxy deployed at:", address(proxy));
+        luckyBuy = MockLuckyBuyInitializable(payable(address(proxy)));
 
-        LuckyBuyInitializable proxyContract = LuckyBuyInitializable(
-            payable(address(proxy))
+        vm.deal(admin, 100 ether);
+        vm.deal(receiver, 100 ether);
+        vm.deal(address(this), 100 ether);
+        // Add a cosigner for testing
+        luckyBuy.addCosigner(cosigner);
+
+        // Deploy regular LuckyBuy for comparison
+        regularLuckyBuy = new MockLuckyBuy(
+            protocolFee,
+            flatFee,
+            admin,
+            address(prng),
+            feeReceiverManager
         );
-        console.log("Proxy contract at:", address(proxyContract));
+        regularLuckyBuy.addCosigner(cosigner);
+        vm.stopPrank();
+    }
 
-        console.log("owner", proxyContract.hasRole(0x00, owner));
+    function test_DeployAndProxy() public {
+        console.log("Proxy deployed at:", address(luckyBuy));
+        console.log("owner", luckyBuy.hasRole(0x00, admin));
+    }
 
+    function test_InitialValuesMatch() public {
+        // Compare initial values between regular and initializable contracts
+        assertEq(
+            luckyBuy.protocolFee(),
+            regularLuckyBuy.protocolFee(),
+            "protocolFee should match"
+        );
+        assertEq(
+            luckyBuy.flatFee(),
+            regularLuckyBuy.flatFee(),
+            "flatFee should match"
+        );
+        assertEq(
+            luckyBuy.feeReceiver(),
+            regularLuckyBuy.feeReceiver(),
+            "feeReceiver should match"
+        );
+        assertEq(
+            address(luckyBuy.PRNG()),
+            address(regularLuckyBuy.PRNG()),
+            "PRNG should match"
+        );
+        assertTrue(
+            luckyBuy.hasRole(0x00, admin),
+            "initializable should have admin role"
+        );
+        assertTrue(
+            regularLuckyBuy.hasRole(0x00, admin),
+            "regular should have admin role"
+        );
+        assertTrue(
+            luckyBuy.hasRole(keccak256("OPS_ROLE"), admin),
+            "initializable should have ops role"
+        );
+        assertTrue(
+            regularLuckyBuy.hasRole(keccak256("OPS_ROLE"), admin),
+            "regular should have ops role"
+        );
+        assertTrue(
+            luckyBuy.hasRole(keccak256("RESCUE_ROLE"), admin),
+            "initializable should have rescue role"
+        );
+        assertTrue(
+            regularLuckyBuy.hasRole(keccak256("RESCUE_ROLE"), admin),
+            "regular should have rescue role"
+        );
+        assertTrue(
+            luckyBuy.hasRole(
+                luckyBuy.FEE_RECEIVER_MANAGER_ROLE(),
+                feeReceiverManager
+            ),
+            "initializable should have fee receiver manager role"
+        );
+        assertTrue(
+            regularLuckyBuy.hasRole(
+                regularLuckyBuy.FEE_RECEIVER_MANAGER_ROLE(),
+                feeReceiverManager
+            ),
+            "regular should have fee receiver manager role"
+        );
+    }
+
+    function test_BehaviorParity_commit() public {
+        // Check min/max reward values
+        console.log("Initializable minReward:", luckyBuy.minReward());
+        console.log("Initializable maxReward:", luckyBuy.maxReward());
+        console.log("Regular minReward:", regularLuckyBuy.minReward());
+        console.log("Regular maxReward:", regularLuckyBuy.maxReward());
+        console.log("Reward:", reward);
+
+        // Fund users
+        vm.deal(user, amount * 2);
+        vm.startPrank(user);
+
+        // Commit on both contracts
+        uint256 id1 = luckyBuy.commit{value: amount}(
+            receiver,
+            cosigner,
+            seed,
+            orderHash,
+            reward
+        );
+        uint256 id2 = regularLuckyBuy.commit{value: amount}(
+            receiver,
+            cosigner,
+            seed,
+            orderHash,
+            reward
+        );
+        vm.stopPrank();
+
+        // Compare state after commit
+        assertEq(
+            luckyBuy.luckyBuyCount(receiver),
+            regularLuckyBuy.luckyBuyCount(receiver),
+            "luckyBuyCount should match"
+        );
         (
-            bytes1 fields,
-            string memory name,
-            string memory version,
-            uint256 chainId,
-            address verifyingContract,
-            bytes32 salt,
-            uint256[] memory extensions
-        ) = proxyContract.eip712Domain();
-        console.log("name", name);
-        console.log("version", version);
-        console.log("chainId", chainId);
-        console.log("verifyingContract", verifyingContract);
+            uint256 idA,
+            address recvA,
+            address cosA,
+            uint256 seedA,
+            uint256 ctrA,
+            bytes32 hashA,
+            uint256 amtA,
+            uint256 rewA
+        ) = luckyBuy.luckyBuys(id1);
+        (
+            uint256 idB,
+            address recvB,
+            address cosB,
+            uint256 seedB,
+            uint256 ctrB,
+            bytes32 hashB,
+            uint256 amtB,
+            uint256 rewB
+        ) = regularLuckyBuy.luckyBuys(id2);
+        assertEq(idA, idB, "commit id");
+        assertEq(recvA, recvB, "receiver");
+        assertEq(cosA, cosB, "cosigner");
+        assertEq(seedA, seedB, "seed");
+        assertEq(ctrA, ctrB, "counter");
+        assertEq(hashA, hashB, "orderHash");
+        assertEq(amtA, amtB, "amount");
+        assertEq(rewA, rewB, "reward");
     }
 }
