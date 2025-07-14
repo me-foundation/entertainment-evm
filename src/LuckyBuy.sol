@@ -5,7 +5,7 @@ import "./common/SignatureVerifier.sol";
 
 import {IERC1155MInitializableV1_0_2} from "./common/interfaces/IERC1155MInitializableV1_0_2.sol";
 
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./common/MEAccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
@@ -16,7 +16,7 @@ contract LuckyBuy is
     MEAccessControl,
     Pausable,
     SignatureVerifier,
-    ReentrancyGuard,
+    ReentrancyGuardUpgradeable,
     TokenRescuer
 {
     IPRNG public PRNG;
@@ -178,7 +178,9 @@ contract LuckyBuy is
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
-    ) MEAccessControl() SignatureVerifier("LuckyBuy", "1") {
+    ) initializer MEAccessControl() SignatureVerifier("LuckyBuy", "1") {
+        __ReentrancyGuard_init();
+
         uint256 existingBalance = address(this).balance;
         if (existingBalance > 0) {
             _depositTreasury(existingBalance);
@@ -566,11 +568,18 @@ contract LuckyBuy is
             );
         } else {
             // The order failed to fulfill, it could be bought already or invalid, make the best effort to send the user the value of the order they won.
-            (bool success, ) = commitData.receiver.call{value: orderAmount_}("");
+            (bool success, ) = commitData.receiver.call{value: orderAmount_}(
+                ""
+            );
             if (success) {
                 treasuryBalance -= orderAmount_;
             } else {
-                emit TransferFailure(commitData.id, commitData.receiver, orderAmount_, digest);
+                emit TransferFailure(
+                    commitData.id,
+                    commitData.receiver,
+                    orderAmount_,
+                    digest
+                );
             }
 
             emit Fulfillment(
@@ -653,11 +662,18 @@ contract LuckyBuy is
 
         uint256 transferAmount = commitAmount + protocolFeesPaid;
 
-        (bool success, ) = payable(commitData.receiver).call{value: transferAmount}("");
+        (bool success, ) = payable(commitData.receiver).call{
+            value: transferAmount
+        }("");
         if (!success) {
             // Transfer failed; account the funds in treasury and emit event.
             treasuryBalance += transferAmount;
-            emit TransferFailure(commitId_, commitData.receiver, transferAmount, hash(commitData));
+            emit TransferFailure(
+                commitId_,
+                commitData.receiver,
+                transferAmount,
+                hash(commitData)
+            );
         }
 
         emit CommitExpired(commitId_, hash(commitData));
@@ -937,9 +953,7 @@ contract LuckyBuy is
         if (reward_ == 0 || reward_ > maxReward || reward_ < minReward) {
             revert InvalidReward();
         }
-        if (
-            commitAmount < (reward_ / ONE_PERCENT) || commitAmount > reward_
-        ) {
+        if (commitAmount < (reward_ / ONE_PERCENT) || commitAmount > reward_) {
             revert InvalidAmount();
         }
     }

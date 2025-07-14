@@ -22,11 +22,14 @@ contract LuckyBuyInitializable is LuckyBuy {
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
-    ) public {
+    ) public initializer {
         if (initialOwner_ == address(0)) revert InitialOwnerCannotBeZero();
         if (_initialized) revert InitializableAlreadyInitialized();
 
         _initialized = true;
+
+        __ReentrancyGuard_init();
+
         maxReward = 50 ether;
         protocolFee = 0;
         minReward = BASE_POINTS;
