@@ -7,6 +7,30 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {IPRNG} from "../src/common/interfaces/IPRNG.sol";
 import {PRNG} from "../src/PRNG.sol";
 import {LuckyBuy} from "../src/LuckyBuy.sol";
+import {ISignatureVerifier} from "../src/common/interfaces/ISignatureVerifier.sol";
+import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
+
+contract LuckyBuyProxy is ERC1967Proxy {
+    constructor(
+        address implementation,
+        bytes memory data
+    ) ERC1967Proxy(implementation, data) {}
+
+    function upgradeTo(address newImplementation) public {
+        ERC1967Utils.upgradeToAndCall(newImplementation, "");
+    }
+
+    function upgradeToAndCall(
+        address newImplementation,
+        bytes memory data
+    ) public {
+        ERC1967Utils.upgradeToAndCall(newImplementation, data);
+    }
+
+    function implementation() public view returns (address) {
+        return ERC1967Utils.getImplementation();
+    }
+}
 
 contract MockLuckyBuyInitializable is LuckyBuyInitializable {
     function setIsFulfilled(uint256 commitId_, bool isFulfilled_) public {
@@ -107,7 +131,7 @@ contract LuckyBuyInitializableProxyTest is Test {
         );
 
         // Deploy proxy and cast the address for convenience
-        ERC1967Proxy proxy = new ERC1967Proxy(
+        LuckyBuyProxy proxy = new LuckyBuyProxy(
             address(implementation),
             initData
         );
@@ -118,7 +142,6 @@ contract LuckyBuyInitializableProxyTest is Test {
         vm.deal(address(this), 100 ether);
         // Add a cosigner for testing
         luckyBuy.addCosigner(cosigner);
-
         // Deploy regular LuckyBuy for comparison
         regularLuckyBuy = new MockLuckyBuy(
             protocolFee,
@@ -261,5 +284,95 @@ contract LuckyBuyInitializableProxyTest is Test {
         assertEq(hashA, hashB, "orderHash");
         assertEq(amtA, amtB, "amount");
         assertEq(rewA, rewB, "reward");
+    }
+
+    function test_DigestDifference() public {
+        // Create the same commit data for both contracts
+        ISignatureVerifier.CommitData memory commitData = ISignatureVerifier
+            .CommitData({
+                id: 0,
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed,
+                counter: 0,
+                orderHash: orderHash,
+                amount: amount,
+                reward: reward
+            });
+
+        // Get digests from both contracts
+        bytes32 digest1 = luckyBuy.hash(commitData);
+        bytes32 digest2 = regularLuckyBuy.hash(commitData);
+
+        // The digests should be different because they have different EIP712 domains
+        assertTrue(
+            digest1 != digest2,
+            "Digests should be different due to different EIP712 domains"
+        );
+
+        console.log("Initializable digest:", uint256(digest1));
+        console.log("Regular digest:", uint256(digest2));
+    }
+
+    function test_EIP712DomainValues() public {
+        // Get EIP712 domain values for both contracts
+        (
+            bytes1 fields1,
+            string memory name1,
+            string memory version1,
+            uint256 chainId1,
+            address verifyingContract1,
+            bytes32 salt1,
+            uint256[] memory extensions1
+        ) = luckyBuy.eip712Domain();
+        (
+            bytes1 fields2,
+            string memory name2,
+            string memory version2,
+            uint256 chainId2,
+            address verifyingContract2,
+            bytes32 salt2,
+            uint256[] memory extensions2
+        ) = regularLuckyBuy.eip712Domain();
+
+        // Log the values
+        console.log("Initializable name:", name1);
+        console.log("Regular name:", name2);
+        console.log("Initializable version:", version1);
+        console.log("Regular version:", version2);
+        console.log("Initializable chainId:", chainId1);
+        console.log("Regular chainId:", chainId2);
+        console.log("Initializable verifyingContract:", verifyingContract1);
+        console.log("Regular verifyingContract:", verifyingContract2);
+        console.log("Initializable salt:", uint256(salt1));
+        console.log("Regular salt:", uint256(salt2));
+        // Extensions are usually empty, but you can log their lengths
+        console.log("Initializable extensions length:", extensions1.length);
+        console.log("Regular extensions length:", extensions2.length);
+    }
+
+    function test_ProxyUpgrade() public {
+        // Deploy a new implementation
+        MockLuckyBuyInitializable newImplementation = new MockLuckyBuyInitializable();
+        LuckyBuyProxy proxy = LuckyBuyProxy(payable(address(luckyBuy)));
+
+        // Read current implementation
+        address currentImpl = proxy.implementation();
+        console.log("Current implementation:", currentImpl);
+        assertTrue(currentImpl != address(0), "Implementation should be set");
+
+        // Upgrade the proxy to the new implementation
+        vm.startPrank(admin);
+        proxy.upgradeTo(address(newImplementation));
+        vm.stopPrank();
+
+        // Read the implementation address after upgrade
+        address impl = proxy.implementation();
+        assertEq(
+            impl,
+            address(newImplementation),
+            "Proxy should point to new implementation"
+        );
+        console.log("New implementation:", impl);
     }
 }
