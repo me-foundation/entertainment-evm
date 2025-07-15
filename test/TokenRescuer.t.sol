@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../src/common/TokenRescuer.sol";
 import "forge-std/interfaces/IERC20.sol";
 import "forge-std/interfaces/IERC721.sol";
@@ -202,6 +203,9 @@ contract MockERC1155 is IERC1155 {
 
 // Concrete implementation of TokenRescuer for testing
 contract TestTokenRescuer is TokenRescuer, MEAccessControl {
+    function initialize() public initializer {
+        __MEAccessControl_init();
+    }
     function rescueERC20Batch(
         address[] calldata tokens,
         address[] calldata to,
@@ -243,6 +247,7 @@ contract TokenRescuerTest is Test {
 
     function setUp() public {
         rescuer = new TestTokenRescuer();
+        rescuer.initialize();
         erc20 = new MockERC20();
         erc20_2 = new MockERC20();
         erc721 = new MockERC721();

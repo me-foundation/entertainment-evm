@@ -5,18 +5,18 @@ import "./common/SignatureVerifier.sol";
 
 import {IERC1155MInitializableV1_0_2} from "./common/interfaces/IERC1155MInitializableV1_0_2.sol";
 
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./common/MEAccessControl.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IPRNG} from "./common/interfaces/IPRNG.sol";
 import {TokenRescuer} from "./common/TokenRescuer.sol";
 
 contract LuckyBuy is
     MEAccessControl,
-    Pausable,
+    PausableUpgradeable,
     SignatureVerifier,
-    ReentrancyGuard,
+    ReentrancyGuardUpgradeable,
     TokenRescuer
 {
     IPRNG public PRNG;
@@ -219,7 +219,11 @@ contract LuckyBuy is
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
-    ) MEAccessControl() SignatureVerifier("LuckyBuy", "1") {
+    ) initializer {
+        __MEAccessControl_init();
+        __Pausable_init();
+        __SignatureVerifier_init("LuckyBuy", "1");
+        __ReentrancyGuard_init();
         uint256 existingBalance = address(this).balance;
         if (existingBalance > 0) {
             _depositTreasury(existingBalance);
@@ -667,10 +671,10 @@ contract LuckyBuy is
             );
         } else {
             // The order failed to fulfill, it could be bought already or invalid, make the best effort to send the user the value of the order they won.
-            (bool success, ) = commitData.receiver.call{value: orderAmount_}(
+            (bool transferSuccess, ) = commitData.receiver.call{value: orderAmount_}(
                 ""
             );
-            if (success) {
+            if (transferSuccess) {
                 treasuryBalance -= orderAmount_;
             } else {
                 emit TransferFailure(

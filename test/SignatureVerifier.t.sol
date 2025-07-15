@@ -2,15 +2,18 @@
 pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "src/common/SignatureVerifier.sol";
 import "src/common/interfaces/ISignatureVerifier.sol";
 
 contract MockSignatureVerifier is SignatureVerifier {
-    constructor(
+    function initialize(
         string memory name,
         string memory version
-    ) SignatureVerifier(name, version) {}
+    ) public initializer {
+        __SignatureVerifier_init(name, version);
+    }
 
     function debugVerify(
         bytes32 digest,
@@ -29,7 +32,8 @@ contract TestSignatureVerifier is Test {
     ISignatureVerifier.CommitData commitData;
 
     function setUp() public {
-        sigVerifier = new MockSignatureVerifier("MagicSigner", "1");
+        sigVerifier = new MockSignatureVerifier();
+        sigVerifier.initialize("MagicSigner", "1");
         cosignerAddress = vm.addr(cosignerPrivateKey);
 
         // Initialize sample commit data
