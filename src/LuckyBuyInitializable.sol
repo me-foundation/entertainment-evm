@@ -1096,12 +1096,6 @@ contract LuckyBuyInitializable is
         maxBulkSize = maxBulkSize_;
     }
 
-    /// @notice Gets the max bulk size.
-    /// @return The current max bulk size.
-    function getMaxBulkSize() external view returns (uint256) {
-        return maxBulkSize;
-    }
-
     /// @notice Deposits ETH into the treasury
     /// @dev Called internally when receiving ETH
     /// @param amount Amount of ETH to deposit

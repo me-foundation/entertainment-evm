@@ -2128,7 +2128,7 @@ contract TestLuckyBuyCommit is Test {
 
     function testMaxBulkSizeDefault() public {
         assertEq(luckyBuy.maxBulkSize(), 20);
-        assertEq(luckyBuy.getMaxBulkSize(), 20);
+        assertEq(luckyBuy.maxBulkSize(), 20);
     }
 
     function testSetMaxBulkSize() public {
@@ -2139,7 +2139,7 @@ contract TestLuckyBuyCommit is Test {
         vm.stopPrank();
         
         assertEq(luckyBuy.maxBulkSize(), newMaxBulkSize);
-        assertEq(luckyBuy.getMaxBulkSize(), newMaxBulkSize);
+        assertEq(luckyBuy.maxBulkSize(), newMaxBulkSize);
     }
 
     function testSetMaxBulkSizeNonAdmin() public {
