@@ -5,6 +5,7 @@ import "forge-std/Script.sol";
 // import "../src/LuckyBuy.sol";
 import "../src/LuckyBuyInitializable.sol";
 import "../src/PRNG.sol";
+import "../src/PayoutContract.sol";
 
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -108,6 +109,10 @@ contract DeployLuckyBuy is Script {
         // Deploy proxy and cast the address for convenience
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         console.log("Proxy", address(proxy));
+
+        // Deploy payout contract
+        PayoutContract payoutContract = new PayoutContract();
+        console.log("PayoutContract", address(payoutContract));
         
         vm.stopBroadcast();
     }
@@ -225,6 +230,19 @@ contract AddCosigner is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         LuckyBuyInitializable(luckyBuy).addCosigner(cosigner);
+
+        vm.stopBroadcast();
+    }
+}
+
+contract DeployPayout is Script {
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+
+        vm.startBroadcast(deployerPrivateKey);
+
+        PayoutContract payoutContract = new PayoutContract();
+        console.log("PayoutContract deployed at:", address(payoutContract));
 
         vm.stopBroadcast();
     }
