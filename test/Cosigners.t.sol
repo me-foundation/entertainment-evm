@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
+import "src/LuckyBuyCore.sol";
 import "src/PRNG.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 
@@ -83,7 +84,7 @@ contract TestLuckyBuyCosigners is Test {
             "Cosigner should be active after first addition"
         );
 
-        vm.expectRevert(LuckyBuy.AlreadyCosigner.selector);
+        vm.expectRevert(LuckyBuyCore.AlreadyCosigner.selector);
         luckyBuy.addCosigner(cosigner1);
 
         // Assert - Should still be active
@@ -130,7 +131,7 @@ contract TestLuckyBuyCosigners is Test {
         vm.startPrank(admin);
         address zeroAddress = address(0);
 
-        vm.expectRevert(LuckyBuy.InvalidCosigner.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidCosigner.selector);
         luckyBuy.addCosigner(zeroAddress);
 
         vm.stopPrank();
@@ -191,7 +192,7 @@ contract TestLuckyBuyCosigners is Test {
             "Cosigner should not be active initially"
         );
 
-        vm.expectRevert(LuckyBuy.InvalidCosigner.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidCosigner.selector);
         luckyBuy.removeCosigner(cosigner1);
 
         vm.stopPrank();
@@ -206,7 +207,7 @@ contract TestLuckyBuyCosigners is Test {
             "Cosigner should be inactive after first removal"
         );
 
-        vm.expectRevert(LuckyBuy.InvalidCosigner.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidCosigner.selector);
         luckyBuy.removeCosigner(cosigner1);
 
         vm.stopPrank();

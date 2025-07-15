@@ -42,14 +42,33 @@ The system consists of the following components:
 
 ### Core Contracts
 
-- **LuckyBuy.sol**: Core contract handling commits, verification, and fulfillment
+The LuckyBuy protocol uses a clean 3-tier inheritance architecture that eliminates code duplication:
+
+- **LuckyBuyCore.sol**: Base contract containing all business logic (commits, fulfillment, expiration, etc.)
+  - Inherits from `TokenRescuer` for emergency token recovery functionality
+  - Contains all shared business logic between upgradeable and non-upgradeable implementations
+  - Provides virtual functions for signature verification and access control integration
+
+- **LuckyBuy.sol**: Non-upgradeable implementation (deprecated)
+  - Inherits from `LuckyBuyCore` and adds infrastructure components
+  - Adds access control (`MEAccessControl`), pausing (`Pausable`), and reentrancy protection
+  - Overrides virtual functions to add `whenNotPaused` and role-based access control
+
+- **LuckyBuyInitializable.sol**: Upgradeable implementation using UUPS pattern
+  - Inherits from `LuckyBuyCore` and adds upgradeable infrastructure components
+  - Uses OpenZeppelin upgradeable contracts (`MEAccessControlUpgradeable`, `PausableUpgradeable`, etc.)
+  - Includes proper storage gaps for safe upgrades
+
 - **PRNG.sol**: Secure random number generation using commit/reveal, CRC32 and signatures
+
 
 ### Common Components
 
-- **SignatureVerifier.sol**: EIP-712 compliant signature verification
-- **MEAccessControl.sol**: Role-based access control system
+- **SignatureVerifier.sol / SignatureVerifierUpgradeable.sol**: EIP-712 compliant signature verification
+- **MEAccessControl.sol / MEAccessControlUpgradeable.sol**: Role-based access control system
+- **TokenRescuer.sol**: Emergency token recovery functionality
 - **CRC32.sol**: CRC32 implementation for random number generation
+
 
 ### Security Features
 
@@ -183,6 +202,7 @@ LuckyBuy uses the [ERC1967](https://docs.openzeppelin.com/contracts/5.x/api/prox
 Example depoyment script for Ethereum Sepolia testnet:
 
 `forge script ./script/Deploy.s.sol:DeployLuckyBuy --chain-id 11155111 --rpc-url https://sepolia.drpc.org --verify --broadcast`
+
 
 ## Verification
 

@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "src/common/interfaces/ISignatureVerifier.sol";
+import "src/LuckyBuyCore.sol";
 import "src/LuckyBuyInitializable.sol";
 import "src/PRNG.sol";
 import {TokenRescuer} from "../src/common/TokenRescuer.sol";
@@ -375,7 +376,7 @@ contract TestLuckyBuyCommit is Test {
     function testCommitWithZeroAmount() public {
         vm.startPrank(user);
 
-        vm.expectRevert(LuckyBuyInitializable.InvalidAmount.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidAmount.selector);
         luckyBuy.commit{value: 0}(receiver, cosigner, seed, orderHash, reward);
 
         vm.stopPrank();
@@ -387,7 +388,7 @@ contract TestLuckyBuyCommit is Test {
         vm.deal(user, amount);
 
         // Act & Assert - Should revert with InvalidCosigner
-        vm.expectRevert(LuckyBuyInitializable.InvalidCosigner.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidCosigner.selector);
         luckyBuy.commit{value: amount}(
             receiver,
             invalidCosigner,
@@ -403,7 +404,7 @@ contract TestLuckyBuyCommit is Test {
         vm.startPrank(user);
         vm.deal(user, amount);
 
-        vm.expectRevert(LuckyBuyInitializable.InvalidReceiver.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidReceiver.selector);
         luckyBuy.commit{value: amount}(
             address(0),
             cosigner,
@@ -423,7 +424,7 @@ contract TestLuckyBuyCommit is Test {
         vm.startPrank(user);
         vm.deal(user, amount);
 
-        vm.expectRevert(LuckyBuyInitializable.InvalidCosigner.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidCosigner.selector);
         luckyBuy.commit{value: amount}(
             receiver,
             cosigner,
@@ -845,7 +846,7 @@ contract TestLuckyBuyCommit is Test {
     function testCommitWithRewardBelowMinimum() public {
         uint256 belowMinReward = luckyBuy.BASE_POINTS() - 1;
 
-        vm.expectRevert(LuckyBuyInitializable.InvalidReward.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidReward.selector);
         luckyBuy.commit{value: amount}(
             receiver,
             cosigner,
@@ -908,7 +909,7 @@ contract TestLuckyBuyCommit is Test {
 
         // Try to commit with amount that would result in >100% odds
         // If amount * BASE_POINTS / reward > BASE_POINTS, it should revert
-        vm.expectRevert(LuckyBuyInitializable.InvalidAmount.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidAmount.selector);
         luckyBuy.commit{value: 2 ether}(
             receiver,
             cosigner,
@@ -1038,7 +1039,7 @@ contract TestLuckyBuyCommit is Test {
 
         // Try to withdraw without funding
         vm.startPrank(admin);
-        vm.expectRevert(LuckyBuyInitializable.InsufficientBalance.selector);
+        vm.expectRevert(LuckyBuyCore.InsufficientBalance.selector);
         luckyBuy.withdraw(withdrawAmount);
         vm.stopPrank();
 
@@ -1051,7 +1052,7 @@ contract TestLuckyBuyCommit is Test {
 
         // Try to withdraw more than available
         vm.startPrank(admin);
-        vm.expectRevert(LuckyBuyInitializable.InsufficientBalance.selector);
+        vm.expectRevert(LuckyBuyCore.InsufficientBalance.selector);
         luckyBuy.withdraw(withdrawAmount);
         vm.stopPrank();
     }
@@ -1152,7 +1153,7 @@ contract TestLuckyBuyCommit is Test {
     function testInvalidProtocolFee() public {
         vm.startPrank(admin);
         uint256 invalidProtocolFee = luckyBuy.BASE_POINTS() + 1;
-        vm.expectRevert(LuckyBuyInitializable.InvalidProtocolFee.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidProtocolFee.selector);
         luckyBuy.setProtocolFee(invalidProtocolFee);
         vm.stopPrank();
     }
@@ -1173,7 +1174,7 @@ contract TestLuckyBuyCommit is Test {
 
     function testMinRewardUpdateBelowBase() public {
         vm.startPrank(admin);
-        vm.expectRevert(LuckyBuyInitializable.InvalidReward.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidReward.selector);
         luckyBuy.setMinReward(0);
         vm.stopPrank();
     }
@@ -1185,7 +1186,7 @@ contract TestLuckyBuyCommit is Test {
 
         luckyBuy.setMaxReward(maxReward);
 
-        vm.expectRevert(LuckyBuyInitializable.InvalidReward.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidReward.selector);
         luckyBuy.setMinReward(maxReward + 1);
         vm.stopPrank();
     }
@@ -1199,7 +1200,7 @@ contract TestLuckyBuyCommit is Test {
 
     function testSetCommitExpireTimeZero() public {
         vm.startPrank(admin);
-        vm.expectRevert(LuckyBuyInitializable.InvalidCommitExpireTime.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidCommitExpireTime.selector);
         luckyBuy.setCommitExpireTime(0);
     }
 
@@ -1207,7 +1208,7 @@ contract TestLuckyBuyCommit is Test {
         vm.startPrank(admin);
         luckyBuy.setCommitExpireTime(1 days);
 
-        vm.expectRevert(LuckyBuyInitializable.InvalidCommitExpireTime.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidCommitExpireTime.selector);
         luckyBuy.setCommitExpireTime(0);
 
         vm.stopPrank();
@@ -1239,7 +1240,7 @@ contract TestLuckyBuyCommit is Test {
         assertEq(luckyBuy.commitBalance(), initialCommitBalance);
         assertEq(luckyBuy.protocolBalance(), initialProtocolBalance);
 
-        vm.expectRevert(LuckyBuyInitializable.CommitIsExpired.selector);
+        vm.expectRevert(LuckyBuyCore.CommitIsExpired.selector);
         luckyBuy.expire(0);
     }
 
@@ -1247,7 +1248,7 @@ contract TestLuckyBuyCommit is Test {
         vm.startPrank(admin);
         luckyBuy.setCommitExpireTime(1 days);
 
-        vm.expectRevert(LuckyBuyInitializable.InvalidCommitExpireTime.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidCommitExpireTime.selector);
         luckyBuy.setCommitExpireTime(0);
 
         vm.stopPrank();
@@ -1296,12 +1297,12 @@ contract TestLuckyBuyCommit is Test {
             reward
         );
 
-        vm.expectRevert(LuckyBuyInitializable.CommitNotExpired.selector);
+        vm.expectRevert(LuckyBuyCore.CommitNotExpired.selector);
         luckyBuy.expire(0);
 
         vm.warp(block.timestamp + 2 days);
 
-        vm.expectRevert(LuckyBuyInitializable.InvalidCommitOwner.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidCommitOwner.selector);
         vm.prank(user);
         luckyBuy.expire(0);
     }
@@ -1325,7 +1326,7 @@ contract TestLuckyBuyCommit is Test {
 
         vm.warp(block.timestamp + 2 days);
 
-        vm.expectRevert(LuckyBuyInitializable.AlreadyFulfilled.selector);
+        vm.expectRevert(LuckyBuyCore.AlreadyFulfilled.selector);
         luckyBuy.expire(0);
     }
 
@@ -1353,7 +1354,7 @@ contract TestLuckyBuyCommit is Test {
 
         assertEq(luckyBuy.isExpired(0), true);
 
-        vm.expectRevert(LuckyBuyInitializable.CommitIsExpired.selector);
+        vm.expectRevert(LuckyBuyCore.CommitIsExpired.selector);
         luckyBuy.fulfill(
             0,
             address(this),
@@ -1384,7 +1385,7 @@ contract TestLuckyBuyCommit is Test {
         assertEq(luckyBuy.openEditionTokenId(), 0);
         assertEq(luckyBuy.openEditionTokenAmount(), 0);
 
-        vm.expectRevert(LuckyBuyInitializable.InvalidAmount.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidAmount.selector);
         luckyBuy.setOpenEditionToken(address(1), 1, 0);
 
         luckyBuy.setOpenEditionToken(address(1), 1, 1);
@@ -1564,7 +1565,7 @@ contract TestLuckyBuyCommit is Test {
             commitAmount,
             reward
         );
-        vm.expectRevert(LuckyBuyInitializable.InvalidFeeSplitPercentage.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidFeeSplitPercentage.selector);
         luckyBuy.fulfill(
             commitId,
             marketplace,
@@ -1614,7 +1615,7 @@ contract TestLuckyBuyCommit is Test {
             commitAmount,
             reward
         );
-        vm.expectRevert(LuckyBuyInitializable.InvalidFeeSplitReceiver.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidFeeSplitReceiver.selector);
         luckyBuy.fulfill(
             commitId,
             marketplace,
@@ -1704,7 +1705,7 @@ contract TestLuckyBuyCommit is Test {
     function testInvalidFeeReceiverManager() public {
         // Try to set fee receiver manager to zero address
         vm.startPrank(feeReceiverManager);
-        vm.expectRevert(LuckyBuyInitializable.InvalidFeeReceiverManager.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidFeeReceiverManager.selector);
         luckyBuy.transferFeeReceiverManager(address(0));
         vm.stopPrank();
     }
@@ -1712,7 +1713,7 @@ contract TestLuckyBuyCommit is Test {
     function testInvalidFeeReceiver() public {
         // Try to set fee receiver to zero address
         vm.startPrank(feeReceiverManager);
-        vm.expectRevert(LuckyBuyInitializable.InvalidFeeReceiver.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidFeeReceiver.selector);
         luckyBuy.setFeeReceiver(address(0));
         vm.stopPrank();
     }
@@ -2151,7 +2152,7 @@ contract TestLuckyBuyCommit is Test {
 
     function testSetMaxBulkSizeZero() public {
         vm.startPrank(admin);
-        vm.expectRevert(LuckyBuyInitializable.InvalidBulkSize.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidBulkSize.selector);
         luckyBuy.setMaxBulkSize(0);
         vm.stopPrank();
     }
@@ -2162,9 +2163,9 @@ contract TestLuckyBuyCommit is Test {
         vm.stopPrank();
         
         // Try to create 3 commits (exceeds limit)
-        LuckyBuyInitializable.CommitRequest[] memory requests = new LuckyBuyInitializable.CommitRequest[](3);
+        LuckyBuyCore.CommitRequest[] memory requests = new LuckyBuyCore.CommitRequest[](3);
         for (uint256 i = 0; i < 3; i++) {
-            requests[i] = LuckyBuyInitializable.CommitRequest({
+            requests[i] = LuckyBuyCore.CommitRequest({
                 receiver: receiver,
                 cosigner: cosigner,
                 seed: seed + i,
@@ -2176,7 +2177,7 @@ contract TestLuckyBuyCommit is Test {
         
         vm.startPrank(user);
         vm.deal(user, 3 ether);
-        vm.expectRevert(LuckyBuyInitializable.InvalidBulkSize.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidBulkSize.selector);
         luckyBuy.bulkCommit{value: 3 ether}(requests);
         vm.stopPrank();
     }
@@ -2224,7 +2225,7 @@ contract TestLuckyBuyCommit is Test {
         commitIds[2] = commitId3;
         
         vm.startPrank(receiver);
-        vm.expectRevert(LuckyBuyInitializable.InvalidBulkSize.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidBulkSize.selector);
         luckyBuy.bulkExpire(commitIds);
         vm.stopPrank();
     }
@@ -2236,9 +2237,9 @@ contract TestLuckyBuyCommit is Test {
         vm.stopPrank();
         
         // Create exactly 2 commits (at limit, should work)
-        LuckyBuyInitializable.CommitRequest[] memory requests = new LuckyBuyInitializable.CommitRequest[](2);
+        LuckyBuyCore.CommitRequest[] memory requests = new LuckyBuyCore.CommitRequest[](2);
         for (uint256 i = 0; i < 2; i++) {
-            requests[i] = LuckyBuyInitializable.CommitRequest({
+            requests[i] = LuckyBuyCore.CommitRequest({
                 receiver: receiver,
                 cosigner: cosigner,
                 seed: seed + i,
@@ -2300,9 +2301,9 @@ contract TestLuckyBuyCommit is Test {
 
     function testBulkCommitAndBulkExpire() public {
         // Create bulk commit requests
-        LuckyBuyInitializable.CommitRequest[] memory commitRequests = new LuckyBuyInitializable.CommitRequest[](3);
+        LuckyBuyCore.CommitRequest[] memory commitRequests = new LuckyBuyCore.CommitRequest[](3);
         for (uint256 i = 0; i < 3; i++) {
-            commitRequests[i] = LuckyBuyInitializable.CommitRequest({
+            commitRequests[i] = LuckyBuyCore.CommitRequest({
                 receiver: receiver,
                 cosigner: cosigner,
                 seed: seed + i,
@@ -2359,9 +2360,9 @@ contract TestLuckyBuyCommit is Test {
         );
 
         // Create bulk commit requests
-        LuckyBuyInitializable.CommitRequest[] memory commitRequests = new LuckyBuyInitializable.CommitRequest[](3);
+        LuckyBuyCore.CommitRequest[] memory commitRequests = new LuckyBuyCore.CommitRequest[](3);
         for (uint256 i = 0; i < 3; i++) {
-            commitRequests[i] = LuckyBuyInitializable.CommitRequest({
+            commitRequests[i] = LuckyBuyCore.CommitRequest({
                 receiver: receiver,
                 cosigner: cosigner,
                 seed: seed + i,
@@ -2387,7 +2388,7 @@ contract TestLuckyBuyCommit is Test {
         assertTrue(success, "Initial funding should succeed");
 
         // Create bulk fulfill requests
-        LuckyBuyInitializable.FulfillRequest[] memory fulfillRequests = new LuckyBuyInitializable.FulfillRequest[](3);
+        LuckyBuyCore.FulfillRequest[] memory fulfillRequests = new LuckyBuyCore.FulfillRequest[](3);
         
         for (uint256 i = 0; i < 3; i++) {
             (, , , , , , uint256 commitAmount, ) = luckyBuy.luckyBuys(commitIds[i]);
@@ -2403,7 +2404,7 @@ contract TestLuckyBuyCommit is Test {
                 reward: reward
             }));
 
-            fulfillRequests[i] = LuckyBuyInitializable.FulfillRequest({
+            fulfillRequests[i] = LuckyBuyCore.FulfillRequest({
                 commitDigest: digest,
                 marketplace: address(0),
                 orderData: "",

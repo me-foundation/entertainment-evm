@@ -198,7 +198,7 @@ contract AccessControlTest is Test {
         vm.stopPrank();
 
         vm.startPrank(ops);
-        vm.expectRevert(LuckyBuy.InvalidProtocolFee.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidProtocolFee.selector);
         luckyBuy.setProtocolFee(10001); // Base points is 10000
         vm.stopPrank();
     }

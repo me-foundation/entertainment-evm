@@ -13,6 +13,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
+import "src/LuckyBuyCore.sol";
 import "src/PRNG.sol";
 // I grabbed this data from the Magic Eden API. This is a seaport order that is valid as of FORK_BLOCK:
 // curl 'https://api-mainnet.magiceden.us/v3/rtp/ethereum/execute/buy/v7' \
@@ -337,7 +338,7 @@ contract FulfillTest is Test {
         luckyBuy.reconcileBalance();
         assertEq(nft.ownerOf(TOKEN_ID), RECEIVER);
 
-        vm.expectRevert(LuckyBuy.AlreadyFulfilled.selector);
+        vm.expectRevert(LuckyBuyCore.AlreadyFulfilled.selector);
         luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature, address(0), 0);
         // check the balance of the contract
         assertEq(
@@ -666,7 +667,7 @@ contract FulfillTest is Test {
         luckyBuy.reconcileBalance();
         assertEq(nft.ownerOf(TOKEN_ID), RECEIVER);
 
-        vm.expectRevert(LuckyBuy.AlreadyFulfilled.selector);
+        vm.expectRevert(LuckyBuyCore.AlreadyFulfilled.selector);
         luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature, address(0), 0);
         // check the balance of the contract
         assertEq(
@@ -949,7 +950,7 @@ contract FulfillTest is Test {
 
         assertEq(nft.ownerOf(TOKEN_ID), RECEIVER);
 
-        vm.expectRevert(LuckyBuy.AlreadyFulfilled.selector);
+        vm.expectRevert(LuckyBuyCore.AlreadyFulfilled.selector);
         luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature, address(0), 0);
         // check the balance of the contract
         assertEq(

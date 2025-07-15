@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
+import "../src/LuckyBuyCore.sol";
 import "../src/LuckyBuyInitializable.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
@@ -270,7 +271,7 @@ contract UpgradeTest is Test {
         vm.startPrank(admin);
         
         // Attempt to upgrade to zero address
-        vm.expectRevert(LuckyBuyInitializable.NewImplementationCannotBeZero.selector);
+        vm.expectRevert(LuckyBuyCore.NewImplementationCannotBeZero.selector);
         proxy.upgradeToAndCall(address(0), "");
         
         vm.stopPrank();
