@@ -15,12 +15,15 @@ contract LuckyBuySignatureVerifier is AbstractSignatureVerifier {
         uint256 reward;
     }
 
+    constructor(
+        string memory name,
+        string memory version
+    ) AbstractSignatureVerifier(name, version) {}
+
     bytes32 private constant _TYPE_HASH =
         keccak256(
             "CommitData(uint256 id,address receiver,address cosigner,uint256 seed,uint256 counter,bytes32 orderHash,uint256 amount,uint256 reward)"
         );
-
-    constructor() AbstractSignatureVerifier("LuckyBuySignatureVerifier", "1") {}
 
     function hashOrder(
         address to,
@@ -31,20 +34,31 @@ contract LuckyBuySignatureVerifier is AbstractSignatureVerifier {
     ) public pure virtual returns (bytes32) {
         return keccak256(abi.encode(to, value, data, tokenAddress, tokenId));
     }
-
+    /// @notice Hashes a commit
+    /// @param commit Commit to hash
+    /// @return Hash of the commit
     function hash(CommitData memory commit) public view returns (bytes32) {
+        return _hash(commit);
+    }
+
+    /// @dev Internal function to hash a commit
+    /// @param commit Commit to hash
+    /// @return Hash of the commit
+    function _hash(CommitData memory commit) internal view returns (bytes32) {
         return
-            _hashTyped(
-                abi.encode(
-                    _TYPE_HASH,
-                    commit.id,
-                    commit.receiver,
-                    commit.cosigner,
-                    commit.seed,
-                    commit.counter,
-                    commit.orderHash,
-                    commit.amount,
-                    commit.reward
+            _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        _TYPE_HASH,
+                        commit.id,
+                        commit.receiver,
+                        commit.cosigner,
+                        commit.seed,
+                        commit.counter,
+                        commit.orderHash,
+                        commit.amount,
+                        commit.reward
+                    )
                 )
             );
     }

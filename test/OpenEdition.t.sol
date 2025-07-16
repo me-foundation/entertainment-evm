@@ -136,8 +136,8 @@ contract TestLuckyBuyOpenEdition is Test {
         uint256 reward
     ) public returns (bytes memory) {
         // Create the commit data struct
-        SignatureVerifier.CommitData memory commitData = SignatureVerifier
-            .CommitData({
+        LuckyBuySignatureVerifier.CommitData
+            memory commitData = LuckyBuySignatureVerifier.CommitData({
                 id: commitId,
                 receiver: receiver,
                 cosigner: cosigner,

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "./common/SignatureVerifier.sol";
-
 import {IERC1155MInitializableV1_0_2} from "./common/interfaces/IERC1155MInitializableV1_0_2.sol";
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -10,11 +8,12 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./common/MEAccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import {IPRNG} from "./common/interfaces/IPRNG.sol";
+import "./common/LuckyBuySignatureVerifier.sol";
 
 contract LuckyBuy is
     MEAccessControl,
     Pausable,
-    SignatureVerifier,
+    LuckyBuySignatureVerifier,
     ReentrancyGuard
 {
     IPRNG public PRNG;
@@ -163,7 +162,7 @@ contract LuckyBuy is
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
-    ) MEAccessControl() SignatureVerifier("LuckyBuy", "1") {
+    ) MEAccessControl() LuckyBuySignatureVerifier("LuckyBuy", "1") {
         uint256 existingBalance = address(this).balance;
         if (existingBalance > 0) {
             _depositTreasury(existingBalance);
