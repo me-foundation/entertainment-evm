@@ -25,15 +25,6 @@ contract LuckyBuySignatureVerifier is AbstractSignatureVerifier {
             "CommitData(uint256 id,address receiver,address cosigner,uint256 seed,uint256 counter,bytes32 orderHash,uint256 amount,uint256 reward)"
         );
 
-    function hashOrder(
-        address to,
-        uint256 value,
-        bytes memory data,
-        address tokenAddress,
-        uint256 tokenId
-    ) public pure virtual returns (bytes32) {
-        return keccak256(abi.encode(to, value, data, tokenAddress, tokenId));
-    }
     /// @notice Hashes a commit
     /// @param commit Commit to hash
     /// @return Hash of the commit
@@ -63,6 +54,27 @@ contract LuckyBuySignatureVerifier is AbstractSignatureVerifier {
             );
     }
 
+    /// @notice Hashes an order to calculate an orderHash for CommitData
+    /// @param to The address of the receiver
+    /// @param value The value of the order
+    /// @param data The data of the order
+    /// @param tokenAddress The address of the token
+    /// @param tokenId The id of the token
+    /// @return Hash of the order
+    function hashOrder(
+        address to,
+        uint256 value,
+        bytes memory data,
+        address tokenAddress,
+        uint256 tokenId
+    ) public pure virtual returns (bytes32) {
+        return keccak256(abi.encode(to, value, data, tokenAddress, tokenId));
+    }
+
+    /// @notice Verifies a commit against a signature. Convenience function for unit tests.
+    /// @param commit The commit to verify
+    /// @param signature The signature of the commit
+    /// @return The address of the cosigner
     function verify(
         CommitData memory commit,
         bytes memory signature
