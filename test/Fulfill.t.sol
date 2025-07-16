@@ -148,7 +148,7 @@ contract FulfillTest is Test {
         uint256 bulkSessionId
     );
 
-    // Flag to track if we should run the actual tests
+    // Flag to track if we should run actual tests
     bool shouldRunTests;
 
     function setUp() public {
