@@ -375,4 +375,36 @@ contract LuckyBuyInitializableProxyTest is Test {
         );
         console.log("New implementation:", impl);
     }
+
+    function test_DoubleInitializationReverts() public {
+        // Deploy a new implementation and proxy
+        MockLuckyBuyInitializable implementation = new MockLuckyBuyInitializable();
+
+        // Deploy proxy without initialization
+        LuckyBuyProxy proxy = new LuckyBuyProxy(address(implementation), "");
+        MockLuckyBuyInitializable uninitializedLuckyBuy = MockLuckyBuyInitializable(
+                payable(address(proxy))
+            );
+
+        // Encode initializer call
+        bytes memory initData = abi.encodeWithSignature(
+            "initialize(address,uint256,uint256,address,address,address)",
+            admin,
+            protocolFee,
+            flatFee,
+            admin,
+            address(prng),
+            feeReceiverManager
+        );
+
+        // First initialization should succeed
+        vm.startPrank(admin);
+        (bool success1, ) = address(uninitializedLuckyBuy).call(initData);
+        assertTrue(success1, "First initialization should succeed");
+
+        // Second initialization should fail
+        (bool success2, ) = address(uninitializedLuckyBuy).call(initData);
+        assertFalse(success2, "Second initialization should fail");
+        vm.stopPrank();
+    }
 }

@@ -5,14 +5,11 @@ import {LuckyBuy} from "./LuckyBuy.sol";
 import {IPRNG} from "./common/interfaces/IPRNG.sol";
 
 contract LuckyBuyInitializable is LuckyBuy {
-    bool private _initialized;
-
     error InitialOwnerCannotBeZero();
-    error InitializableAlreadyInitialized();
 
     /// @dev Disables initializers for the implementation contract.
     constructor() LuckyBuy(0, 0, address(0x1), address(0x2), address(0x3)) {
-        _initialized = true;
+        _disableInitializers();
     }
 
     function initialize(
@@ -24,9 +21,7 @@ contract LuckyBuyInitializable is LuckyBuy {
         address feeReceiverManager_
     ) public initializer {
         if (initialOwner_ == address(0)) revert InitialOwnerCannotBeZero();
-        if (_initialized) revert InitializableAlreadyInitialized();
 
-        _initialized = true;
         __ReentrancyGuard_init();
         __MEAccessControl_init();
         __Pausable_init();
