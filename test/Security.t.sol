@@ -40,6 +40,7 @@ contract SecurityTest is Test {
         luckyBuy = new LuckyBuy(
             500,  // 5% protocol fee
             0,    // no flat fee
+            0,    // no bulk commit fee
             admin, // fee receiver
             address(prng),
             admin  // fee receiver manager
@@ -114,7 +115,9 @@ contract SecurityTest is Test {
             0,          // order amount
             address(0), // token
             0,          // token id
-            maliciousSignature
+            maliciousSignature,
+            address(0), // feeSplitReceiver
+            0           // feeSplitPercentage
         );
     }
     
@@ -176,7 +179,7 @@ contract SecurityTest is Test {
         vm.prank(maliciousActor);
         vm.expectRevert(abi.encodeWithSignature("InvalidOrderHash()"));
         
-        luckyBuy.fulfillByDigest(digest, address(0), "", 0, address(0), 0, bestSignature);
+        luckyBuy.fulfillByDigest(digest, address(0), "", 0, address(0), 0, bestSignature, address(0), 0);
         
         // Verify the random number was indeed favorable (proving intent)
         assertTrue(bestRandom < 1000, "Should have found favorable randomness");
@@ -231,7 +234,7 @@ contract SecurityTest is Test {
         vm.prank(maliciousActor);
         vm.expectRevert(abi.encodeWithSignature("InvalidOrderHash()"));
         
-        luckyBuy.fulfillByDigest(digest2, address(0), "", 0, address(0), 0, wrongSignature);
+        luckyBuy.fulfillByDigest(digest2, address(0), "", 0, address(0), 0, wrongSignature, address(0), 0);
     }
     
     // ============ ACCESS CONTROL SECURITY TESTS ============

@@ -1384,7 +1384,8 @@ contract TestLuckyBuyCommit is Test {
         uint256 initialBalance = address(this).balance;
 
         vm.startPrank(admin);
-        address(luckyBuy).call{value: 10 ether}("");
+        (bool success, ) = address(luckyBuy).call{value: 10 ether}("");
+        require(success, "Treasury funding failed");
 
         luckyBuy.withdraw(10 ether);
         vm.stopPrank();

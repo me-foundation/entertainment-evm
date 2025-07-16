@@ -11,6 +11,7 @@ contract MockLuckyBuy is LuckyBuy {
     constructor(
         uint256 protocolFee_,
         uint256 flatFee_,
+        uint256 bulkCommitFee_,
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
@@ -18,6 +19,7 @@ contract MockLuckyBuy is LuckyBuy {
         LuckyBuy(
             protocolFee_,
             flatFee_,
+            0,  // bulkCommitFee
             feeReceiver_,
             prng_,
             feeReceiverManager_
@@ -55,6 +57,7 @@ contract PayoutContractTest is Test {
         luckyBuy = new MockLuckyBuy(
             0, // protocolFee
             0, // flatFee
+            0, // bulkCommitFee
             admin, // feeReceiver
             address(prng),
             feeReceiverManager
@@ -248,7 +251,9 @@ contract PayoutContractTest is Test {
             PAYOUT_REWARD,
             address(0),
             0,
-            payoutSignature
+            payoutSignature,
+            address(0), // feeSplitReceiver
+            0           // feeSplitPercentage
         );
 
         if (expectedWin) {
