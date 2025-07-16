@@ -175,7 +175,6 @@ contract LuckyBuy is
     error CommitNotExpired();
     error TransferFailed();
     error InvalidFeeReceiver();
-    error InvalidFeeSplitReceiver();
     error InvalidFeeSplitPercentage();
     error InvalidFeeReceiverManager();
     error InvalidBulkSize();
@@ -417,16 +416,6 @@ contract LuckyBuy is
         address feeSplitReceiver_,
         uint256 feeSplitPercentage_
     ) public payable whenNotPaused {
-        // Validate fee split parameters if provided
-        if (feeSplitReceiver_ != address(0) || feeSplitPercentage_ > 0) {
-            if (feeSplitReceiver_ == address(0))
-                revert InvalidFeeSplitReceiver();
-            if (feeSplitReceiver_ == address(this))
-                revert InvalidFeeSplitReceiver();
-            if (feeSplitPercentage_ > BASE_POINTS)
-                revert InvalidFeeSplitPercentage();
-        }
-
         uint256 protocolFeesPaid = feesPaid[commitId_];
 
         _fulfill(
@@ -440,7 +429,14 @@ contract LuckyBuy is
         );
 
         // Handle fee splitting if enabled
-        if (feeSplitReceiver_ != address(0) && feeSplitPercentage_ > 0) {
+        if (
+            feeSplitReceiver_ != address(0) &&
+            feeSplitPercentage_ > 0
+        ) {
+            if (feeSplitPercentage_ > BASE_POINTS) {
+                revert InvalidFeeSplitPercentage();
+            }
+
             uint256 splitAmount = (protocolFeesPaid * feeSplitPercentage_) /
                 BASE_POINTS;
 

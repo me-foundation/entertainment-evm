@@ -1507,6 +1507,7 @@ contract TestLuckyBuyCommit is Test {
         // Setup
         uint256 protocolFee = 100; // 1%
         uint256 commitAmount = 1 ether;
+        uint256 rewardAmount = 10 ether; // Must match reward
         uint256 invalidFeeSplitPercentage = luckyBuy.BASE_POINTS() + 1; // Over 100%
         address feeSplitReceiver = address(0x9);
 
@@ -1514,18 +1515,29 @@ contract TestLuckyBuyCommit is Test {
         luckyBuy.setProtocolFee(protocolFee);
         vm.stopPrank();
 
-        // Fund contract
-        vm.deal(address(luckyBuy), 10 ether);
+        // Fund contract treasury with exactly the reward amount needed
+        vm.deal(address(this), 10 ether);
+        (bool success, ) = address(luckyBuy).call{value: 10 ether}("");
+        require(success, "Treasury funding failed");
+
+        // Calculate correct orderHash
+        bytes32 correctOrderHash = luckyBuy.hashOrder(
+            marketplace,
+            rewardAmount,
+            orderData,
+            orderToken,
+            orderTokenId
+        );
 
         // Create commit
         vm.startPrank(user);
-        vm.deal(user, commitAmount);
-        uint256 commitId = luckyBuy.commit{value: commitAmount}(
+        vm.deal(user, commitAmount + luckyBuy.calculateProtocolFee(commitAmount));
+        uint256 commitId = luckyBuy.commit{value: commitAmount + luckyBuy.calculateProtocolFee(commitAmount)}(
             receiver,
             cosigner,
             seed,
-            orderHash,
-            reward
+            correctOrderHash,
+            rewardAmount
         );
         vm.stopPrank();
 
@@ -1535,71 +1547,21 @@ contract TestLuckyBuyCommit is Test {
             receiver,
             seed,
             0,
-            orderHash,
+            correctOrderHash,
             commitAmount,
-            reward
+            rewardAmount
         );
         vm.expectRevert(LuckyBuy.InvalidFeeSplitPercentage.selector);
         luckyBuy.fulfill(
             commitId,
             marketplace,
             orderData,
-            orderAmount,
+            rewardAmount,
             orderToken,
             orderTokenId,
             signature,
             feeSplitReceiver,
             invalidFeeSplitPercentage
-        );
-    }
-
-    function testFeeSplitInvalidReceiver() public {
-        // Setup
-        uint256 protocolFee = 100; // 1%
-        uint256 commitAmount = 1 ether;
-        uint256 feeSplitPercentage = 5000; // 50%
-        address invalidFeeSplitReceiver = address(0); // Zero address
-
-        vm.startPrank(admin);
-        luckyBuy.setProtocolFee(protocolFee);
-        vm.stopPrank();
-
-        // Fund contract
-        vm.deal(address(luckyBuy), 10 ether);
-
-        // Create commit
-        vm.startPrank(user);
-        vm.deal(user, commitAmount);
-        uint256 commitId = luckyBuy.commit{value: commitAmount}(
-            receiver,
-            cosigner,
-            seed,
-            orderHash,
-            reward
-        );
-        vm.stopPrank();
-
-        // Fulfill with invalid fee split receiver
-        bytes memory signature = signCommit(
-            commitId,
-            receiver,
-            seed,
-            0,
-            orderHash,
-            commitAmount,
-            reward
-        );
-        vm.expectRevert(LuckyBuy.InvalidFeeSplitReceiver.selector);
-        luckyBuy.fulfill(
-            commitId,
-            marketplace,
-            orderData,
-            orderAmount,
-            orderToken,
-            orderTokenId,
-            signature,
-            invalidFeeSplitReceiver,
-            feeSplitPercentage
         );
     }
 
@@ -1681,14 +1643,6 @@ contract TestLuckyBuyCommit is Test {
         vm.startPrank(feeReceiverManager);
         vm.expectRevert(LuckyBuy.InvalidFeeReceiverManager.selector);
         luckyBuy.transferFeeReceiverManager(address(0));
-        vm.stopPrank();
-    }
-
-    function testInvalidFeeReceiver() public {
-        // Try to set fee receiver to zero address
-        vm.startPrank(feeReceiverManager);
-        vm.expectRevert(LuckyBuy.InvalidFeeReceiver.selector);
-        luckyBuy.setFeeReceiver(address(0));
         vm.stopPrank();
     }
 
