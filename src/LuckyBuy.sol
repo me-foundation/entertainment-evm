@@ -155,6 +155,7 @@ contract LuckyBuy is
         uint256 amount,
         bytes32 digest
     );
+    event MaxBulkSizeUpdated(uint256 oldMaxBulkSize, uint256 newMaxBulkSize);
 
     error AlreadyCosigner();
     error AlreadyFulfilled();
@@ -1062,7 +1063,9 @@ contract LuckyBuy is
         uint256 maxBulkSize_
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (maxBulkSize_ < 1) revert InvalidBulkSize(); // Minimum size is 1
+        uint256 oldMaxBulkSize = maxBulkSize;
         maxBulkSize = maxBulkSize_;
+        emit MaxBulkSizeUpdated(oldMaxBulkSize, maxBulkSize_);
     }
 
     /// @notice Deposits ETH into the treasury
