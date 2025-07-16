@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 import "forge-std/Test.sol";
 
 import "src/common/SignatureVerifier.sol";
-import "src/common/interfaces/ISignatureVerifier.sol";
 
 contract MockSignatureVerifier is SignatureVerifier {
     constructor(
@@ -26,14 +25,14 @@ contract TestSignatureVerifier is Test {
     address cosignerAddress;
 
     // Sample commit data for testing
-    ISignatureVerifier.CommitData commitData;
+    SignatureVerifier.CommitData commitData;
 
     function setUp() public {
         sigVerifier = new MockSignatureVerifier("MagicSigner", "1");
         cosignerAddress = vm.addr(cosignerPrivateKey);
 
         // Initialize sample commit data
-        commitData = ISignatureVerifier.CommitData({
+        commitData = SignatureVerifier.CommitData({
             id: 1,
             receiver: 0xE052c9CFe22B5974DC821cBa907F1DAaC7979c94,
             cosigner: cosignerAddress,
@@ -90,7 +89,7 @@ contract TestSignatureVerifier is Test {
     }
 
     function _signCommit(
-        ISignatureVerifier.CommitData memory commit
+        SignatureVerifier.CommitData memory commit
     ) internal returns (bytes memory signature) {
         // Sign voucher with cosigner's private key
         bytes32 digest = sigVerifier.hash(commit);
@@ -127,7 +126,7 @@ contract TestSignatureVerifier is Test {
         bytes memory signature = _signCommit(commitData);
 
         // Create a modified commit with a different id
-        ISignatureVerifier.CommitData memory modifiedCommit = commitData;
+        SignatureVerifier.CommitData memory modifiedCommit = commitData;
         modifiedCommit.id = 999;
 
         // Verify the signature with modified commit data
@@ -148,7 +147,7 @@ contract TestSignatureVerifier is Test {
         bytes memory originalSignature = _signCommit(commitData);
 
         // Test id field
-        ISignatureVerifier.CommitData memory modifiedCommit = commitData;
+        SignatureVerifier.CommitData memory modifiedCommit = commitData;
         modifiedCommit.id = commitData.id + 1;
         address recoveredSigner = sigVerifier.verify(
             modifiedCommit,

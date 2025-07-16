@@ -4,11 +4,18 @@ pragma solidity 0.8.28;
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "./interfaces/ISignatureVerifier.sol";
-
-contract SignatureVerifier is ISignatureVerifier, EIP712 {
+contract SignatureVerifier is EIP712 {
     using ECDSA for bytes32;
-
+    struct CommitData {
+        uint256 id;
+        address receiver;
+        address cosigner;
+        uint256 seed;
+        uint256 counter;
+        bytes32 orderHash;
+        uint256 amount;
+        uint256 reward;
+    }
     constructor(
         string memory name,
         string memory version
