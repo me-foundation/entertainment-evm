@@ -7,8 +7,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./common/MEAccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "./common/SignatureVerifier/LuckyBuySignatureVerifier.sol";
 import {IPRNG} from "./common/interfaces/IPRNG.sol";
-import "./common/LuckyBuySignatureVerifier.sol";
 
 contract LuckyBuy is
     MEAccessControl,
@@ -395,7 +395,7 @@ contract LuckyBuy is
 
         // hash commit, check signature. digest is needed later for logging
         bytes32 digest = hash(commitData);
-        address cosigner = _verifyDigest(digest, signature_);
+        address cosigner = _verify(digest, signature_);
         if (cosigner != commitData.cosigner) revert InvalidCosigner();
         if (!isCosigner[cosigner]) revert InvalidCosigner();
 
