@@ -18,4 +18,11 @@ abstract contract AbstractSignatureVerifier is EIP712 {
     ) internal pure returns (address) {
         return ECDSA.recover(digest, signature);
     }
+
+    function verify(
+        bytes32 digest,
+        bytes memory signature
+    ) public view virtual returns (address) {
+        return _verify(digest, signature);
+    }
 }

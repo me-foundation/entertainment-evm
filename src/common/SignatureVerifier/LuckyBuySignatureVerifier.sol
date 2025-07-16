@@ -29,13 +29,6 @@ contract LuckyBuySignatureVerifier is AbstractSignatureVerifier {
     /// @param commit Commit to hash
     /// @return Hash of the commit
     function hash(CommitData memory commit) public view returns (bytes32) {
-        return _hash(commit);
-    }
-
-    /// @dev Internal function to hash a commit
-    /// @param commit Commit to hash
-    /// @return Hash of the commit
-    function _hash(CommitData memory commit) internal view returns (bytes32) {
         return
             _hashTypedDataV4(
                 keccak256(
@@ -54,7 +47,7 @@ contract LuckyBuySignatureVerifier is AbstractSignatureVerifier {
             );
     }
 
-    /// @notice Hashes an order to calculate an orderHash for CommitData
+    /// @notice Utility function. Hashes an order to calculate an orderHash for CommitData
     /// @param to The address of the receiver
     /// @param value The value of the order
     /// @param data The data of the order
@@ -71,7 +64,7 @@ contract LuckyBuySignatureVerifier is AbstractSignatureVerifier {
         return keccak256(abi.encode(to, value, data, tokenAddress, tokenId));
     }
 
-    /// @notice Verifies a commit against a signature. Convenience function for unit tests.
+    /// @notice Verifies a commit against a signature. Convenience function for unit tests/off chain checks without an EIP712 implementation. LuckyBuy calls the internal _verify function because we log the digest.
     /// @param commit The commit to verify
     /// @param signature The signature of the commit
     /// @return The address of the cosigner
