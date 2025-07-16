@@ -60,7 +60,7 @@ contract LuckyBuySignatureVerifier is AbstractSignatureVerifier {
         bytes memory data,
         address tokenAddress,
         uint256 tokenId
-    ) public pure virtual returns (bytes32) {
+    ) public pure returns (bytes32) {
         return keccak256(abi.encode(to, value, data, tokenAddress, tokenId));
     }
 
