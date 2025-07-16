@@ -11,6 +11,7 @@ contract MockLuckyBuy is LuckyBuy {
     constructor(
         uint256 protocolFee_,
         uint256 flatFee_,
+        uint256 bulkCommitFee_,
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
@@ -18,6 +19,7 @@ contract MockLuckyBuy is LuckyBuy {
         LuckyBuy(
             protocolFee_,
             flatFee_,
+            bulkCommitFee_,
             feeReceiver_,
             prng_,
             feeReceiverManager_
@@ -103,6 +105,7 @@ contract TestLuckyBuyOpenEdition is Test {
         luckyBuy = new MockLuckyBuy(
             protocolFee,
             flatFee,
+            0,
             msg.sender,
             address(prng),
             feeReceiverManager
@@ -219,7 +222,9 @@ contract TestLuckyBuyOpenEdition is Test {
             rewardAmount, // orderAmount
             address(0), // token
             0, // tokenId
-            signature
+            signature,
+            address(0),
+            0
         );
         vm.stopPrank();
 
@@ -295,7 +300,9 @@ contract TestLuckyBuyOpenEdition is Test {
             rewardAmount, // orderAmount
             address(0), // token
             0, // tokenId
-            signature
+            signature,
+            address(0),
+            0
         );
         vm.stopPrank();
 

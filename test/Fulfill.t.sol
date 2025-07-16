@@ -13,6 +13,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
+import "src/LuckyBuyCore.sol";
 import "src/PRNG.sol";
 // I grabbed this data from the Magic Eden API. This is a seaport order that is valid as of FORK_BLOCK:
 // curl 'https://api-mainnet.magiceden.us/v3/rtp/ethereum/execute/buy/v7' \
@@ -28,6 +29,7 @@ contract MockLuckyBuy is LuckyBuy {
     constructor(
         uint256 protocolFee_,
         uint256 flatFee_,
+        uint256 bulkCommitFee_,
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
@@ -35,6 +37,7 @@ contract MockLuckyBuy is LuckyBuy {
         LuckyBuy(
             protocolFee_,
             flatFee_,
+            bulkCommitFee_,
             feeReceiver_,
             prng_,
             feeReceiverManager_
@@ -142,7 +145,8 @@ contract FulfillTest is Test {
         uint256 reward,
         uint256 fee,
         uint256 flatFee,
-        bytes32 digest
+        bytes32 digest,
+        uint256 bulkSessionId
     );
 
     // Flag to track if we should run the actual tests
@@ -160,6 +164,7 @@ contract FulfillTest is Test {
             vm.startPrank(admin);
             prng = new PRNG();
             luckyBuy = new MockLuckyBuy(
+                0,
                 0,
                 0,
                 msg.sender,
@@ -262,7 +267,8 @@ contract FulfillTest is Test {
             REWARD, // reward
             0,
             0,
-            digest
+            digest,
+            0 // bulkSessionId - 0 for individual commits
         );
         vm.prank(RECEIVER);
         luckyBuy.commit{value: COMMIT_AMOUNT}(
@@ -328,12 +334,12 @@ contract FulfillTest is Test {
         assertEq(recoveredFromOnchain, cosigner);
 
         // fulfill the order
-        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature);
+        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature, address(0), 0);
         luckyBuy.reconcileBalance();
         assertEq(nft.ownerOf(TOKEN_ID), RECEIVER);
 
-        vm.expectRevert(LuckyBuy.AlreadyFulfilled.selector);
-        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature);
+        vm.expectRevert(LuckyBuyCore.AlreadyFulfilled.selector);
+        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature, address(0), 0);
         // check the balance of the contract
         assertEq(
             address(luckyBuy).balance,
@@ -392,7 +398,8 @@ contract FulfillTest is Test {
             REWARD, // reward
             commitFee, // fee
             0,
-            fail_digest
+            fail_digest,
+            0 // bulkSessionId - 0 for individual commits
         );
 
         vm.prank(RECEIVER);
@@ -455,7 +462,7 @@ contract FulfillTest is Test {
         console.log("Commit Balance:", commitBalance);
         console.log("Protocol Balance:", protocolBalance);
         // fulfill the order
-        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature);
+        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature, address(0), 0);
         luckyBuy.reconcileBalance();
         //
         console.log(
@@ -486,7 +493,9 @@ contract FulfillTest is Test {
             REWARD,
             TOKEN,
             TOKEN_ID,
-            user2Signature
+            user2Signature,
+            address(0),
+            0
         );
         luckyBuy.reconcileBalance();
         // check the balance of the contract
@@ -550,7 +559,8 @@ contract FulfillTest is Test {
             REWARD, // reward
             0, // fee
             0,
-            fail_digest
+            fail_digest,
+            0 // bulkSessionId - 0 for individual commits
         );
         vm.prank(RECEIVER);
         luckyBuy.commit{value: FAIL_COMMIT_AMOUNT}(
@@ -569,7 +579,9 @@ contract FulfillTest is Test {
             REWARD,
             TOKEN,
             TOKEN_ID,
-            fail_signature
+            fail_signature,
+            address(0),
+            0
         );
         luckyBuy.reconcileBalance();
         assertEq(nft.ownerOf(TOKEN_ID), currentOwner);
@@ -651,12 +663,12 @@ contract FulfillTest is Test {
         assertEq(recoveredFromOnchain, cosigner);
 
         // fulfill the order
-        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature);
+        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature, address(0), 0);
         luckyBuy.reconcileBalance();
         assertEq(nft.ownerOf(TOKEN_ID), RECEIVER);
 
-        vm.expectRevert(LuckyBuy.AlreadyFulfilled.selector);
-        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature);
+        vm.expectRevert(LuckyBuyCore.AlreadyFulfilled.selector);
+        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature, address(0), 0);
         // check the balance of the contract
         assertEq(
             address(luckyBuy).balance,
@@ -869,7 +881,8 @@ contract FulfillTest is Test {
             REWARD, // reward
             0, // fee
             0,
-            digest
+            digest,
+            0 // bulkSessionId - 0 for individual commits
         );
         vm.prank(RECEIVER);
         luckyBuy.commit{value: COMMIT_AMOUNT}(
@@ -930,13 +943,15 @@ contract FulfillTest is Test {
             REWARD,
             TOKEN,
             TOKEN_ID,
-            signature
+            signature,
+            address(0),
+            0
         );
 
         assertEq(nft.ownerOf(TOKEN_ID), RECEIVER);
 
-        vm.expectRevert(LuckyBuy.AlreadyFulfilled.selector);
-        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature);
+        vm.expectRevert(LuckyBuyCore.AlreadyFulfilled.selector);
+        luckyBuy.fulfill(0, TARGET, DATA, REWARD, TOKEN, TOKEN_ID, signature, address(0), 0);
         // check the balance of the contract
         assertEq(
             address(luckyBuy).balance,

@@ -29,6 +29,7 @@ contract AccessControlTest is Test {
         luckyBuy = new LuckyBuy(
             0,
             0,
+            0,
             msg.sender,
             address(prng),
             feeReceiverManager
@@ -197,7 +198,7 @@ contract AccessControlTest is Test {
         vm.stopPrank();
 
         vm.startPrank(ops);
-        vm.expectRevert(LuckyBuy.InvalidProtocolFee.selector);
+        vm.expectRevert(LuckyBuyCore.InvalidProtocolFee.selector);
         luckyBuy.setProtocolFee(10001); // Base points is 10000
         vm.stopPrank();
     }

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
+import "../src/LuckyBuyCore.sol";
 import "../src/LuckyBuyInitializable.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
@@ -38,6 +39,9 @@ contract LuckyBuyV2 is UUPSUpgradeable, MEAccessControlUpgradeable {
     uint256 public protocolFee;
     uint256 public minReward;
     uint256 public flatFee;
+    uint256 public bulkCommitFee;
+
+    uint256 public bulkSessionCounter;
 
     uint256 public commitExpireTime;
     mapping(uint256 commitId => uint256 expiresAt) public commitExpiresAt;
@@ -45,6 +49,9 @@ contract LuckyBuyV2 is UUPSUpgradeable, MEAccessControlUpgradeable {
     uint256 public constant MIN_COMMIT_EXPIRE_TIME = 1 minutes;
     uint256 public constant ONE_PERCENT = 100;
     uint256 public constant BASE_POINTS = 10000;
+
+    bytes32 public constant FEE_RECEIVER_MANAGER_ROLE =
+        keccak256("FEE_RECEIVER_MANAGER_ROLE");
 
     mapping(address cosigner => bool active) public isCosigner;
     mapping(address receiver => uint256 counter) public luckyBuyCount;
@@ -108,6 +115,7 @@ contract UpgradeTest is Test {
             admin,
             500, // 5% protocol fee
             0.01 ether, // 0.01 ETH flat fee
+            250, // 2.5% bulk commit fee
             feeReceiver,
             prng,
             feeReceiverManager
@@ -263,7 +271,7 @@ contract UpgradeTest is Test {
         vm.startPrank(admin);
         
         // Attempt to upgrade to zero address
-        vm.expectRevert(LuckyBuyInitializable.NewImplementationCannotBeZero.selector);
+        vm.expectRevert(LuckyBuyCore.NewImplementationCannotBeZero.selector);
         proxy.upgradeToAndCall(address(0), "");
         
         vm.stopPrank();
@@ -278,6 +286,7 @@ contract UpgradeTest is Test {
             admin,
             500,
             0.01 ether,
+            250, // 2.5% bulk commit fee
             feeReceiver,
             prng,
             feeReceiverManager
