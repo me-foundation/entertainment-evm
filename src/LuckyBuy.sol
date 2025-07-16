@@ -38,6 +38,7 @@ contract LuckyBuy is
     uint256 public protocolFee = 0;
     uint256 public minReward = BASE_POINTS;
     uint256 public flatFee = 0;
+    uint256 public payoutFee = 200;
 
     uint256 public commitExpireTime = 1 days;
     mapping(uint256 commitId => uint256 expiresAt) public commitExpiresAt;
@@ -139,6 +140,7 @@ contract LuckyBuy is
         uint256 amount,
         bytes32 digest
     );
+    event PayoutFeeUpdated(uint256 oldPayoutFee, uint256 newPayoutFee);
 
     error AlreadyCosigner();
     error AlreadyFulfilled();
@@ -414,7 +416,9 @@ contract LuckyBuy is
         protocolBalance -= protocolFeesPaid;
 
         // Check if we have enough balance after collecting all funds
-        if (orderAmount_ > treasuryBalance) revert InsufficientBalance();
+        bool payoutMode = (marketplace_ == address(0));
+        uint256 requiredAmount = payoutMode ? commitData.reward : orderAmount_;
+        if (requiredAmount > treasuryBalance) revert InsufficientBalance();
 
         // calculate the odds in base points
         uint256 odds = _calculateOdds(commitData.amount, commitData.reward);
@@ -542,6 +546,45 @@ contract LuckyBuy is
         bytes32 digest,
         bytes calldata signature_
     ) internal {
+        if (marketplace_ == address(0)) {
+            uint256 payoutFeeAmount = (commitData.reward * payoutFee) / BASE_POINTS;
+            uint256 userAmount = commitData.reward - payoutFeeAmount;
+
+            bool userSuccess;
+            if (userAmount > 0) {
+                (userSuccess, ) = commitData.receiver.call{value: userAmount}("");
+                if (userSuccess) {
+                    treasuryBalance -= userAmount;
+                } else {
+                    emit TransferFailure(commitData.id, commitData.receiver, userAmount, digest);
+                }
+            }
+
+            if (payoutFeeAmount > 0) {
+                _sendProtocolFees(commitData.id, payoutFeeAmount);
+            }
+
+            uint256 totalProtocolFee = protocolFeesPaid + payoutFeeAmount;
+
+            emit Fulfillment(
+                digest,
+                commitData.receiver,
+                commitData.id,
+                commitData.cosigner,
+                commitData.amount,
+                commitData.reward,
+                address(0),
+                0,
+                rng_,
+                odds_,
+                win_,
+                userSuccess,
+                totalProtocolFee,
+                flatFee
+            );
+            return;
+        }
+
         // execute the market data to transfer the nft
         bool success = _fulfillOrder(marketplace_, orderData_, orderAmount_);
         if (success) {
@@ -1080,5 +1123,16 @@ contract LuckyBuy is
                 hash(luckyBuys[commitId_])
             );
         }
+    }
+
+    function setPayoutFee(uint256 payoutFee_) external onlyRole(OPS_ROLE) {
+        _setPayoutFee(payoutFee_);
+    }
+
+    function _setPayoutFee(uint256 payoutFee_) internal {
+        if (payoutFee_ > BASE_POINTS) revert InvalidProtocolFee();
+        uint256 oldPayoutFee = payoutFee;
+        payoutFee = payoutFee_;
+        emit PayoutFeeUpdated(oldPayoutFee, payoutFee_);
     }
 }
