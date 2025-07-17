@@ -5,18 +5,18 @@ import "./common/SignatureVerifier.sol";
 
 import {IERC1155MInitializableV1_0_2} from "./common/interfaces/IERC1155MInitializableV1_0_2.sol";
 
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./common/MEAccessControl.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IPRNG} from "./common/interfaces/IPRNG.sol";
 import {TokenRescuer} from "./common/TokenRescuer.sol";
 
 contract LuckyBuy is
     MEAccessControl,
-    Pausable,
+    PausableUpgradeable,
     SignatureVerifier,
-    ReentrancyGuard,
+    ReentrancyGuardUpgradeable,
     TokenRescuer
 {
     IPRNG public PRNG;
@@ -210,8 +210,6 @@ contract LuckyBuy is
         _;
     }
 
-    /// @notice Constructor initializes the contract and handles any pre-existing balance
-    /// @dev Sets up EIP712 domain separator and deposits any ETH sent during deployment
     constructor(
         uint256 protocolFee_,
         uint256 flatFee_,
@@ -219,7 +217,12 @@ contract LuckyBuy is
         address feeReceiver_,
         address prng_,
         address feeReceiverManager_
-    ) MEAccessControl() SignatureVerifier("LuckyBuy", "1") {
+    ) initializer {
+        __MEAccessControl_init();
+        __Pausable_init();
+        __SignatureVerifier_init("LuckyBuy", "1");
+        __ReentrancyGuard_init();
+
         uint256 existingBalance = address(this).balance;
         if (existingBalance > 0) {
             _depositTreasury(existingBalance);
