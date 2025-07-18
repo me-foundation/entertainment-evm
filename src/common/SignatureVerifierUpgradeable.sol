@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "./interfaces/ISignatureVerifier.sol";
 
-abstract contract SignatureVerifier is ISignatureVerifier, EIP712Upgradeable {
+abstract contract SignatureVerifierUpgradeable is ISignatureVerifier, EIP712Upgradeable {
     using ECDSA for bytes32;
 
     function __SignatureVerifier_init(

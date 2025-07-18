@@ -4,11 +4,11 @@ pragma solidity 0.8.28;
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 /**
- * @title MEAccessControl
- * @dev Contract that inherits from OpenZeppelin's AccessControl and exposes role management
+ * @title MEAccessControlUpgradeable
+ * @dev Contract that inherits from OpenZeppelin's AccessControlUpgradeable and exposes role management
  * functions at the top level for improved developer experience.
  */
-contract MEAccessControl is AccessControlUpgradeable {
+contract MEAccessControlUpgradeable is AccessControlUpgradeable {
     bytes32 public constant OPS_ROLE = keccak256("OPS_ROLE");
     bytes32 public constant RESCUE_ROLE = keccak256("RESCUE_ROLE");
 

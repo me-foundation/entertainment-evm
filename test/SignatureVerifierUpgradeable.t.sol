@@ -3,10 +3,10 @@ pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 
-import "src/common/SignatureVerifier.sol";
+import "src/common/SignatureVerifierUpgradeable.sol";
 import "src/common/interfaces/ISignatureVerifier.sol";
 
-contract MockSignatureVerifier is SignatureVerifier {
+contract MockSignatureVerifierUpgradeable is SignatureVerifierUpgradeable {
     function initialize(
         string memory name,
         string memory version
@@ -22,8 +22,8 @@ contract MockSignatureVerifier is SignatureVerifier {
     }
 }
 
-contract TestSignatureVerifier is Test {
-    MockSignatureVerifier sigVerifier;
+contract TestSignatureVerifierUpgradeable is Test {
+    MockSignatureVerifierUpgradeable sigVerifier;
     uint256 cosignerPrivateKey = 0x1; //vm.envUint("PRIVATE_KEY");
     address cosignerAddress;
 
@@ -31,7 +31,7 @@ contract TestSignatureVerifier is Test {
     ISignatureVerifier.CommitData commitData;
 
     function setUp() public {
-        sigVerifier = new MockSignatureVerifier();
+        sigVerifier = new MockSignatureVerifierUpgradeable();
         sigVerifier.initialize("MagicSigner", "1");
         cosignerAddress = vm.addr(cosignerPrivateKey);
 
