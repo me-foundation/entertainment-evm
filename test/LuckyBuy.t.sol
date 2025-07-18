@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
 import "src/PRNG.sol";
-import "src/common/interfaces/ISignatureVerifier.sol";
+import "src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 import {TokenRescuer} from "../src/common/TokenRescuer.sol";
 import {MEAccessControlUpgradeable} from "../src/common/MEAccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -1576,8 +1576,7 @@ contract TestLuckyBuyCommit is Test {
         uint256 reward
     ) public returns (bytes memory) {
         // Create the commit data struct
-        ISignatureVerifier.CommitData memory commitData = ISignatureVerifier
-            .CommitData({
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory commitData = LuckyBuySignatureVerifierUpgradeable.CommitData({
                 id: commitId,
                 receiver: receiver,
                 cosigner: cosigner,
@@ -2152,7 +2151,7 @@ contract TestLuckyBuyCommit is Test {
         for (uint256 i = 0; i < 3; i++) {
             (, , , , , , uint256 commitAmount, ) = luckyBuy.luckyBuys(commitIds[i]);
             
-            bytes32 digest = luckyBuy.hash(ISignatureVerifier.CommitData({
+            bytes32 digest = luckyBuy.hash(LuckyBuySignatureVerifierUpgradeable.CommitData({
                 id: commitIds[i],
                 receiver: receiver,
                 cosigner: cosigner,

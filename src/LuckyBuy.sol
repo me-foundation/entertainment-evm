@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "./common/SignatureVerifierUpgradeable.sol";
+import "./common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 
 import {IERC1155MInitializableV1_0_2} from "./common/interfaces/IERC1155MInitializableV1_0_2.sol";
 
@@ -15,7 +15,7 @@ import {TokenRescuer} from "./common/TokenRescuer.sol";
 contract LuckyBuy is
     MEAccessControlUpgradeable,
     PausableUpgradeable,
-    SignatureVerifierUpgradeable,
+    LuckyBuySignatureVerifierUpgradeable,
     ReentrancyGuardUpgradeable,
     TokenRescuer
 {
@@ -220,7 +220,7 @@ contract LuckyBuy is
     ) initializer {
         __MEAccessControl_init();
         __Pausable_init();
-        __SignatureVerifier_init("LuckyBuy", "1");
+        __LuckyBuySignatureVerifier_init("LuckyBuy", "1");
         __ReentrancyGuard_init();
 
         uint256 existingBalance = address(this).balance;
@@ -667,10 +667,10 @@ contract LuckyBuy is
             );
         } else {
             // The order failed to fulfill, it could be bought already or invalid, make the best effort to send the user the value of the order they won.
-            (bool success, ) = commitData.receiver.call{value: orderAmount_}(
+            (bool transferSuccess, ) = commitData.receiver.call{value: orderAmount_}(
                 ""
             );
-            if (success) {
+            if (transferSuccess) {
                 treasuryBalance -= orderAmount_;
             } else {
                 emit TransferFailure(
@@ -1142,7 +1142,7 @@ contract LuckyBuy is
         if (orderAmount_ != commitData.reward) revert InvalidAmount();
 
         bytes32 digest = hash(commitData);
-        address cosigner = _verifyDigest(digest, signature_);
+        address cosigner = _verify(digest, signature_);
         if (cosigner != commitData.cosigner || !isCosigner[cosigner]) {
             revert InvalidCosigner();
         }

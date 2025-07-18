@@ -3,40 +3,48 @@ pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 
-import "src/common/SignatureVerifierUpgradeable.sol";
-import "src/common/interfaces/ISignatureVerifier.sol";
+import "../src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 
-contract MockSignatureVerifierUpgradeable is SignatureVerifierUpgradeable {
+contract MockLuckyBuySignatureVerifierUpgradeable is LuckyBuySignatureVerifierUpgradeable {
     function initialize(
         string memory name,
         string memory version
     ) public initializer {
-        __SignatureVerifier_init(name, version);
+        __LuckyBuySignatureVerifier_init(name, version);
+    }
+
+    function getEIP712Name() public view returns (string memory) {
+        return _EIP712Name();
+    }
+
+    function getVersion() public view returns (string memory) {
+        return _EIP712Version();
     }
 
     function debugVerify(
         bytes32 digest,
         bytes memory signature
     ) public view returns (address) {
-        return ECDSA.recover(digest, signature);
+        return _verify(digest, signature);
     }
 }
 
-contract TestSignatureVerifierUpgradeable is Test {
-    MockSignatureVerifierUpgradeable sigVerifier;
+contract TestLuckyBuySignatureVerifierUpgradeable is Test {
+    MockLuckyBuySignatureVerifierUpgradeable sigVerifier;
     uint256 cosignerPrivateKey = 0x1; //vm.envUint("PRIVATE_KEY");
     address cosignerAddress;
+    address user = makeAddr("user");
 
     // Sample commit data for testing
-    ISignatureVerifier.CommitData commitData;
+    LuckyBuySignatureVerifierUpgradeable.CommitData commitData;
 
     function setUp() public {
-        sigVerifier = new MockSignatureVerifierUpgradeable();
+        sigVerifier = new MockLuckyBuySignatureVerifierUpgradeable();
         sigVerifier.initialize("MagicSigner", "1");
         cosignerAddress = vm.addr(cosignerPrivateKey);
 
         // Initialize sample commit data
-        commitData = ISignatureVerifier.CommitData({
+        commitData = LuckyBuySignatureVerifierUpgradeable.CommitData({
             id: 1,
             receiver: 0xE052c9CFe22B5974DC821cBa907F1DAaC7979c94,
             cosigner: cosignerAddress,
@@ -60,18 +68,24 @@ contract TestSignatureVerifierUpgradeable is Test {
         console.logBytes32(sigVerifier.hash(commitData));
     }
 
-    // Quick way to test the signature from the typescript test
-    //function testTypescriptSignatures() public {
-    //    bytes
-    //        memory signature = hex"6e770e2253444563387afd1d832f07704ca9bdef17e46763219a2680f77c3f530ae8541e17eea7601b981b3f50711b980e534d0226ef8a53fea579993be6d1241b";
-    //
-    //    address recovered = sigVerifier.debugVerify(
-    //        0x36eabcb5d3a4856149aa24c63133d02602298e6fd632cedb7333f68b5d1f7686,
-    //        signature
-    //    );
-    //
-    //    console.log("Recovered:", recovered);
-    //}
+    /*//////////////////////////////////////////////////////////////
+                               INITIALISER
+    //////////////////////////////////////////////////////////////*/
+
+    function test_InitializerSetsNameAndVersion() public {
+        assertEq(sigVerifier.getEIP712Name(), "MagicSigner");
+        assertEq(sigVerifier.getVersion(), "1");
+    }
+
+    function test_RevertOnReinitialise() public {
+        vm.prank(user);
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        MockLuckyBuySignatureVerifierUpgradeable(address(sigVerifier)).initialize("MagicSigner", "1");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            SIGNATURE VERIFIER
+    //////////////////////////////////////////////////////////////*/
 
     function testOrderHash2() public {
         address testTo = 0x0000000000000068F116a894984e2DB1123eB395;
@@ -93,7 +107,7 @@ contract TestSignatureVerifierUpgradeable is Test {
     }
 
     function _signCommit(
-        ISignatureVerifier.CommitData memory commit
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory commit
     ) internal returns (bytes memory signature) {
         // Sign voucher with cosigner's private key
         bytes32 digest = sigVerifier.hash(commit);
@@ -130,7 +144,7 @@ contract TestSignatureVerifierUpgradeable is Test {
         bytes memory signature = _signCommit(commitData);
 
         // Create a modified commit with a different id
-        ISignatureVerifier.CommitData memory modifiedCommit = commitData;
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory modifiedCommit = commitData;
         modifiedCommit.id = 999;
 
         // Verify the signature with modified commit data
@@ -151,7 +165,7 @@ contract TestSignatureVerifierUpgradeable is Test {
         bytes memory originalSignature = _signCommit(commitData);
 
         // Test id field
-        ISignatureVerifier.CommitData memory modifiedCommit = commitData;
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory modifiedCommit = commitData;
         modifiedCommit.id = commitData.id + 1;
         address recoveredSigner = sigVerifier.verify(
             modifiedCommit,

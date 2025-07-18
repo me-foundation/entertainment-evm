@@ -7,7 +7,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {IPRNG} from "../src/common/interfaces/IPRNG.sol";
 import {PRNG} from "../src/PRNG.sol";
 import {LuckyBuy} from "../src/LuckyBuy.sol";
-import {ISignatureVerifier} from "../src/common/interfaces/ISignatureVerifier.sol";
+import {LuckyBuySignatureVerifierUpgradeable} from "../src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 
 contract LuckyBuyProxy is ERC1967Proxy {
@@ -292,8 +292,7 @@ contract LuckyBuyInitializableProxyTest is Test {
 
     function test_DigestDifference() public {
         // Create the same commit data for both contracts
-        ISignatureVerifier.CommitData memory commitData = ISignatureVerifier
-            .CommitData({
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory commitData = LuckyBuySignatureVerifierUpgradeable.CommitData({
                 id: 0,
                 receiver: receiver,
                 cosigner: cosigner,

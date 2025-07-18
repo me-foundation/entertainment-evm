@@ -30,7 +30,7 @@ contract LuckyBuyInitializable is LuckyBuy, UUPSUpgradeable {
         __ReentrancyGuard_init();
         __MEAccessControl_init();
         __Pausable_init();
-        __SignatureVerifier_init("LuckyBuy", "1");
+        __LuckyBuySignatureVerifier_init("LuckyBuy", "1");
 
         maxReward = 50 ether;
         minReward = BASE_POINTS;
