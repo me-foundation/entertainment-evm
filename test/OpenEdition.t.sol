@@ -6,6 +6,7 @@ import "src/LuckyBuy.sol";
 import "src/PRNG.sol";
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import {IERC1155MInitializableV1_0_2} from "src/common/interfaces/IERC1155MInitializableV1_0_2.sol";
+import "../src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 contract MockLuckyBuy is LuckyBuy {
     address public owner;
     constructor(
@@ -139,8 +140,7 @@ contract TestLuckyBuyOpenEdition is Test {
         uint256 reward
     ) public returns (bytes memory) {
         // Create the commit data struct
-        ISignatureVerifier.CommitData memory commitData = ISignatureVerifier
-            .CommitData({
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory commitData = LuckyBuySignatureVerifierUpgradeable.CommitData({
                 id: commitId,
                 receiver: receiver,
                 cosigner: cosigner,

@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import "src/PayoutContract.sol";
 import "src/LuckyBuy.sol";
 import "src/PRNG.sol";
-import {ISignatureVerifier} from "../src/common/interfaces/ISignatureVerifier.sol";
+import "src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 
 contract MockLuckyBuy is LuckyBuy {
     constructor(
@@ -80,8 +80,7 @@ contract PayoutContractTest is Test {
         uint256 amount,
         uint256 reward
     ) public returns (bytes memory) {
-        ISignatureVerifier.CommitData memory commitData = ISignatureVerifier
-            .CommitData({
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory commitData = LuckyBuySignatureVerifierUpgradeable.CommitData({
                 id: commitId,
                 receiver: receiver,
                 cosigner: cosigner,

@@ -14,11 +14,11 @@ contract MEAccessControlUpgradeable is AccessControlUpgradeable {
 
     error InvalidOwner();
 
-    function __MEAccessControl_init(address initialOwner_) internal onlyInitializing {
+    function __MEAccessControl_init() internal {
         __AccessControl_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, initialOwner_);
-        _grantRole(OPS_ROLE, initialOwner_);
-        _grantRole(RESCUE_ROLE, initialOwner_);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(OPS_ROLE, msg.sender);
+        _grantRole(RESCUE_ROLE, msg.sender);
     }
 
     /// @notice Transfers admin rights to a new address. Admin functions are intentionally not paused

@@ -68,7 +68,7 @@ contract MockLuckyBuy is LuckyBuy {
     }
 
     function hashLuckyBuy(uint256 id) public view returns (bytes32) {
-        return _hash(luckyBuys[id]);
+        return hash(luckyBuys[id]);
     }
 
     function mockRecover(

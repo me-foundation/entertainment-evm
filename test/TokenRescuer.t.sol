@@ -6,7 +6,7 @@ import "../src/common/TokenRescuer.sol";
 import "forge-std/interfaces/IERC20.sol";
 import "forge-std/interfaces/IERC721.sol";
 import "forge-std/interfaces/IERC1155.sol";
-import "../src/common/MEAccessControl.sol";
+import "../src/common/MEAccessControlUpgradeable.sol";
 
 // Mock ERC20 token for testing
 contract MockERC20 is IERC20 {
@@ -201,7 +201,10 @@ contract MockERC1155 is IERC1155 {
 }
 
 // Concrete implementation of TokenRescuer for testing
-contract TestTokenRescuer is TokenRescuer, MEAccessControl {
+contract TestTokenRescuer is TokenRescuer, MEAccessControlUpgradeable {
+    function initialize() public initializer {
+        __MEAccessControl_init();
+    }
     function rescueERC20Batch(
         address[] calldata tokens,
         address[] calldata to,
@@ -243,6 +246,7 @@ contract TokenRescuerTest is Test {
 
     function setUp() public {
         rescuer = new TestTokenRescuer();
+        rescuer.initialize();
         erc20 = new MockERC20();
         erc20_2 = new MockERC20();
         erc721 = new MockERC721();

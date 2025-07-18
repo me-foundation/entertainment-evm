@@ -1,22 +1,16 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 
-import "src/common/SignatureVerifierUpgradeable.sol";
-import "src/common/interfaces/ISignatureVerifier.sol";
+import "../src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 
-import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-
-/// @dev Minimal concrete implementation exposing an external initializer so we
-///      can exercise `__SignatureVerifier_init`.
-contract MockSignatureVerifierUpgradeable is SignatureVerifierUpgradeable {
-    function initialize(string memory name, string memory version)
-        public
-        initializer
-    {
-        __SignatureVerifier_init(name, version);
+contract MockLuckyBuySignatureVerifierUpgradeable is LuckyBuySignatureVerifierUpgradeable {
+    function initialize(
+        string memory name,
+        string memory version
+    ) public initializer {
+        __LuckyBuySignatureVerifier_init(name, version);
     }
 
     function getEIP712Name() public view returns (string memory) {
@@ -26,38 +20,31 @@ contract MockSignatureVerifierUpgradeable is SignatureVerifierUpgradeable {
     function getVersion() public view returns (string memory) {
         return _EIP712Version();
     }
+
+    function debugVerify(
+        bytes32 digest,
+        bytes memory signature
+    ) public view returns (address) {
+        return _verify(digest, signature);
+    }
 }
 
-contract TestSignatureVerifierUpgradeable is Test {
-    // Proxy-addressed instance we interact with
-    MockSignatureVerifierUpgradeable public sigVerifier;
+contract TestLuckyBuySignatureVerifierUpgradeable is Test {
+    MockLuckyBuySignatureVerifierUpgradeable sigVerifier;
     uint256 cosignerPrivateKey = 0x1; //vm.envUint("PRIVATE_KEY");
     address cosignerAddress;
+    address user = makeAddr("user");
 
     // Sample commit data for testing
-    ISignatureVerifier.CommitData commitData;
-
-    // Test actors
-    address public user;
+    LuckyBuySignatureVerifierUpgradeable.CommitData commitData;
 
     function setUp() public {
-        user = makeAddr("user");
-
-        // Deploy implementation & proxy
-        MockSignatureVerifierUpgradeable impl =
-            new MockSignatureVerifierUpgradeable();
-
-        bytes memory initData =
-            abi.encodeWithSignature("initialize(string,string)", "MagicSigner", "1");
-
-        sigVerifier = MockSignatureVerifierUpgradeable(
-            address(new ERC1967Proxy(address(impl), initData))
-        );
-
+        sigVerifier = new MockLuckyBuySignatureVerifierUpgradeable();
+        sigVerifier.initialize("MagicSigner", "1");
         cosignerAddress = vm.addr(cosignerPrivateKey);
 
         // Initialize sample commit data
-        commitData = ISignatureVerifier.CommitData({
+        commitData = LuckyBuySignatureVerifierUpgradeable.CommitData({
             id: 1,
             receiver: 0xE052c9CFe22B5974DC821cBa907F1DAaC7979c94,
             cosigner: cosignerAddress,
@@ -93,8 +80,7 @@ contract TestSignatureVerifierUpgradeable is Test {
     function test_RevertOnReinitialise() public {
         vm.prank(user);
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        MockSignatureVerifierUpgradeable(address(sigVerifier))
-            .initialize("MagicSigner", "1");
+        MockLuckyBuySignatureVerifierUpgradeable(address(sigVerifier)).initialize("MagicSigner", "1");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -121,7 +107,7 @@ contract TestSignatureVerifierUpgradeable is Test {
     }
 
     function _signCommit(
-        ISignatureVerifier.CommitData memory commit
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory commit
     ) internal returns (bytes memory signature) {
         // Sign voucher with cosigner's private key
         bytes32 digest = sigVerifier.hash(commit);
@@ -158,7 +144,7 @@ contract TestSignatureVerifierUpgradeable is Test {
         bytes memory signature = _signCommit(commitData);
 
         // Create a modified commit with a different id
-        ISignatureVerifier.CommitData memory modifiedCommit = commitData;
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory modifiedCommit = commitData;
         modifiedCommit.id = 999;
 
         // Verify the signature with modified commit data
@@ -179,7 +165,7 @@ contract TestSignatureVerifierUpgradeable is Test {
         bytes memory originalSignature = _signCommit(commitData);
 
         // Test id field
-        ISignatureVerifier.CommitData memory modifiedCommit = commitData;
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory modifiedCommit = commitData;
         modifiedCommit.id = commitData.id + 1;
         address recoveredSigner = sigVerifier.verify(
             modifiedCommit,

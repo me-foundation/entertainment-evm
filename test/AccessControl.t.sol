@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import "forge-std/Test.sol";
 import "../src/LuckyBuy.sol";
 import "../src/PRNG.sol";
-import "../src/common/MEAccessControl.sol";
+import "../src/common/MEAccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 contract AccessControlTest is Test {
     PRNG public prng;

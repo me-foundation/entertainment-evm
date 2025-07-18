@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
 import "src/PRNG.sol";
+import "../src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 contract MockLuckyBuy is LuckyBuy {
     constructor(
         uint256 protocolFee_,
@@ -102,8 +103,7 @@ contract TestLuckyBuyCommit is Test {
         uint256 reward
     ) public returns (bytes memory) {
         // Create the commit data struct
-        ISignatureVerifier.CommitData memory commitData = ISignatureVerifier
-            .CommitData({
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory commitData = LuckyBuySignatureVerifierUpgradeable.CommitData({
                 id: commitId,
                 receiver: receiver,
                 cosigner: cosigner,
