@@ -6,8 +6,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeab
 import {IPRNG} from "./common/interfaces/IPRNG.sol";
 
 contract LuckyBuyInitializable is LuckyBuy, UUPSUpgradeable {
-    error InitialOwnerCannotBeZero();
-    error NewImplementationCannotBeZero();
+    error InvalidZeroAddress();
 
     /// @dev Disables initializers for the implementation contract.
     constructor() LuckyBuy(0, 0, 0, address(0x1), address(0x2), address(0x3)) {
@@ -25,7 +24,7 @@ contract LuckyBuyInitializable is LuckyBuy, UUPSUpgradeable {
         address prng_,
         address feeReceiverManager_
     ) public initializer {
-        if (initialOwner_ == address(0)) revert InitialOwnerCannotBeZero();
+        if (initialOwner_ == address(0)) revert InvalidZeroAddress();
 
         __ReentrancyGuard_init();
         __MEAccessControl_init();
@@ -40,11 +39,6 @@ contract LuckyBuyInitializable is LuckyBuy, UUPSUpgradeable {
         _grantRole(OPS_ROLE, initialOwner_);
         _grantRole(RESCUE_ROLE, initialOwner_);
 
-        uint256 existingBalance = address(this).balance;
-        if (existingBalance > 0) {
-            _depositTreasury(existingBalance);
-        }
-
         _setProtocolFee(protocolFee_);
         _setFlatFee(flatFee_);
         _setBulkCommitFee(bulkCommitFee_);
@@ -58,6 +52,6 @@ contract LuckyBuyInitializable is LuckyBuy, UUPSUpgradeable {
         address newImplementation
     ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newImplementation == address(0))
-            revert NewImplementationCannotBeZero();
+            revert InvalidZeroAddress();
     }
 }

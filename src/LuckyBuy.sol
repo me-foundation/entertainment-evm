@@ -6,11 +6,11 @@ import "./common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 import {IERC1155MInitializableV1_0_2} from "./common/interfaces/IERC1155MInitializableV1_0_2.sol";
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./common/MEAccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IPRNG} from "./common/interfaces/IPRNG.sol";
 import {TokenRescuer} from "./common/TokenRescuer.sol";
+import {Errors} from "./common/Errors.sol";
 
 contract LuckyBuy is
     MEAccessControlUpgradeable,
@@ -23,9 +23,9 @@ contract LuckyBuy is
     address payable public feeReceiver;
     // We will not track our supply on this contract. We will mint a yuge amount and never run out on the oe.
     address public openEditionToken;
-    uint256 public openEditionTokenId;
     // The OE interface forces us to use uint32
     uint32 public openEditionTokenAmount;
+    uint256 public openEditionTokenId;
 
     CommitData[] public luckyBuys;
     mapping(bytes32 commitDigest => uint256 commitId) public commitIdByDigest;
@@ -159,14 +159,10 @@ contract LuckyBuy is
 
     error AlreadyCosigner();
     error AlreadyFulfilled();
-    error InsufficientBalance();
-    error InvalidAmount();
     error InvalidCommitOwner();
-    error InvalidCosigner();
     error InvalidOrderHash();
     error InvalidProtocolFee();
     error InvalidBulkCommitFee();
-    error InvalidReceiver();
     error InvalidReward();
     error FulfillmentFailed();
     error InvalidCommitId();
@@ -174,10 +170,7 @@ contract LuckyBuy is
     error InvalidCommitExpireTime();
     error CommitIsExpired();
     error CommitNotExpired();
-    error TransferFailed();
-    error InvalidFeeReceiver();
     error InvalidFeeSplitPercentage();
-    error InvalidFeeReceiverManager();
     error InvalidBulkSize();
 
     // Bulk operation structs
@@ -251,7 +244,7 @@ contract LuckyBuy is
         bytes32 orderHash_,
         uint256 reward_
     ) public payable whenNotPaused returns (uint256) {
-        if (msg.value == 0) revert InvalidAmount();
+        if (msg.value == 0) revert Errors.InvalidAmount();
 
         CommitRequest memory request = CommitRequest({
             receiver: receiver_,
@@ -273,7 +266,7 @@ contract LuckyBuy is
     function bulkCommit(
         CommitRequest[] calldata requests_
     ) public payable whenNotPaused returns (uint256[] memory commitIds) {
-        if (requests_.length == 0) revert InvalidAmount();
+        if (requests_.length == 0) revert Errors.InvalidAmount();
         if (requests_.length > maxBulkSize) revert InvalidBulkSize();
 
         uint256 effectiveFeeRate = protocolFee + bulkCommitFee;
@@ -285,14 +278,14 @@ contract LuckyBuy is
         for (uint256 i = 0; i < requests_.length; i++) {
             CommitRequest calldata request = requests_[i];
             
-            if (request.amount == 0 || remainingValue < request.amount) revert InvalidAmount();
+            if (request.amount == 0 || remainingValue < request.amount) revert Errors.InvalidAmount();
             
             remainingValue -= request.amount;
 
             commitIds[i] = _processCommit(request, effectiveFeeRate, currentBulkSessionId);
         }
 
-        if (remainingValue != 0) revert InvalidAmount();
+        if (remainingValue != 0) revert Errors.InvalidAmount();
 
         emit BulkCommit(
             msg.sender,
@@ -391,7 +384,7 @@ contract LuckyBuy is
     function _handleFlatFeePayment() internal {
         if (flatFee > 0 && feeReceiver != address(0)) {
             (bool success, ) = feeReceiver.call{value: flatFee}("");
-            if (!success) revert TransferFailed();
+            if (!success) revert Errors.TransferFailed();
         } else {
             treasuryBalance += flatFee;
         }
@@ -510,7 +503,7 @@ contract LuckyBuy is
         protocolBalance -= protocolFeesPaid;
 
         // Check if we have enough balance after collecting all funds
-        if (orderAmount_ > treasuryBalance) revert InsufficientBalance();
+        if (orderAmount_ > treasuryBalance) revert Errors.InsufficientBalance();
 
         // calculate the odds in base points
         uint256 odds = _calculateOdds(commitData.amount, commitData.reward);
@@ -605,7 +598,7 @@ contract LuckyBuy is
     function bulkFulfill(
         FulfillRequest[] calldata requests_
     ) public payable whenNotPaused {
-        if (requests_.length == 0) revert InvalidAmount();
+        if (requests_.length == 0) revert Errors.InvalidAmount();
         if (requests_.length > maxBulkSize) revert InvalidBulkSize();
 
         if (msg.value > 0) _depositTreasury(msg.value);
@@ -707,7 +700,7 @@ contract LuckyBuy is
     function withdraw(
         uint256 amount
     ) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (amount > treasuryBalance) revert InsufficientBalance();
+        if (amount > treasuryBalance) revert Errors.InsufficientBalance();
         treasuryBalance -= amount;
 
         (bool success, ) = payable(feeReceiver).call{value: amount}("");
@@ -752,7 +745,7 @@ contract LuckyBuy is
     /// @dev Emits a CommitExpired event for each successful expiration
     /// @dev Emits a BulkExpire event after successful completion
     function bulkExpire(uint256[] calldata commitIds_) external {
-        if (commitIds_.length == 0) revert InvalidAmount();
+        if (commitIds_.length == 0) revert Errors.InvalidAmount();
         if (commitIds_.length > maxBulkSize) revert InvalidBulkSize();
 
         // Process each expiration
@@ -963,7 +956,7 @@ contract LuckyBuy is
             openEditionTokenId = 0;
             openEditionTokenAmount = 0;
         } else {
-            if (amount_ == 0) revert InvalidAmount();
+            if (amount_ == 0) revert Errors.InvalidAmount();
 
             openEditionToken = token_;
             openEditionTokenId = tokenId_;
@@ -983,7 +976,7 @@ contract LuckyBuy is
     function addCosigner(
         address cosigner_
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (cosigner_ == address(0)) revert InvalidCosigner();
+        if (cosigner_ == address(0)) revert Errors.InvalidAddress();
         if (isCosigner[cosigner_]) revert AlreadyCosigner();
         isCosigner[cosigner_] = true;
         emit CosignerAdded(cosigner_);
@@ -996,7 +989,7 @@ contract LuckyBuy is
     function removeCosigner(
         address cosigner_
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (!isCosigner[cosigner_]) revert InvalidCosigner();
+        if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
         isCosigner[cosigner_] = false;
         emit CosignerRemoved(cosigner_);
     }
@@ -1105,17 +1098,14 @@ contract LuckyBuy is
         uint256 reward_,
         uint256 commitAmount
     ) internal view {
-        if (cosigner_ == address(0) || !isCosigner[cosigner_]) {
-            revert InvalidCosigner();
-        }
-        if (receiver_ == address(0)) {
-            revert InvalidReceiver();
+        if (cosigner_ == address(0) || !isCosigner[cosigner_] || receiver_ == address(0)) {
+            revert Errors.InvalidAddress();
         }
         if (reward_ == 0 || reward_ > maxReward || reward_ < minReward) {
             revert InvalidReward();
         }
         if (commitAmount < (reward_ / ONE_PERCENT) || commitAmount > reward_) {
-            revert InvalidAmount();
+            revert Errors.InvalidAmount();
         }
     }
 
@@ -1139,12 +1129,12 @@ contract LuckyBuy is
             hashOrder(marketplace_, orderAmount_, orderData_, token_, tokenId_)
         ) revert InvalidOrderHash();
 
-        if (orderAmount_ != commitData.reward) revert InvalidAmount();
+        if (orderAmount_ != commitData.reward) revert Errors.InvalidAmount();
 
         bytes32 digest = hash(commitData);
         address cosigner = _verify(digest, signature_);
         if (cosigner != commitData.cosigner || !isCosigner[cosigner]) {
-            revert InvalidCosigner();
+            revert Errors.InvalidAddress();
         }
 
         return (commitData, digest);
@@ -1204,8 +1194,7 @@ contract LuckyBuy is
     function transferFeeReceiverManager(
         address newFeeReceiverManager_
     ) external onlyRole(FEE_RECEIVER_MANAGER_ROLE) {
-        if (newFeeReceiverManager_ == address(0))
-            revert InvalidFeeReceiverManager();
+        if (newFeeReceiverManager_ == address(0)) revert Errors.InvalidAddress();
         _transferFeeReceiverManager(newFeeReceiverManager_);
     }
 
@@ -1228,9 +1217,9 @@ contract LuckyBuy is
     }
 
     function _setFeeReceiver(address feeReceiver_) internal {
-        if (feeReceiver_ == address(0)) revert InvalidFeeReceiver();
-        if (hasRole(FEE_RECEIVER_MANAGER_ROLE, feeReceiver_))
-            revert InvalidFeeReceiverManager();
+        if (feeReceiver_ == address(0) || hasRole(FEE_RECEIVER_MANAGER_ROLE, feeReceiver_)) {
+            revert Errors.InvalidAddress();
+        }
         address oldFeeReceiver = feeReceiver;
         feeReceiver = payable(feeReceiver_);
         emit FeeReceiverUpdated(oldFeeReceiver, feeReceiver_);

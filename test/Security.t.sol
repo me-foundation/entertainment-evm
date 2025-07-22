@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
 import "src/PRNG.sol";
 import "src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
+import {Errors} from "../src/common/Errors.sol";
 
 /**
  * @title SecurityTest
@@ -250,7 +251,7 @@ contract SecurityTest is Test {
         
         // Try to commit with unauthorized cosigner address
         vm.prank(maliciousActor);
-        vm.expectRevert(abi.encodeWithSignature("InvalidCosigner()"));
+        vm.expectRevert(abi.encodeWithSignature("InvalidAddress()"));
         
         luckyBuy.commit{value: COMMIT_AMOUNT}(
             maliciousActor,
@@ -326,7 +327,7 @@ contract SecurityTest is Test {
      */
     function test_Security_ZeroAddressAttackPrevention() public {
         vm.prank(user);
-        vm.expectRevert(abi.encodeWithSignature("InvalidCosigner()"));
+        vm.expectRevert(abi.encodeWithSignature("InvalidAddress()"));
         
         luckyBuy.commit{value: COMMIT_AMOUNT}(
             user,

@@ -13,6 +13,7 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import {Errors} from "../src/common/Errors.sol";
 
 contract MockERC20 is ERC20 {
     constructor() ERC20("Mock ERC20", "MOCK") {}
@@ -342,7 +343,7 @@ contract TestLuckyBuyCommit is Test {
     function testCommitWithZeroAmount() public {
         vm.startPrank(user);
 
-        vm.expectRevert(LuckyBuy.InvalidAmount.selector);
+        vm.expectRevert(Errors.InvalidAmount.selector);
         luckyBuy.commit{value: 0}(receiver, cosigner, seed, orderHash, reward);
 
         vm.stopPrank();
@@ -353,8 +354,8 @@ contract TestLuckyBuyCommit is Test {
         vm.startPrank(user);
         vm.deal(user, amount);
 
-        // Act & Assert - Should revert with InvalidCosigner
-        vm.expectRevert(LuckyBuy.InvalidCosigner.selector);
+        // Act & Assert - Should revert with InvalidAddress
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.commit{value: amount}(
             receiver,
             invalidCosigner,
@@ -370,7 +371,7 @@ contract TestLuckyBuyCommit is Test {
         vm.startPrank(user);
         vm.deal(user, amount);
 
-        vm.expectRevert(LuckyBuy.InvalidReceiver.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.commit{value: amount}(
             address(0),
             cosigner,
@@ -390,7 +391,7 @@ contract TestLuckyBuyCommit is Test {
         vm.startPrank(user);
         vm.deal(user, amount);
 
-        vm.expectRevert(LuckyBuy.InvalidCosigner.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.commit{value: amount}(
             receiver,
             cosigner,
@@ -882,7 +883,7 @@ contract TestLuckyBuyCommit is Test {
 
         // Try to commit with amount that would result in >100% odds
         // If amount * BASE_POINTS / reward > BASE_POINTS, it should revert
-        vm.expectRevert(LuckyBuy.InvalidAmount.selector);
+        vm.expectRevert(Errors.InvalidAmount.selector);
         luckyBuy.commit{value: 2 ether}(
             receiver,
             cosigner,
@@ -1012,7 +1013,7 @@ contract TestLuckyBuyCommit is Test {
 
         // Try to withdraw without funding
         vm.startPrank(admin);
-        vm.expectRevert(LuckyBuy.InsufficientBalance.selector);
+        vm.expectRevert(Errors.InsufficientBalance.selector);
         luckyBuy.withdraw(withdrawAmount);
         vm.stopPrank();
 
@@ -1025,7 +1026,7 @@ contract TestLuckyBuyCommit is Test {
 
         // Try to withdraw more than available
         vm.startPrank(admin);
-        vm.expectRevert(LuckyBuy.InsufficientBalance.selector);
+        vm.expectRevert(Errors.InsufficientBalance.selector);
         luckyBuy.withdraw(withdrawAmount);
         vm.stopPrank();
     }
@@ -1358,7 +1359,7 @@ contract TestLuckyBuyCommit is Test {
         assertEq(luckyBuy.openEditionTokenId(), 0);
         assertEq(luckyBuy.openEditionTokenAmount(), 0);
 
-        vm.expectRevert(LuckyBuy.InvalidAmount.selector);
+        vm.expectRevert(Errors.InvalidAmount.selector);
         luckyBuy.setOpenEditionToken(address(1), 1, 0);
 
         luckyBuy.setOpenEditionToken(address(1), 1, 1);
@@ -1641,7 +1642,7 @@ contract TestLuckyBuyCommit is Test {
     function testInvalidFeeReceiverManager() public {
         // Try to set fee receiver manager to zero address
         vm.startPrank(feeReceiverManager);
-        vm.expectRevert(LuckyBuy.InvalidFeeReceiverManager.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.transferFeeReceiverManager(address(0));
         vm.stopPrank();
     }
@@ -1865,7 +1866,7 @@ contract TestLuckyBuyCommit is Test {
         token.mint(address(luckyBuy), 1000 ether);
 
         vm.startPrank(admin);
-        vm.expectRevert(TokenRescuer.TokenRescuerInvalidAddress.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.rescueERC20(address(0), bob, 100 ether);
         vm.stopPrank();
     }
@@ -1875,7 +1876,7 @@ contract TestLuckyBuyCommit is Test {
         token.mint(address(luckyBuy), 1);
 
         vm.startPrank(admin);
-        vm.expectRevert(TokenRescuer.TokenRescuerInvalidAddress.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.rescueERC721(address(0), bob, 1);
         vm.stopPrank();
     }
@@ -1885,7 +1886,7 @@ contract TestLuckyBuyCommit is Test {
         token.mint(address(luckyBuy), 1, 100);
 
         vm.startPrank(admin);
-        vm.expectRevert(TokenRescuer.TokenRescuerInvalidAddress.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.rescueERC1155(address(0), bob, 1, 50);
         vm.stopPrank();
     }
@@ -1895,9 +1896,7 @@ contract TestLuckyBuyCommit is Test {
         token.mint(address(luckyBuy), 1000 ether);
 
         vm.startPrank(admin);
-        vm.expectRevert(
-            TokenRescuer.TokenRescuerAmountMustBeGreaterThanZero.selector
-        );
+        vm.expectRevert(Errors.InvalidAmount.selector);
         luckyBuy.rescueERC20(address(token), bob, 0);
         vm.stopPrank();
     }
@@ -1907,9 +1906,7 @@ contract TestLuckyBuyCommit is Test {
         token.mint(address(luckyBuy), 1, 100);
 
         vm.startPrank(admin);
-        vm.expectRevert(
-            TokenRescuer.TokenRescuerAmountMustBeGreaterThanZero.selector
-        );
+        vm.expectRevert(Errors.InvalidAmount.selector);
         luckyBuy.rescueERC1155(address(token), bob, 1, 0);
         vm.stopPrank();
     }
@@ -1919,7 +1916,7 @@ contract TestLuckyBuyCommit is Test {
         token.mint(address(luckyBuy), 1000 ether);
 
         vm.startPrank(admin);
-        vm.expectRevert(TokenRescuer.TokenRescuerInsufficientBalance.selector);
+        vm.expectRevert(Errors.InsufficientBalance.selector);
         luckyBuy.rescueERC20(address(token), bob, 2000 ether);
         vm.stopPrank();
     }
@@ -1929,7 +1926,7 @@ contract TestLuckyBuyCommit is Test {
         token.mint(address(luckyBuy), 1, 100);
 
         vm.startPrank(admin);
-        vm.expectRevert(TokenRescuer.TokenRescuerInsufficientBalance.selector);
+        vm.expectRevert(Errors.InsufficientBalance.selector);
         luckyBuy.rescueERC1155(address(token), bob, 1, 200);
         vm.stopPrank();
     }
@@ -1949,7 +1946,7 @@ contract TestLuckyBuyCommit is Test {
         amounts[1] = 200 ether;
 
         vm.startPrank(admin);
-        vm.expectRevert(TokenRescuer.TokenRescuerArrayLengthMismatch.selector);
+        vm.expectRevert(Errors.ArrayLengthMismatch.selector);
         luckyBuy.rescueERC20Batch(tokens, to, amounts);
         vm.stopPrank();
     }
@@ -1969,7 +1966,7 @@ contract TestLuckyBuyCommit is Test {
         tokenIds[1] = 2;
 
         vm.startPrank(admin);
-        vm.expectRevert(TokenRescuer.TokenRescuerArrayLengthMismatch.selector);
+        vm.expectRevert(Errors.ArrayLengthMismatch.selector);
         luckyBuy.rescueERC721Batch(tokens, to, tokenIds);
         vm.stopPrank();
     }
@@ -1991,7 +1988,7 @@ contract TestLuckyBuyCommit is Test {
         amounts[0] = 50;
 
         vm.startPrank(admin);
-        vm.expectRevert(TokenRescuer.TokenRescuerArrayLengthMismatch.selector);
+        vm.expectRevert(Errors.ArrayLengthMismatch.selector);
         luckyBuy.rescueERC1155Batch(tokens, tos, tokenIds, amounts);
         vm.stopPrank();
     }

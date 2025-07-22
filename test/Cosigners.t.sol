@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
 import "src/PRNG.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Errors} from "../src/common/Errors.sol";
 
 contract TestLuckyBuyCosigners is Test {
     PRNG prng;
@@ -130,7 +131,7 @@ contract TestLuckyBuyCosigners is Test {
         vm.startPrank(admin);
         address zeroAddress = address(0);
 
-        vm.expectRevert(LuckyBuy.InvalidCosigner.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.addCosigner(zeroAddress);
 
         vm.stopPrank();
@@ -191,7 +192,7 @@ contract TestLuckyBuyCosigners is Test {
             "Cosigner should not be active initially"
         );
 
-        vm.expectRevert(LuckyBuy.InvalidCosigner.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.removeCosigner(cosigner1);
 
         vm.stopPrank();
@@ -206,7 +207,7 @@ contract TestLuckyBuyCosigners is Test {
             "Cosigner should be inactive after first removal"
         );
 
-        vm.expectRevert(LuckyBuy.InvalidCosigner.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         luckyBuy.removeCosigner(cosigner1);
 
         vm.stopPrank();

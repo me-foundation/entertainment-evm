@@ -4,14 +4,9 @@ pragma solidity ^0.8.13;
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {IERC721} from "forge-std/interfaces/IERC721.sol";
 import {IERC1155} from "forge-std/interfaces/IERC1155.sol";
+import {Errors} from "./Errors.sol";
 
 abstract contract TokenRescuer {
-    // Custom errors
-    error TokenRescuerInvalidAddress();
-    error TokenRescuerTransferFailed();
-    error TokenRescuerAmountMustBeGreaterThanZero();
-    error TokenRescuerInsufficientBalance();
-    error TokenRescuerArrayLengthMismatch();
 
     event ERC20BatchRescued(address[] tokens, address[] to, uint256[] amounts);
     event ERC721BatchRescued(
@@ -39,21 +34,21 @@ abstract contract TokenRescuer {
         uint256[] memory amounts
     ) internal {
         if (tokens.length == 0)
-            revert TokenRescuerAmountMustBeGreaterThanZero();
+            revert Errors.InvalidAmount();
         if (tokens.length != to.length || tokens.length != amounts.length)
-            revert TokenRescuerArrayLengthMismatch();
+            revert Errors.ArrayLengthMismatch();
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] == address(0)) revert TokenRescuerInvalidAddress();
-            if (to[i] == address(0)) revert TokenRescuerInvalidAddress();
+            if (tokens[i] == address(0)) revert Errors.InvalidAddress();
+            if (to[i] == address(0)) revert Errors.InvalidAddress();
             if (amounts[i] == 0)
-                revert TokenRescuerAmountMustBeGreaterThanZero();
+                revert Errors.InvalidAmount();
 
             uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
-            if (balance < amounts[i]) revert TokenRescuerInsufficientBalance();
+            if (balance < amounts[i]) revert Errors.InsufficientBalance();
 
             if (!IERC20(tokens[i]).transfer(to[i], amounts[i]))
-                revert TokenRescuerTransferFailed();
+                revert Errors.TransferFailed();
         }
         emit ERC20BatchRescued(tokens, to, amounts);
     }
@@ -70,13 +65,13 @@ abstract contract TokenRescuer {
         uint256[] memory tokenIds
     ) internal {
         if (tokens.length == 0)
-            revert TokenRescuerAmountMustBeGreaterThanZero();
+            revert Errors.InvalidAmount();
         if (tokens.length != to.length || tokens.length != tokenIds.length)
-            revert TokenRescuerArrayLengthMismatch();
+            revert Errors.ArrayLengthMismatch();
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] == address(0)) revert TokenRescuerInvalidAddress();
-            if (to[i] == address(0)) revert TokenRescuerInvalidAddress();
+            if (tokens[i] == address(0)) revert Errors.InvalidAddress();
+            if (to[i] == address(0)) revert Errors.InvalidAddress();
 
             IERC721(tokens[i]).safeTransferFrom(
                 address(this),
@@ -101,25 +96,25 @@ abstract contract TokenRescuer {
         uint256[] memory amounts
     ) internal {
         if (tokens.length == 0)
-            revert TokenRescuerAmountMustBeGreaterThanZero();
+            revert Errors.InvalidAmount();
         if (
             tokens.length != to.length ||
             tokens.length != tokenIds.length ||
             tokens.length != amounts.length
-        ) revert TokenRescuerArrayLengthMismatch();
+        ) revert Errors.ArrayLengthMismatch();
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] == address(0)) revert TokenRescuerInvalidAddress();
-            if (to[i] == address(0)) revert TokenRescuerInvalidAddress();
+            if (tokens[i] == address(0)) revert Errors.InvalidAddress();
+            if (to[i] == address(0)) revert Errors.InvalidAddress();
             if (amounts[i] == 0)
-                revert TokenRescuerAmountMustBeGreaterThanZero();
+                revert Errors.InvalidAmount();
 
             // Balance check for ERC1155
             uint256 balance = IERC1155(tokens[i]).balanceOf(
                 address(this),
                 tokenIds[i]
             );
-            if (balance < amounts[i]) revert TokenRescuerInsufficientBalance();
+            if (balance < amounts[i]) revert Errors.InsufficientBalance();
 
             uint256[] memory singleTokenId = new uint256[](1);
             uint256[] memory singleAmount = new uint256[](1);
@@ -143,13 +138,13 @@ abstract contract TokenRescuer {
      * @param amount The amount of ETH to rescue
      */
     function _rescueETH(address to, uint256 amount) internal {
-        if (to == address(0)) revert TokenRescuerInvalidAddress();
-        if (amount == 0) revert TokenRescuerAmountMustBeGreaterThanZero();
+        if (to == address(0)) revert Errors.InvalidAddress();
+        if (amount == 0) revert Errors.InvalidAmount();
         if (address(this).balance < amount)
-            revert TokenRescuerInsufficientBalance();
+            revert Errors.InsufficientBalance();
 
         (bool success, ) = to.call{value: amount}("");
-        if (!success) revert TokenRescuerTransferFailed();
+        if (!success) revert Errors.TransferFailed();
 
         emit ETHRescued(to, amount);
     }

@@ -7,6 +7,7 @@ import "forge-std/interfaces/IERC20.sol";
 import "forge-std/interfaces/IERC721.sol";
 import "forge-std/interfaces/IERC1155.sol";
 import "../src/common/MEAccessControlUpgradeable.sol";
+import {Errors} from "../src/common/Errors.sol";
 
 // Mock ERC20 token for testing
 contract MockERC20 is IERC20 {
@@ -307,7 +308,7 @@ contract TokenRescuerTest is Test {
         to[0] = bob;
         amounts[0] = 100 ether;
 
-        vm.expectRevert(TokenRescuer.TokenRescuerInvalidAddress.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         rescuer.rescueERC20Batch(tokens, to, amounts);
     }
 
@@ -320,9 +321,7 @@ contract TokenRescuerTest is Test {
         to[0] = bob;
         amounts[0] = 0;
 
-        vm.expectRevert(
-            TokenRescuer.TokenRescuerAmountMustBeGreaterThanZero.selector
-        );
+        vm.expectRevert(Errors.InvalidAmount.selector);
         rescuer.rescueERC20Batch(tokens, to, amounts);
     }
 
@@ -337,7 +336,7 @@ contract TokenRescuerTest is Test {
         amounts[0] = 100 ether;
         amounts[1] = 200 ether;
 
-        vm.expectRevert(TokenRescuer.TokenRescuerArrayLengthMismatch.selector);
+        vm.expectRevert(Errors.ArrayLengthMismatch.selector);
         rescuer.rescueERC20Batch(tokens, to, amounts);
     }
 
@@ -368,7 +367,7 @@ contract TokenRescuerTest is Test {
         to[0] = bob;
         tokenIds[0] = 1;
 
-        vm.expectRevert(TokenRescuer.TokenRescuerInvalidAddress.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         rescuer.rescueERC721Batch(tokens, to, tokenIds);
     }
 
@@ -383,7 +382,7 @@ contract TokenRescuerTest is Test {
         tokenIds[0] = 1;
         tokenIds[1] = 2;
 
-        vm.expectRevert(TokenRescuer.TokenRescuerArrayLengthMismatch.selector);
+        vm.expectRevert(Errors.ArrayLengthMismatch.selector);
         rescuer.rescueERC721Batch(tokens, to, tokenIds);
     }
 
@@ -427,7 +426,7 @@ contract TokenRescuerTest is Test {
         tokenIds[0] = 1;
         amounts[0] = 50;
 
-        vm.expectRevert(TokenRescuer.TokenRescuerInvalidAddress.selector);
+        vm.expectRevert(Errors.InvalidAddress.selector);
         rescuer.rescueERC1155Batch(tokens, to, tokenIds, amounts);
     }
 
@@ -445,7 +444,7 @@ contract TokenRescuerTest is Test {
         amounts[0] = 50;
         amounts[1] = 100;
 
-        vm.expectRevert(TokenRescuer.TokenRescuerArrayLengthMismatch.selector);
+        vm.expectRevert(Errors.ArrayLengthMismatch.selector);
         rescuer.rescueERC1155Batch(tokens, to, tokenIds, amounts);
     }
 

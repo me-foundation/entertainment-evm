@@ -76,6 +76,7 @@ contract DeployLuckyBuy is Script {
 
         uint256 protocolFee = 500; // 5%
         uint256 flatFee = 825000000000000;
+        uint256 bulkCommitFee = 250; // 2.5% example, adjust as needed
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -92,15 +93,17 @@ contract DeployLuckyBuy is Script {
         // address initialOwner_
         // uint256 protocolFee_
         // uint256 flatFee_
+        // uint256 bulkCommitFee_
         // address feeReceiver_
         // address prng_
         // address feeReceiverManager_
         bytes memory initData =
             abi.encodeWithSignature(
-                "initialize(address,uint256,uint256,address,address,address)",
+                "initialize(address,uint256,uint256,uint256,address,address,address)",
                 admin,
                 protocolFee,
                 flatFee,
+                bulkCommitFee,
                 feeReceiver,
                 address(prng),
                 feeReceiverManager
@@ -109,10 +112,6 @@ contract DeployLuckyBuy is Script {
         // Deploy proxy and cast the address for convenience
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         console.log("Proxy", address(proxy));
-
-        // Deploy payout contract
-        PayoutContract payoutContract = new PayoutContract();
-        console.log("PayoutContract", address(payoutContract));
         
         vm.stopBroadcast();
     }
