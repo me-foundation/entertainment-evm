@@ -195,13 +195,21 @@ contract LuckyBuy is
         uint256 feeSplitPercentage;
     }
 
-    modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
+    function _checkCommitOwnerOrCosigner(uint256 commitId_) private view {
         if (
             luckyBuys[commitId_].receiver != msg.sender &&
             luckyBuys[commitId_].cosigner != msg.sender
         ) revert InvalidCommitOwner();
-        _;
     }
+
+    function _verifyRole(bytes32 role) private view {
+        if (!hasRole(role, msg.sender)) revert AccessControlUnauthorizedAccount(msg.sender, role);
+    }
+
+    function _checkNotPaused() private view {
+        if (paused()) revert EnforcedPause();
+    }
+
 
     constructor(
         uint256 protocolFee_,
@@ -243,7 +251,8 @@ contract LuckyBuy is
         uint256 seed_,
         bytes32 orderHash_,
         uint256 reward_
-    ) public payable whenNotPaused returns (uint256) {
+    ) public payable returns (uint256) {
+        _checkNotPaused();
         if (msg.value == 0) revert Errors.InvalidAmount();
 
         CommitRequest memory request = CommitRequest({
@@ -265,7 +274,8 @@ contract LuckyBuy is
     /// @return commitIds Array of created commit IDs
     function bulkCommit(
         CommitRequest[] calldata requests_
-    ) public payable whenNotPaused returns (uint256[] memory commitIds) {
+    ) public payable returns (uint256[] memory commitIds) {
+        _checkNotPaused();
         if (requests_.length == 0) revert Errors.InvalidAmount();
         if (requests_.length > maxBulkSize) revert InvalidBulkSize();
 
@@ -412,7 +422,8 @@ contract LuckyBuy is
         bytes calldata signature_,
         address feeSplitReceiver_,
         uint256 feeSplitPercentage_
-    ) public payable whenNotPaused {
+    ) public payable {
+        _checkNotPaused();
         uint256 protocolFeesPaid = feesPaid[commitId_];
 
         _fulfill(
@@ -575,7 +586,8 @@ contract LuckyBuy is
         bytes calldata signature_,
         address feeSplitReceiver_,
         uint256 feeSplitPercentage_
-    ) public payable whenNotPaused {
+    ) public payable {
+        _checkNotPaused();
         return
             fulfill(
                 commitIdByDigest[commitDigest_],
@@ -597,7 +609,8 @@ contract LuckyBuy is
     /// @dev Emits a FeeSplit event for each fulfill if fee splitting is enabled
     function bulkFulfill(
         FulfillRequest[] calldata requests_
-    ) public payable whenNotPaused {
+    ) public payable {
+        _checkNotPaused();
         if (requests_.length == 0) revert Errors.InvalidAmount();
         if (requests_.length > maxBulkSize) revert InvalidBulkSize();
 
@@ -699,7 +712,8 @@ contract LuckyBuy is
     /// @dev Emits a Withdrawal event
     function withdraw(
         uint256 amount
-    ) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external nonReentrant {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         if (amount > treasuryBalance) revert Errors.InsufficientBalance();
         treasuryBalance -= amount;
 
@@ -715,8 +729,8 @@ contract LuckyBuy is
     function emergencyWithdraw()
         external
         nonReentrant
-        onlyRole(DEFAULT_ADMIN_ROLE)
     {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         treasuryBalance = 0;
         commitBalance = 0;
         protocolBalance = 0;
@@ -735,7 +749,8 @@ contract LuckyBuy is
     /// @dev Emits a CommitExpired event
     function expire(
         uint256 commitId_
-    ) external onlyCommitOwnerOrCosigner(commitId_) nonReentrant {
+    ) external nonReentrant {
+        _checkCommitOwnerOrCosigner(commitId_);
         _expire(commitId_);
     }
 
@@ -833,7 +848,8 @@ contract LuckyBuy is
 
     function transferOpenEditionContractOwnership(
         address newOwner
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         address oldOwner = IERC1155MInitializableV1_0_2(openEditionToken)
             .owner();
         IERC1155MInitializableV1_0_2(openEditionToken).transferOwnership(
@@ -857,7 +873,8 @@ contract LuckyBuy is
         address token,
         address to,
         uint256 amount
-    ) external onlyRole(RESCUE_ROLE) {
+    ) external {
+        _verifyRole(RESCUE_ROLE);
         address[] memory tokens = new address[](1);
         address[] memory tos = new address[](1);
         uint256[] memory amounts = new uint256[](1);
@@ -873,7 +890,8 @@ contract LuckyBuy is
         address token,
         address to,
         uint256 tokenId
-    ) external onlyRole(RESCUE_ROLE) {
+    ) external {
+        _verifyRole(RESCUE_ROLE);
         address[] memory tokens = new address[](1);
         address[] memory tos = new address[](1);
         uint256[] memory tokenIds = new uint256[](1);
@@ -890,7 +908,8 @@ contract LuckyBuy is
         address to,
         uint256 tokenId,
         uint256 amount
-    ) external onlyRole(RESCUE_ROLE) {
+    ) external {
+        _verifyRole(RESCUE_ROLE);
         address[] memory tokens = new address[](1);
         address[] memory tos = new address[](1);
         uint256[] memory tokenIds = new uint256[](1);
@@ -908,7 +927,8 @@ contract LuckyBuy is
         address[] calldata tokens,
         address[] calldata tos,
         uint256[] calldata amounts
-    ) external onlyRole(RESCUE_ROLE) {
+    ) external {
+        _verifyRole(RESCUE_ROLE);
         _rescueERC20Batch(tokens, tos, amounts);
     }
 
@@ -916,7 +936,8 @@ contract LuckyBuy is
         address[] calldata tokens,
         address[] calldata tos,
         uint256[] calldata tokenIds
-    ) external onlyRole(RESCUE_ROLE) {
+    ) external {
+        _verifyRole(RESCUE_ROLE);
         _rescueERC721Batch(tokens, tos, tokenIds);
     }
 
@@ -925,7 +946,8 @@ contract LuckyBuy is
         address[] calldata tos,
         uint256[] calldata tokenIds,
         uint256[] calldata amounts
-    ) external onlyRole(RESCUE_ROLE) {
+    ) external {
+        _verifyRole(RESCUE_ROLE);
         _rescueERC1155Batch(tokens, tos, tokenIds, amounts);
     }
 
@@ -942,7 +964,8 @@ contract LuckyBuy is
         address token_,
         uint256 tokenId_,
         uint32 amount_
-    ) external onlyRole(OPS_ROLE) {
+    ) external {
+        _verifyRole(OPS_ROLE);
         _setOpenEditionToken(token_, tokenId_, amount_);
     }
 
@@ -975,7 +998,8 @@ contract LuckyBuy is
     /// @dev Emits a CoSignerAdded event
     function addCosigner(
         address cosigner_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         if (cosigner_ == address(0)) revert Errors.InvalidAddress();
         if (isCosigner[cosigner_]) revert AlreadyCosigner();
         isCosigner[cosigner_] = true;
@@ -988,7 +1012,8 @@ contract LuckyBuy is
     /// @dev Emits a CoSignerRemoved event
     function removeCosigner(
         address cosigner_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
         isCosigner[cosigner_] = false;
         emit CosignerRemoved(cosigner_);
@@ -1000,7 +1025,8 @@ contract LuckyBuy is
     /// @dev Emits a CommitExpireTimeUpdated event
     function setCommitExpireTime(
         uint256 commitExpireTime_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         if (commitExpireTime_ < MIN_COMMIT_EXPIRE_TIME)
             revert InvalidCommitExpireTime();
         uint256 oldCommitExpireTime = commitExpireTime;
@@ -1011,7 +1037,8 @@ contract LuckyBuy is
     /// @notice Sets the maximum allowed reward
     /// @param maxReward_ New maximum reward value
     /// @dev Only callable by admin role
-    function setMaxReward(uint256 maxReward_) external onlyRole(OPS_ROLE) {
+    function setMaxReward(uint256 maxReward_) external {
+        _verifyRole(OPS_ROLE);
         if (maxReward_ < minReward) revert InvalidReward();
 
         uint256 oldMaxReward = maxReward;
@@ -1024,7 +1051,8 @@ contract LuckyBuy is
     /// @dev Only callable by admin role
     function setMinReward(
         uint256 minReward_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         if (minReward_ > maxReward) revert InvalidReward();
         if (minReward_ < BASE_POINTS) revert InvalidReward();
 
@@ -1040,7 +1068,8 @@ contract LuckyBuy is
     /// @dev Emits a BulkCommitFeeUpdated event
     function setBulkCommitFee(
         uint256 bulkCommitFee_
-    ) external onlyRole(OPS_ROLE) {
+    ) external {
+        _verifyRole(OPS_ROLE);
         _setBulkCommitFee(bulkCommitFee_);
     }
 
@@ -1057,7 +1086,8 @@ contract LuckyBuy is
     /// @dev Emits a MaxBulkSizeUpdated event.
     function setMaxBulkSize(
         uint256 maxBulkSize_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         if (maxBulkSize_ < 1) revert InvalidBulkSize(); // Minimum size is 1
         uint256 oldMaxBulkSize = maxBulkSize;
         maxBulkSize = maxBulkSize_;
@@ -1074,11 +1104,13 @@ contract LuckyBuy is
 
     /// @notice Pauses the contract
     /// @dev Only callable by admin role
-    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function pause() external {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         _pause();
     }
 
-    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function unpause() external {
+        _verifyRole(DEFAULT_ADMIN_ROLE);
         _unpause();
     }
 
@@ -1166,7 +1198,8 @@ contract LuckyBuy is
         (success, ) = to.call{value: amount}(data);
     }
 
-    function setProtocolFee(uint256 protocolFee_) external onlyRole(OPS_ROLE) {
+    function setProtocolFee(uint256 protocolFee_) external {
+        _verifyRole(OPS_ROLE);
         _setProtocolFee(protocolFee_);
     }
 
@@ -1181,7 +1214,8 @@ contract LuckyBuy is
     /// @param flatFee_ New flat fee
     /// @dev Only callable by ops role
     /// @dev Emits a FlatFeeUpdated event
-    function setFlatFee(uint256 flatFee_) external onlyRole(OPS_ROLE) {
+    function setFlatFee(uint256 flatFee_) external {
+        _verifyRole(OPS_ROLE);
         _setFlatFee(flatFee_);
     }
 
@@ -1193,7 +1227,8 @@ contract LuckyBuy is
 
     function transferFeeReceiverManager(
         address newFeeReceiverManager_
-    ) external onlyRole(FEE_RECEIVER_MANAGER_ROLE) {
+    ) external {
+        _verifyRole(FEE_RECEIVER_MANAGER_ROLE);
         if (newFeeReceiverManager_ == address(0)) revert Errors.InvalidAddress();
         _transferFeeReceiverManager(newFeeReceiverManager_);
     }
@@ -1212,7 +1247,8 @@ contract LuckyBuy is
     /// @dev Emits a FeeReceiverUpdated event
     function setFeeReceiver(
         address feeReceiver_
-    ) external onlyRole(FEE_RECEIVER_MANAGER_ROLE) {
+    ) external {
+        _verifyRole(FEE_RECEIVER_MANAGER_ROLE);
         _setFeeReceiver(feeReceiver_);
     }
 
