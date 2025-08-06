@@ -106,24 +106,8 @@ contract CommitAndFulfillPack is PacksScriptBase {
             cosignerPrivateKey
         );
 
-        // 10. Sign the choice
 
-        uint256 choiceSignerPrivateKey = isNFTFulfillment ? playerPrivateKey : cosignerPrivateKey;
-
-        bytes memory choiceSignature = signChoice(
-            packs, 
-            commitData, 
-            marketplace,
-            orderAmount,
-            orderData,
-            token,
-            tokenId,
-            payoutAmount,
-            fulfillmentOption, 
-            choiceSignerPrivateKey
-        );
-
-        // 11. Fulfill the pack
+        // 9. Fulfill the pack
         vm.startBroadcast(cosignerPrivateKey);
         packs.fulfill{value: orderAmount}(
             commitId,
@@ -135,8 +119,7 @@ contract CommitAndFulfillPack is PacksScriptBase {
             payoutAmount,
             commitSignature,
             orderSignature,
-            fulfillmentOption,
-            choiceSignature
+            fulfillmentOption
         );
         vm.stopBroadcast();
 
