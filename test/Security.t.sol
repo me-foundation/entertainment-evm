@@ -106,7 +106,7 @@ contract SecurityTest is Test {
         bytes memory maliciousSignature = abi.encodePacked(r, s, v);
         
         // Attack should fail - signature doesn't come from trusted cosigner
-        vm.prank(maliciousActor);
+        vm.startPrank(trustedCosigner);
         vm.expectRevert(abi.encodeWithSignature("InvalidOrderHash()"));
         
         luckyBuy.fulfillByDigest(
@@ -120,6 +120,7 @@ contract SecurityTest is Test {
             address(0), // feeSplitReceiver
             0           // feeSplitPercentage
         );
+        vm.stopPrank();
     }
     
     /**
@@ -177,10 +178,11 @@ contract SecurityTest is Test {
         }
         
         // Even with optimal randomness, attack fails due to signature validation
-        vm.prank(maliciousActor);
+        vm.startPrank(trustedCosigner);
         vm.expectRevert(abi.encodeWithSignature("InvalidOrderHash()"));
         
         luckyBuy.fulfillByDigest(digest, address(0), "", 0, address(0), 0, bestSignature, address(0), 0);
+        vm.stopPrank();
         
         // Verify the random number was indeed favorable (proving intent)
         assertTrue(bestRandom < 1000, "Should have found favorable randomness");
@@ -232,10 +234,11 @@ contract SecurityTest is Test {
         bytes memory wrongSignature = abi.encodePacked(r, s, v);
         
         // Try to use wrong signature with commit2 digest
-        vm.prank(maliciousActor);
+        vm.startPrank(trustedCosigner);
         vm.expectRevert(abi.encodeWithSignature("InvalidOrderHash()"));
         
         luckyBuy.fulfillByDigest(digest2, address(0), "", 0, address(0), 0, wrongSignature, address(0), 0);
+        vm.stopPrank();
     }
     
     // ============ ACCESS CONTROL SECURITY TESTS ============

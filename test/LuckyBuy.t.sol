@@ -1328,6 +1328,7 @@ contract TestLuckyBuyCommit is Test {
 
         assertEq(luckyBuy.isExpired(0), true);
 
+        vm.startPrank(cosigner);
         vm.expectRevert(LuckyBuy.CommitIsExpired.selector);
         luckyBuy.fulfill(
             0,
@@ -1340,6 +1341,7 @@ contract TestLuckyBuyCommit is Test {
             address(0),
             0
         );
+        vm.stopPrank();
     }
 
     function testOpenEditionTokenSet() public {
@@ -1465,8 +1467,8 @@ contract TestLuckyBuyCommit is Test {
         assertEq(luckyBuy.protocolBalance(), protocolFee);
 
         uint256 treasuryBalance = luckyBuy.treasuryBalance();
-        // Fulfill the commit
-        vm.startPrank(user);
+        // Fulfill the commit as cosigner
+        vm.startPrank(cosigner);
 
         uint256 _collectionCreatorBalance = collectionCreator.balance;
         uint256 _treasuryBalance = luckyBuy.treasuryBalance();
@@ -1554,6 +1556,7 @@ contract TestLuckyBuyCommit is Test {
             rewardAmount
         );
         vm.expectRevert(LuckyBuy.InvalidFeeSplitPercentage.selector);
+        vm.startPrank(cosigner);
         luckyBuy.fulfill(
             commitId,
             marketplace,
@@ -1565,6 +1568,7 @@ contract TestLuckyBuyCommit is Test {
             feeSplitReceiver,
             invalidFeeSplitPercentage
         );
+        vm.stopPrank();
     }
 
     function signCommit(
@@ -2032,8 +2036,8 @@ contract TestLuckyBuyCommit is Test {
         );
 
         uint256 topOffAmount = reward - amount;
-        vm.deal(user, topOffAmount);
-        vm.startPrank(user);
+        vm.deal(cosigner, topOffAmount);
+        vm.startPrank(cosigner);
         
         luckyBuy.fulfill{value: topOffAmount}(
             commitId,
@@ -2172,8 +2176,10 @@ contract TestLuckyBuyCommit is Test {
             });
         }
 
-        // Execute bulk fulfill
+        // Execute bulk fulfill as cosigner
+        vm.startPrank(cosigner);
         luckyBuy.bulkFulfill(fulfillRequests);
+        vm.stopPrank();
 
         // Verify all commits are fulfilled
         for (uint256 i = 0; i < 3; i++) {

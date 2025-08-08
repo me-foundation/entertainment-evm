@@ -213,8 +213,8 @@ contract TestLuckyBuyOpenEdition is Test {
             rewardAmount
         );
 
-        // Fulfill the commit
-        vm.startPrank(user);
+        // Fulfill the commit as cosigner
+        vm.startPrank(cosigner);
         luckyBuy.fulfill(
             commitId,
             address(0), // marketplace
