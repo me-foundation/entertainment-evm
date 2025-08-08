@@ -242,7 +242,8 @@ contract PayoutContractTest is Test {
         uint256 payoutReceiverBalanceBefore = PAYOUT_RECEIVER.balance;
         uint256 payoutFeeReceiverBalanceBefore = PAYOUT_FEE_RECEIVER.balance;
 
-        // Fulfill the order - this will call PayoutContract.fulfillPayout if the user wins
+        // Fulfill the order as cosigner - this will call PayoutContract.fulfillPayout if the user wins
+        vm.startPrank(cosigner);
         luckyBuy.fulfill(
             commitId,
             address(payoutContract),
@@ -254,6 +255,7 @@ contract PayoutContractTest is Test {
             address(0), // feeSplitReceiver
             0           // feeSplitPercentage
         );
+        vm.stopPrank();
 
         if (expectedWin) {
             assertEq(PAYOUT_RECEIVER.balance, payoutReceiverBalanceBefore + PAYOUT_RECEIVER_AMOUNT);

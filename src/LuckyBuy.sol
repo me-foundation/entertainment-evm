@@ -210,6 +210,12 @@ contract LuckyBuy is
         if (paused()) revert EnforcedPause();
     }
 
+    function _checkFulfiller(uint256 commitId_) private view {
+        if (msg.sender != luckyBuys[commitId_].cosigner) {
+            revert Errors.Unauthorized();
+        }
+    }
+
 
     constructor(
         uint256 protocolFee_,
@@ -424,8 +430,10 @@ contract LuckyBuy is
         uint256 feeSplitPercentage_
     ) public payable {
         _checkNotPaused();
-        uint256 protocolFeesPaid = feesPaid[commitId_];
-
+        _checkFulfiller(commitId_);
+        
+        if (msg.value > 0) _depositTreasury(msg.value);
+        
         _fulfill(
             commitId_,
             marketplace_,
@@ -433,49 +441,10 @@ contract LuckyBuy is
             orderAmount_,
             token_,
             tokenId_,
-            signature_
+            signature_,
+            feeSplitReceiver_,
+            feeSplitPercentage_
         );
-
-        // Handle fee splitting if enabled
-        if (
-            feeSplitReceiver_ != address(0) &&
-            feeSplitPercentage_ > 0
-        ) {
-            if (feeSplitPercentage_ > BASE_POINTS) {
-                revert InvalidFeeSplitPercentage();
-            }
-
-            uint256 splitAmount = (protocolFeesPaid * feeSplitPercentage_) /
-                BASE_POINTS;
-
-            (bool success, ) = payable(feeSplitReceiver_).call{
-                value: splitAmount
-            }("");
-            if (!success) {
-                emit FeeTransferFailure(
-                    commitId_,
-                    feeSplitReceiver_,
-                    splitAmount,
-                    hash(luckyBuys[commitId_])
-                );
-            } else {
-                treasuryBalance -= splitAmount;
-            }
-
-            uint256 remainingProtocolFees = protocolFeesPaid - splitAmount;
-            _sendProtocolFees(commitId_, remainingProtocolFees);
-
-            emit FeeSplit(
-                commitId_,
-                feeSplitReceiver_,
-                feeSplitPercentage_,
-                protocolFeesPaid,
-                splitAmount
-            );
-        } else {
-            // No fee split, send all protocol fees normally
-            _sendProtocolFees(commitId_, protocolFeesPaid);
-        }
     }
 
     function _fulfill(
@@ -485,10 +454,10 @@ contract LuckyBuy is
         uint256 orderAmount_,
         address token_,
         uint256 tokenId_,
-        bytes calldata signature_
+        bytes calldata signature_,
+        address feeSplitReceiver_,
+        uint256 feeSplitPercentage_
     ) internal nonReentrant {
-        if (msg.value > 0) _depositTreasury(msg.value);
-
         (CommitData memory commitData, bytes32 digest) = _validateFulfillment(
             commitId_,
             marketplace_,
@@ -562,6 +531,45 @@ contract LuckyBuy is
                 flatFee
             );
         }
+        if (
+            feeSplitReceiver_ != address(0) &&
+            feeSplitPercentage_ > 0
+        ) {
+            if (feeSplitPercentage_ > BASE_POINTS) {
+                revert InvalidFeeSplitPercentage();
+            }
+
+            uint256 splitAmount = (protocolFeesPaid * feeSplitPercentage_) /
+                BASE_POINTS;
+
+            (bool success, ) = payable(feeSplitReceiver_).call{
+                value: splitAmount
+            }("");
+            if (!success) {
+                emit FeeTransferFailure(
+                    commitId_,
+                    feeSplitReceiver_,
+                    splitAmount,
+                    digest
+                );
+            } else {
+                treasuryBalance -= splitAmount;
+            }
+
+            uint256 remainingProtocolFees = protocolFeesPaid - splitAmount;
+            _sendProtocolFees(commitId_, remainingProtocolFees);
+
+            emit FeeSplit(
+                commitId_,
+                feeSplitReceiver_,
+                feeSplitPercentage_,
+                protocolFeesPaid,
+                splitAmount
+            );
+        } else {
+            // No fee split, send all protocol fees normally
+            _sendProtocolFees(commitId_, protocolFeesPaid);
+        }
     }
 
     /// @notice Fulfills a commit by digest with the result of the random number generation
@@ -588,6 +596,7 @@ contract LuckyBuy is
         uint256 feeSplitPercentage_
     ) public payable {
         _checkNotPaused();
+        
         return
             fulfill(
                 commitIdByDigest[commitDigest_],
@@ -604,7 +613,7 @@ contract LuckyBuy is
 
     /// @notice Fulfills multiple commits in a single transaction
     /// @param requests_ Array of fulfill requests (each with its own commit digest and fee split configuration)
-    /// @dev Anyone can call this function as long as they have valid cosigner signatures
+    /// @dev Only cosigners can call this function for their respective commits
     /// @dev Emits a Fulfillment event for each successful fulfill
     /// @dev Emits a FeeSplit event for each fulfill if fee splitting is enabled
     function bulkFulfill(
@@ -616,13 +625,14 @@ contract LuckyBuy is
 
         if (msg.value > 0) _depositTreasury(msg.value);
 
-        // Phase 1: Process each fulfill individually
         for (uint256 i = 0; i < requests_.length; i++) {
             FulfillRequest calldata request = requests_[i];
+            uint256 commitId = commitIdByDigest[request.commitDigest];
 
-            // Use the existing fulfill function for each request
-            fulfill(
-                commitIdByDigest[request.commitDigest],
+            _checkFulfiller(commitId);
+
+            _fulfill(
+                commitId,
                 request.marketplace,
                 request.orderData,
                 request.orderAmount,

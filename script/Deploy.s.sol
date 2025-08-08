@@ -63,6 +63,9 @@ contract DeployLuckyBuyLegacy is Script {
 }
 
 // Deploy initial LuckyBuyInitializable implementation with proxy
+// Supports optional reuse of existing contracts via environment variables:
+// - EXISTING_PRNG: reuse existing PRNG contract
+// - EXISTING_IMPLEMENTATION: reuse existing implementation contract
 contract DeployLuckyBuy is Script {
     // EOA
     address feeReceiver = 0x2918F39540df38D4c33cda3bCA9edFccd8471cBE;
@@ -70,24 +73,36 @@ contract DeployLuckyBuy is Script {
     address feeReceiverManager = 0x7C51fAEe5666B47b2F7E81b7a6A8DEf4C76D47E3;
    
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address admin = vm.addr(deployerPrivateKey);
+        address admin = msg.sender; // When using --account, msg.sender is the keystore address
         console.log("Admin", admin);
 
         uint256 protocolFee = 500; // 5%
         uint256 flatFee = 825000000000000;
         uint256 bulkCommitFee = 250; // 2.5% example, adjust as needed
 
-        vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast(); // No need to pass private key when using --account
 
-        // Deploy RNG
-        PRNG prng = new PRNG();
-        console.log("PRNG", address(prng));
+        // Check if PRNG address is provided, otherwise deploy new one
+        address prngAddress;
+        try vm.envAddress("EXISTING_PRNG") returns (address existingPrng) {
+            prngAddress = existingPrng;
+            console.log("Using existing PRNG", prngAddress);
+        } catch {
+            PRNG prng = new PRNG();
+            prngAddress = address(prng);
+            console.log("Deployed new PRNG", prngAddress);
+        }
 
-        // Deploy implementation
-        LuckyBuyInitializable implementation =
-            new LuckyBuyInitializable();
-        console.log("Implementation", address(implementation));
+        // Check if implementation address is provided, otherwise deploy new one
+        address implementationAddress;
+        try vm.envAddress("EXISTING_IMPLEMENTATION") returns (address existingImpl) {
+            implementationAddress = existingImpl;
+            console.log("Using existing Implementation", implementationAddress);
+        } catch {
+            LuckyBuyInitializable implementation = new LuckyBuyInitializable();
+            implementationAddress = address(implementation);
+            console.log("Deployed new Implementation", implementationAddress);
+        }
 
         // Encode initializer call with
         // address initialOwner_
@@ -105,13 +120,13 @@ contract DeployLuckyBuy is Script {
                 flatFee,
                 bulkCommitFee,
                 feeReceiver,
-                address(prng),
+                prngAddress,
                 feeReceiverManager
             );
 
         // Deploy proxy and cast the address for convenience
-        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
-        console.log("Proxy", address(proxy));
+        ERC1967Proxy proxy = new ERC1967Proxy(implementationAddress, initData);
+        console.log("Deployed new Proxy", address(proxy));
         
         vm.stopBroadcast();
     }
@@ -219,18 +234,21 @@ contract SetCommitExpireTime is Script {
 }
 
 contract AddCosigner is Script {
-    address payable luckyBuy =
-        payable(0x0178070d088C235e1Dc2696D257f90B3ded475a3);
-    address cosigner = 0x993f64E049F95d246dc7B0D196CB5dC419d4e1f1;
-
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address payable luckyBuyContract = payable(vm.envAddress("LUCKY_BUY_CONTRACT"));
+        address cosigner = vm.envAddress("COSIGNER_ADDRESS");
+
+        console.log("Adding cosigner:", cosigner);
+        console.log("To contract:", luckyBuyContract);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        LuckyBuyInitializable(luckyBuy).addCosigner(cosigner);
+        LuckyBuyInitializable(luckyBuyContract).addCosigner(cosigner);
 
         vm.stopBroadcast();
+
+        console.log("Cosigner added successfully!");
     }
 }
 
@@ -242,6 +260,36 @@ contract DeployPayout is Script {
 
         PayoutContract payoutContract = new PayoutContract();
         console.log("PayoutContract deployed at:", address(payoutContract));
+
+        vm.stopBroadcast();
+    }
+}
+
+
+
+// Deploy only implementation (for upgrades)
+contract DeployImplementationOnly is Script {
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+
+        vm.startBroadcast(deployerPrivateKey);
+
+        LuckyBuyInitializable implementation = new LuckyBuyInitializable();
+        console.log("Implementation deployed at:", address(implementation));
+
+        vm.stopBroadcast();
+    }
+}
+
+// Deploy only PRNG
+contract DeployPRNGOnly is Script {
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+
+        vm.startBroadcast(deployerPrivateKey);
+
+        PRNG prng = new PRNG();
+        console.log("PRNG deployed at:", address(prng));
 
         vm.stopBroadcast();
     }
