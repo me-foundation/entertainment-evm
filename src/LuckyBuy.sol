@@ -210,6 +210,12 @@ contract LuckyBuy is
         if (paused()) revert EnforcedPause();
     }
 
+    function _checkFulfiller(uint256 commitId_) private view {
+        if (msg.sender != luckyBuys[commitId_].cosigner) {
+            revert Errors.Unauthorized();
+        }
+    }
+
 
     constructor(
         uint256 protocolFee_,
@@ -424,6 +430,7 @@ contract LuckyBuy is
         uint256 feeSplitPercentage_
     ) public payable {
         _checkNotPaused();
+        _checkFulfiller(commitId_);
         uint256 protocolFeesPaid = feesPaid[commitId_];
 
         _fulfill(
@@ -588,6 +595,7 @@ contract LuckyBuy is
         uint256 feeSplitPercentage_
     ) public payable {
         _checkNotPaused();
+        
         return
             fulfill(
                 commitIdByDigest[commitDigest_],
@@ -604,7 +612,7 @@ contract LuckyBuy is
 
     /// @notice Fulfills multiple commits in a single transaction
     /// @param requests_ Array of fulfill requests (each with its own commit digest and fee split configuration)
-    /// @dev Anyone can call this function as long as they have valid cosigner signatures
+    /// @dev Only cosigners can call this function for their respective commits
     /// @dev Emits a Fulfillment event for each successful fulfill
     /// @dev Emits a FeeSplit event for each fulfill if fee splitting is enabled
     function bulkFulfill(
@@ -616,7 +624,6 @@ contract LuckyBuy is
 
         if (msg.value > 0) _depositTreasury(msg.value);
 
-        // Phase 1: Process each fulfill individually
         for (uint256 i = 0; i < requests_.length; i++) {
             FulfillRequest calldata request = requests_[i];
 
