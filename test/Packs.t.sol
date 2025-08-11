@@ -198,7 +198,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -280,7 +279,8 @@ contract TestPacks is Test {
         vm.deal(user, packPrice);
 
         // Test empty buckets
-        PacksSignatureVerifierUpgradeable.BucketData[] memory emptyBuckets = new PacksSignatureVerifierUpgradeable.BucketData[](0);
+        PacksSignatureVerifierUpgradeable.BucketData[] memory emptyBuckets =
+            new PacksSignatureVerifierUpgradeable.BucketData[](0);
         bytes memory signature = signPack(packPrice, emptyBuckets);
 
         vm.expectRevert(Packs.InvalidBuckets.selector);
@@ -289,7 +289,8 @@ contract TestPacks is Test {
         );
 
         // Test too many buckets
-        PacksSignatureVerifierUpgradeable.BucketData[] memory tooManyBuckets = new PacksSignatureVerifierUpgradeable.BucketData[](6);
+        PacksSignatureVerifierUpgradeable.BucketData[] memory tooManyBuckets =
+            new PacksSignatureVerifierUpgradeable.BucketData[](6);
         for (uint256 i = 0; i < 6; i++) {
             tooManyBuckets[i] =
                 PacksSignatureVerifierUpgradeable.BucketData({oddsBps: 1666, minValue: 0.01 ether, maxValue: 0.1 ether});
@@ -309,8 +310,10 @@ contract TestPacks is Test {
         vm.deal(user, packPrice);
 
         // Test bucket with zero values
-        PacksSignatureVerifierUpgradeable.BucketData[] memory invalidBuckets = new PacksSignatureVerifierUpgradeable.BucketData[](1);
-        invalidBuckets[0] = PacksSignatureVerifierUpgradeable.BucketData({oddsBps: 10000, minValue: 0, maxValue: 0.1 ether});
+        PacksSignatureVerifierUpgradeable.BucketData[] memory invalidBuckets =
+            new PacksSignatureVerifierUpgradeable.BucketData[](1);
+        invalidBuckets[0] =
+            PacksSignatureVerifierUpgradeable.BucketData({oddsBps: 10000, minValue: 0, maxValue: 0.1 ether});
         bytes memory signature = signPack(packPrice, invalidBuckets);
 
         vm.expectRevert(Packs.InvalidReward.selector);
@@ -326,7 +329,8 @@ contract TestPacks is Test {
         vm.deal(user, packPrice);
 
         // Test overlapping bucket ranges
-        PacksSignatureVerifierUpgradeable.BucketData[] memory overlappingBuckets = new PacksSignatureVerifierUpgradeable.BucketData[](2);
+        PacksSignatureVerifierUpgradeable.BucketData[] memory overlappingBuckets =
+            new PacksSignatureVerifierUpgradeable.BucketData[](2);
         overlappingBuckets[0] =
             PacksSignatureVerifierUpgradeable.BucketData({oddsBps: 5000, minValue: 0.01 ether, maxValue: 0.1 ether});
         overlappingBuckets[1] = PacksSignatureVerifierUpgradeable.BucketData({
@@ -349,7 +353,8 @@ contract TestPacks is Test {
         vm.deal(user, packPrice);
 
         // Test non-cumulative odds
-        PacksSignatureVerifierUpgradeable.BucketData[] memory invalidOddsBuckets = new PacksSignatureVerifierUpgradeable.BucketData[](2);
+        PacksSignatureVerifierUpgradeable.BucketData[] memory invalidOddsBuckets =
+            new PacksSignatureVerifierUpgradeable.BucketData[](2);
         invalidOddsBuckets[0] =
             PacksSignatureVerifierUpgradeable.BucketData({oddsBps: 6000, minValue: 0.01 ether, maxValue: 0.05 ether});
         invalidOddsBuckets[1] = PacksSignatureVerifierUpgradeable.BucketData({
@@ -452,7 +457,7 @@ contract TestPacks is Test {
 
         vm.expectEmit(true, true, false, true);
         emit Fulfillment(
-            address(this),
+            cosigner,
             commitId,
             rng,
             10000,
@@ -468,6 +473,7 @@ contract TestPacks is Test {
             digest
         );
 
+        vm.prank(cosigner);
         packs.fulfill(
             commitId,
             marketplace, // marketplace
@@ -520,7 +526,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -560,7 +565,7 @@ contract TestPacks is Test {
 
         vm.expectEmit(true, true, false, true);
         emit Fulfillment(
-            address(this),
+            cosigner,
             commitId,
             rng,
             10000,
@@ -576,6 +581,7 @@ contract TestPacks is Test {
             digest
         );
 
+        vm.prank(cosigner);
         packs.fulfill(
             commitId,
             marketplace,
@@ -593,7 +599,7 @@ contract TestPacks is Test {
         assertTrue(packs.isFulfilled(commitId));
     }
 
-    function testFulfillWithInvalidCosigner() public {
+    function testFulfillWithInvalidCosignerSignature() public {
         // Create commit
         vm.startPrank(user);
         vm.deal(user, packPrice);
@@ -616,7 +622,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -657,6 +662,7 @@ contract TestPacks is Test {
         );
         bytes memory commitSignature = signCommit(commitId, receiver, seed, 0, packPrice, buckets, bob);
 
+        vm.prank(cosigner);
         vm.expectRevert(Errors.InvalidAddress.selector);
         packs.fulfill(
             commitId,
@@ -666,6 +672,90 @@ contract TestPacks is Test {
             address(0),
             0,
             0.027 ether, // payoutAmount
+            commitSignature,
+            fulfillmentSignature,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+            choiceSignature
+        );
+    }
+
+    function testFulfillWithInvalidCosigner() public {
+        // Create commit
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        uint256 commitId = packs.commit{value: packPrice}(
+            receiver, cosigner, seed, PacksSignatureVerifierUpgradeable.PackType.NFT, buckets, packSignature
+        );
+
+        // Fund contract treasury properly and cosigner
+        vm.deal(user, 10 ether);
+        (bool success,) = payable(address(packs)).call{value: 10 ether}("");
+        require(success, "Failed to fund contract");
+        vm.deal(cosigner, 5 ether);
+        vm.stopPrank();
+
+        // Calculate the actual digest that will be emitted
+        PacksSignatureVerifierUpgradeable.CommitData memory commitData = PacksSignatureVerifierUpgradeable.CommitData({
+            id: commitId,
+            receiver: receiver,
+            cosigner: cosigner,
+            seed: seed,
+            counter: 0,
+            packPrice: packPrice,
+            buckets: buckets,
+            packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
+        });
+        bytes32 digest = packs.hashCommit(commitData);
+
+        // Now fulfill with payout
+        uint256 orderAmount = 0.03 ether; // Within bucket 0 range
+        uint256 expectedPayoutAmount = 0.027 ether; // 90% of 0.03 ether
+        bytes memory fulfillmentSignature = signFulfillment(
+            commitId,
+            receiver,
+            seed,
+            0,
+            packPrice,
+            buckets,
+            marketplace,
+            orderAmount,
+            "",
+            address(0),
+            0,
+            expectedPayoutAmount,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+            cosigner
+        );
+        bytes memory choiceSignature = signFulfillment(
+            commitId,
+            receiver,
+            seed,
+            0,
+            packPrice,
+            buckets,
+            marketplace,
+            orderAmount,
+            "",
+            address(0),
+            0,
+            expectedPayoutAmount,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+            cosigner
+        );
+
+        bytes memory commitSignature = signCommit(commitId, receiver, seed, 0, packPrice, buckets);
+
+        vm.prank(bob);
+        vm.expectRevert(Errors.Unauthorized.selector);
+        packs.fulfill(
+            commitId,
+            marketplace, // marketplace
+            "", // orderData
+            orderAmount,
+            address(0), // token
+            0, // tokenId
+            expectedPayoutAmount, // payoutAmount
             commitSignature,
             fulfillmentSignature,
             PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
@@ -700,7 +790,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -741,6 +830,7 @@ contract TestPacks is Test {
             cosigner
         );
 
+        vm.prank(cosigner);
         vm.expectRevert(Errors.InvalidAmount.selector);
         packs.fulfill(
             commitId,
@@ -784,7 +874,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -825,6 +914,7 @@ contract TestPacks is Test {
             cosigner
         );
 
+        vm.prank(cosigner);
         packs.fulfill(
             commitId,
             marketplace,
@@ -840,6 +930,7 @@ contract TestPacks is Test {
         );
 
         // Try to fulfill again with different order data - but this will fail with AlreadyFulfilled first
+        vm.prank(cosigner);
         vm.expectRevert(Packs.AlreadyFulfilled.selector);
         packs.fulfill(
             commitId,
@@ -880,7 +971,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -921,6 +1011,7 @@ contract TestPacks is Test {
         );
 
         // Call fulfill with some ETH value to fund the treasury
+        vm.prank(cosigner);
         packs.fulfill{value: 10 ether}(
             commitId,
             marketplace,
@@ -936,6 +1027,7 @@ contract TestPacks is Test {
         );
 
         // Try to fulfill again
+        vm.prank(cosigner);
         vm.expectRevert(Packs.AlreadyFulfilled.selector);
         packs.fulfill{value: 0}(
             commitId,
@@ -984,7 +1076,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -1032,7 +1123,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -1160,7 +1250,11 @@ contract TestPacks is Test {
 
         uint256 initialFundsReceiverBalance = fundsReceiver.balance;
 
+        // Funds cosigner
+        vm.deal(cosigner, 1 ether);
+
         // Fulfill; provide some ETH to treasury to cover order
+        vm.prank(cosigner);
         packs.fulfill{value: 1 ether}(
             commitId,
             marketplace,
@@ -1186,12 +1280,7 @@ contract TestPacks is Test {
         vm.deal(user, packPrice);
         bytes memory packSignature = signPack(packPrice, buckets);
         uint256 commitId = packs.commit{value: packPrice}(
-            receiver,
-            cosigner,
-            seed,
-            PacksSignatureVerifierUpgradeable.PackType.NFT,
-            buckets,
-            packSignature
+            receiver, cosigner, seed, PacksSignatureVerifierUpgradeable.PackType.NFT, buckets, packSignature
         );
         vm.stopPrank();
 
@@ -1239,7 +1328,11 @@ contract TestPacks is Test {
 
         uint256 initialFundsReceiverBalance = fundsReceiver.balance;
 
+        // Funds cosigner
+        vm.deal(cosigner, 1 ether);
+
         // Fulfill; send enough ETH to treasury to cover order amount
+        vm.prank(cosigner);
         packs.fulfill{value: 1 ether}(
             commitId,
             marketplace,
@@ -1288,11 +1381,11 @@ contract TestPacks is Test {
         return signPack(packPrice_, buckets_, cosigner);
     }
 
-    function signPack(uint256 packPrice_, PacksSignatureVerifierUpgradeable.BucketData[] memory buckets_, address signer_)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function signPack(
+        uint256 packPrice_,
+        PacksSignatureVerifierUpgradeable.BucketData[] memory buckets_,
+        address signer_
+    ) internal view returns (bytes memory) {
         bytes32 packHash = packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice_, buckets_);
 
         // Find the private key for the signer
@@ -1339,7 +1432,6 @@ contract TestPacks is Test {
             seed: seed_,
             counter: counter_,
             packPrice: packPrice_,
-            
             buckets: buckets_,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice_, buckets_)
         });
@@ -1391,8 +1483,9 @@ contract TestPacks is Test {
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice_, buckets_)
         });
         bytes32 digest = packs.hashCommit(commitData);
-        bytes32 fulfillmentHash =
-            packs.hashFulfillment(digest, marketplace_, orderAmount_, orderData_, token_, tokenId_, payoutAmount_, choice_);
+        bytes32 fulfillmentHash = packs.hashFulfillment(
+            digest, marketplace_, orderAmount_, orderData_, token_, tokenId_, payoutAmount_, choice_
+        );
         uint256 privateKey;
         if (signer_ == cosigner) {
             privateKey = COSIGNER_PRIVATE_KEY;
@@ -1472,6 +1565,7 @@ contract TestPacks is Test {
             cosigner
         );
 
+        vm.prank(cosigner);
         vm.expectRevert(Errors.InvalidAddress.selector);
         packs.fulfill(
             commitId,
@@ -1510,7 +1604,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -1552,6 +1645,7 @@ contract TestPacks is Test {
             cosigner
         );
 
+        vm.prank(cosigner);
         vm.expectRevert(Errors.InvalidAddress.selector);
         packs.fulfill(
             commitId,
@@ -1596,7 +1690,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -1653,6 +1746,7 @@ contract TestPacks is Test {
             cosigner
         );
 
+        vm.prank(cosigner);
         vm.expectRevert(Errors.InvalidAddress.selector);
         packs.fulfill(
             commitId,
@@ -1696,7 +1790,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -1738,6 +1831,7 @@ contract TestPacks is Test {
             bob
         );
 
+        vm.prank(cosigner);
         vm.expectRevert(Packs.InvalidChoiceSigner.selector);
         packs.fulfill(
             commitId,
@@ -1773,7 +1867,12 @@ contract TestPacks is Test {
             vm.deal(user, packPrice);
             bytes memory packSignature = signPack(packPrice, bucketsMulti);
             uint256 commitId = packs.commit{value: packPrice}(
-                receiver, cosigner, seed + i, PacksSignatureVerifierUpgradeable.PackType.NFT, bucketsMulti, packSignature
+                receiver,
+                cosigner,
+                seed + i,
+                PacksSignatureVerifierUpgradeable.PackType.NFT,
+                bucketsMulti,
+                packSignature
             );
             vm.stopPrank();
 
@@ -1807,7 +1906,8 @@ contract TestPacks is Test {
             }
 
             // Calculate the commit digest for signing order
-            PacksSignatureVerifierUpgradeable.CommitData memory commitData = PacksSignatureVerifierUpgradeable.CommitData({
+            PacksSignatureVerifierUpgradeable.CommitData memory commitData = PacksSignatureVerifierUpgradeable
+                .CommitData({
                 id: commitId,
                 receiver: receiver,
                 cosigner: cosigner,
@@ -1854,6 +1954,7 @@ contract TestPacks is Test {
             );
 
             // Fulfill the commit - this will internally select the bucket based on RNG
+            vm.prank(cosigner);
             packs.fulfill(
                 commitId,
                 marketplace,
@@ -1962,7 +2063,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -2305,7 +2405,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -2346,6 +2445,7 @@ contract TestPacks is Test {
             cosigner
         );
 
+        vm.prank(cosigner);
         packs.fulfillByDigest(
             digest,
             marketplace,
@@ -2405,6 +2505,7 @@ contract TestPacks is Test {
         (bool success,) = payable(address(packs)).call{value: orderAmount}("");
         require(success, "Failed to fund contract");
 
+        vm.prank(cosigner);
         vm.expectRevert(Packs.InvalidCommitId.selector);
         packs.fulfillByDigest(
             invalidDigest,
@@ -2612,7 +2713,6 @@ contract TestPacks is Test {
             seed: seed,
             counter: 0,
             packPrice: packPrice,
-            
             buckets: buckets,
             packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
         });
@@ -2621,7 +2721,7 @@ contract TestPacks is Test {
         // Expect Fulfillment event with payout fallback
         vm.expectEmit(true, true, false, true);
         emit Fulfillment(
-            address(this),
+            cosigner,
             commitId,
             rng,
             10000,
@@ -2638,6 +2738,7 @@ contract TestPacks is Test {
         );
 
         // Fulfill – even though the choice is NFT, the expiry has passed so it should default to payout
+        vm.prank(cosigner);
         packs.fulfill(
             commitId,
             marketplace,

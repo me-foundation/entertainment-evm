@@ -121,11 +121,7 @@ contract Packs is
         _;
     }
 
-    constructor(
-        address fundsReceiver_,
-        address prng_,
-        address fundsReceiverManager_
-    ) initializer {
+    constructor(address fundsReceiver_, address prng_, address fundsReceiverManager_) initializer {
         __MEAccessControl_init();
         __Pausable_init();
         __PacksSignatureVerifier_init("Packs", "1");
@@ -308,12 +304,14 @@ contract Packs is
         bytes calldata choiceSignature_
     ) internal nonReentrant {
         // Basic validation of tx
+        if (commitId_ >= packs.length) revert InvalidCommitId();
+        if (msg.sender != packs[commitId_].cosigner) revert Errors.Unauthorized();
         if (marketplace_ == address(0)) revert Errors.InvalidAddress();
         if (msg.value > 0) _depositTreasury(msg.value);
         if (orderAmount_ > treasuryBalance) revert Errors.InsufficientBalance();
         if (isFulfilled[commitId_]) revert AlreadyFulfilled();
         if (isCancelled[commitId_]) revert CommitIsCancelled();
-        if (commitId_ >= packs.length) revert InvalidCommitId();
+
         if (payoutAmount_ > orderAmount_) revert Errors.InvalidAmount();
 
         CommitData memory commitData = packs[commitId_];
@@ -465,6 +463,7 @@ contract Packs is
     /// @param fulfillmentSignature_ Signature used for fulfillment data
     /// @param choice_ Choice made by the receiver
     /// @param choiceSignature_ Signature used for receiver's choice
+    /// @dev Only callable by the cosigner of the commit
     /// @dev Emits a Fulfillment event on success
     function fulfillByDigest(
         bytes32 commitDigest_,
