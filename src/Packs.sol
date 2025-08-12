@@ -47,6 +47,9 @@ contract Packs is
     uint256 public minPackPrice; // Min ETH pack price for a commit
     uint256 public maxPackPrice; // Max ETH pack price for a commit
 
+    uint256 public minPackRewardMultiplier;
+    uint256 public maxPackRewardMultiplier;
+
     uint256 public constant MIN_BUCKETS = 1;
     uint256 public constant MAX_BUCKETS = 5;
 
@@ -96,6 +99,8 @@ contract Packs is
         address indexed oldFundsReceiverManager, address indexed newFundsReceiverManager
     );
     event TransferFailure(uint256 indexed commitId, address indexed receiver, uint256 amount, bytes32 digest);
+    event MinPackRewardMultiplierUpdated(uint256 oldMinPackRewardMultiplier, uint256 newMinPackRewardMultiplier);
+    event MaxPackRewardMultiplierUpdated(uint256 oldMaxPackRewardMultiplier, uint256 newMaxPackRewardMultiplier);
 
     error AlreadyCosigner();
     error AlreadyFulfilled();
@@ -104,6 +109,7 @@ contract Packs is
     error InvalidChoiceSigner();
     error InvalidReward();
     error InvalidPackPrice();
+    error InvalidPackRewardMultiplier();
     error InvalidCommitId();
     error WithdrawalFailed();
     error InvalidCommitCancellableTime();
@@ -146,6 +152,9 @@ contract Packs is
 
         minPackPrice = 0.01 ether;
         maxPackPrice = 0.25 ether;
+
+        minPackRewardMultiplier = 5000;
+        maxPackRewardMultiplier = 30000;
 
         // Initialize expiries
         commitCancellableTime = 1 days;
@@ -192,10 +201,12 @@ contract Packs is
             if (buckets_[i].minValue > buckets_[i].maxValue) revert InvalidReward();
             if (buckets_[i].minValue < minReward) revert InvalidReward();
             if (buckets_[i].maxValue > maxReward) revert InvalidReward();
+            if (buckets_[i].minValue < packPrice * minPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
+            if (buckets_[i].maxValue > packPrice * maxPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
             if (buckets_[i].oddsBps == 0) revert InvalidBuckets();
             if (buckets_[i].oddsBps > BASE_POINTS) revert InvalidBuckets();
             if (i < buckets_.length - 1 && buckets_[i].maxValue >= buckets_[i + 1].minValue) revert InvalidBuckets();
-
+            
             // Sum individual probabilities
             totalOdds += buckets_[i].oddsBps;
         }
@@ -714,6 +725,30 @@ contract Packs is
         uint256 oldMaxPackPrice = maxPackPrice;
         maxPackPrice = maxPackPrice_;
         emit MaxPackPriceUpdated(oldMaxPackPrice, maxPackPrice_);
+    }
+
+    /// @notice Sets the minimum pack reward multiplier
+    /// @param minPackRewardMultiplier_ New minimum pack reward multiplier
+    /// @dev Only callable by admin role
+    /// @dev Emits a MinPackRewardMultiplierUpdated event
+    function setMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert InvalidPackRewardMultiplier();
+
+        uint256 oldMinPackRewardMultiplier = minPackRewardMultiplier;
+        minPackRewardMultiplier = minPackRewardMultiplier_;
+        emit MinPackRewardMultiplierUpdated(oldMinPackRewardMultiplier, minPackRewardMultiplier_);
+    }
+
+    /// @notice Sets the maximum pack reward multiplier
+    /// @param maxPackRewardMultiplier_ New maximum pack reward multiplier
+    /// @dev Only callable by admin role
+    /// @dev Emits a MaxPackRewardMultiplierUpdated event
+    function setMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert InvalidPackRewardMultiplier();
+
+        uint256 oldMaxPackRewardMultiplier = maxPackRewardMultiplier;
+        maxPackRewardMultiplier = maxPackRewardMultiplier_;
+        emit MaxPackRewardMultiplierUpdated(oldMaxPackRewardMultiplier, maxPackRewardMultiplier_);
     }
 
     /// @notice Deposits ETH into the treasury
