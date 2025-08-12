@@ -9,4 +9,5 @@ library Errors {
     error InvalidAmount();
     error InsufficientBalance();
     error ArrayLengthMismatch();
+    error Unauthorized();
 }
