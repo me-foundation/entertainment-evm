@@ -3,13 +3,16 @@ pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 import "../src/LuckyBuy.sol";
-import "../src/common/MEAccessControl.sol";
+import "../src/PRNG.sol";
+import "../src/common/MEAccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 contract AccessControlTest is Test {
+    PRNG public prng;
     LuckyBuy public luckyBuy;
     address public admin;
     address public ops;
     address public user;
+    address public feeReceiverManager;
 
     event CosignerAdded(address indexed cosigner);
     event CosignerRemoved(address indexed cosigner);
@@ -20,9 +23,18 @@ contract AccessControlTest is Test {
         admin = makeAddr("admin");
         ops = makeAddr("ops");
         user = makeAddr("user");
-
+        feeReceiverManager = makeAddr("feeReceiverManager");
         vm.startPrank(admin);
-        luckyBuy = new LuckyBuy(0); // Initialize with 0 protocol fee
+        prng = new PRNG();
+        luckyBuy = new LuckyBuy(
+            0,
+            0,
+            0,
+            msg.sender,
+            address(prng),
+            feeReceiverManager
+        ); // Initialize with 0 protocol fee
+
         vm.stopPrank();
     }
 

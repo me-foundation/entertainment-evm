@@ -3,18 +3,64 @@ pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
+<<<<<<< HEAD
 
 contract MockLuckyBuy is LuckyBuy {
     constructor(uint256 protocolFee_) LuckyBuy(protocolFee_) {}
+=======
+import "src/PRNG.sol";
+import "../src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
+contract MockLuckyBuy is LuckyBuy {
+    constructor(
+        uint256 protocolFee_,
+        uint256 flatFee_,
+        uint256 bulkCommitFee_,
+        address feeReceiver_,
+        address prng_,
+        address feeReceiverManager_
+    )
+        LuckyBuy(
+            protocolFee_,
+            flatFee_,
+            bulkCommitFee_,
+            feeReceiver_,
+            prng_,
+            feeReceiverManager_
+        )
+    {}
+>>>>>>> main
 
     function setIsFulfilled(uint256 commitId_, bool isFulfilled_) public {
         isFulfilled[commitId_] = isFulfilled_;
     }
+<<<<<<< HEAD
+=======
+
+    /// @notice Calculates fee amount based on input amount and fee percentage
+    /// @param _amount The amount to calculate fee on
+    /// @return The calculated fee amount
+    /// @dev Uses fee denominator of 10000 (100% = 10000)
+    function calculateProtocolFee(
+        uint256 _amount
+    ) external view returns (uint256) {
+        return _calculateProtocolFee(_amount);
+    }
+
+    function _calculateProtocolFee(
+        uint256 _amount
+    ) internal view returns (uint256) {
+        return (_amount * protocolFee) / BASE_POINTS;
+    }
+>>>>>>> main
 }
 
 contract TestLuckyBuyCommit is Test {
     bool skipTest = true;
+<<<<<<< HEAD
 
+=======
+    PRNG prng;
+>>>>>>> main
     MockLuckyBuy luckyBuy;
     address admin = address(0x1);
     address user = address(0x2);
@@ -22,7 +68,12 @@ contract TestLuckyBuyCommit is Test {
     uint256 constant COSIGNER_PRIVATE_KEY = 1234;
     address cosigner;
     uint256 protocolFee = 0;
+<<<<<<< HEAD
 
+=======
+    uint256 flatFee = 0;
+    uint256 bulkCommitFee = 0;
+>>>>>>> main
     uint256 seed = 12345;
     address marketplace = address(0);
     uint256 orderAmount = 1 ether;
@@ -32,12 +83,28 @@ contract TestLuckyBuyCommit is Test {
     bytes32 orderHash = hex"";
     uint256 amount = 1 ether;
     uint256 reward = 10 ether; // 10% odds
+<<<<<<< HEAD
 
+=======
+    address feeReceiverManager = address(0x3);
+>>>>>>> main
     string constant OUTPUT_FILE = "./simulation_results.csv";
 
     function setUp() public {
         vm.startPrank(admin);
+<<<<<<< HEAD
         luckyBuy = new MockLuckyBuy(protocolFee);
+=======
+        prng = new PRNG();
+        luckyBuy = new MockLuckyBuy(
+            protocolFee,
+            flatFee,
+            bulkCommitFee,
+            msg.sender,
+            address(prng),
+            feeReceiverManager
+        );
+>>>>>>> main
         vm.deal(admin, 1000000 ether);
         vm.deal(user, 100000 ether);
 
@@ -61,8 +128,12 @@ contract TestLuckyBuyCommit is Test {
         uint256 reward
     ) public returns (bytes memory) {
         // Create the commit data struct
+<<<<<<< HEAD
         ISignatureVerifier.CommitData memory commitData = ISignatureVerifier
             .CommitData({
+=======
+        LuckyBuySignatureVerifierUpgradeable.CommitData memory commitData = LuckyBuySignatureVerifierUpgradeable.CommitData({
+>>>>>>> main
                 id: commitId,
                 receiver: receiver,
                 cosigner: cosigner,
@@ -104,7 +175,11 @@ contract TestLuckyBuyCommit is Test {
 
         uint256 commitAmount = 0.5 ether;
         uint256 rewardAmount = 1 ether;
+<<<<<<< HEAD
         uint256 feeAmount = luckyBuy.calculateFee(rewardAmount); // This should be .005 ether
+=======
+        uint256 feeAmount = luckyBuy.calculateProtocolFee(rewardAmount); // This should be .005 ether
+>>>>>>> main
 
         uint256 commitTxAmount = commitAmount + feeAmount;
         console.log("commitTxAmount", commitTxAmount);
@@ -177,7 +252,13 @@ contract TestLuckyBuyCommit is Test {
                 rewardAmount, // orderAmount
                 address(0), // token
                 0, // tokenId
+<<<<<<< HEAD
                 signature
+=======
+                signature,
+                address(0),
+                0
+>>>>>>> main
             );
             vm.stopPrank();
 

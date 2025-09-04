@@ -1,13 +1,14 @@
-// SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
 import "./common/CRC32.sol";
+import {IPRNG} from "./common/interfaces/IPRNG.sol";
 
 /// @title PRNG
 /// @notice A contract that provides pseudo-random number generation based on signatures
 /// @dev Inherits from CRC32 for hash calculation. Uses a combination of keccak256 and CRC32
 /// to generate random numbers within a specified range
-contract PRNG is CRC32 {
+contract PRNG is CRC32, IPRNG {
     /// @notice Base points for percentage calculations (100.00%)
     uint256 public constant BASE_POINTS = 10000;
 
@@ -32,5 +33,9 @@ contract PRNG is CRC32 {
         }
 
         return uint32(hashNum % BASE_POINTS);
+    }
+
+    function rng(bytes calldata signature) public view returns (uint32) {
+        return _rng(signature);
     }
 }

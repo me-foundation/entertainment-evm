@@ -1,3 +1,4 @@
+simulations/
 simulation_results.csv
 rng_100k.csv
 .DS_Store
@@ -11,4 +12,5 @@ node_modules/
 crc32_100k.csv
 crc32_10k.csv
 crc32_1m.csv
+zkout/
 

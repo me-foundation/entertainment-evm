@@ -4,18 +4,20 @@ pragma solidity 0.8.28;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "src/common/MEAccessControl.sol";
+import "src/common/MEAccessControlUpgradeable.sol";
 
-contract MockMEAccessControlContract is MEAccessControl {
-    constructor() MEAccessControl() {}
+contract MockMEAccessControlUpgradeableContract is MEAccessControlUpgradeable {
+    function initialize() public initializer {
+        __MEAccessControl_init();
+    }
 
     function adminOnly() public onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     function opsOnly() public onlyRole(OPS_ROLE) {}
 }
 
-contract MEAccessControlTest is Test {
-    MockMEAccessControlContract mockContract;
+contract MEAccessControlUpgradeableTest is Test {
+    MockMEAccessControlUpgradeableContract mockContract;
     address deployer;
     address alice;
     address bob;
@@ -32,7 +34,8 @@ contract MEAccessControlTest is Test {
         charlie = address(0x3);
 
         // Deploy our contract with the test contract as deployer
-        mockContract = new MockMEAccessControlContract();
+        mockContract = new MockMEAccessControlUpgradeableContract();
+        mockContract.initialize();
     }
 
     /*//////////////////////////////////////////////////////////////
