@@ -3,11 +3,6 @@ pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
 import "src/LuckyBuy.sol";
-<<<<<<< HEAD
-
-contract MockLuckyBuy is LuckyBuy {
-    constructor(uint256 protocolFee_) LuckyBuy(protocolFee_) {}
-=======
 import "src/PRNG.sol";
 import "../src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 contract MockLuckyBuy is LuckyBuy {
@@ -28,13 +23,10 @@ contract MockLuckyBuy is LuckyBuy {
             feeReceiverManager_
         )
     {}
->>>>>>> main
 
     function setIsFulfilled(uint256 commitId_, bool isFulfilled_) public {
         isFulfilled[commitId_] = isFulfilled_;
     }
-<<<<<<< HEAD
-=======
 
     /// @notice Calculates fee amount based on input amount and fee percentage
     /// @param _amount The amount to calculate fee on
@@ -51,16 +43,11 @@ contract MockLuckyBuy is LuckyBuy {
     ) internal view returns (uint256) {
         return (_amount * protocolFee) / BASE_POINTS;
     }
->>>>>>> main
 }
 
 contract TestLuckyBuyCommit is Test {
-    bool skipTest = true;
-<<<<<<< HEAD
-
-=======
+    bool skipTest = false;
     PRNG prng;
->>>>>>> main
     MockLuckyBuy luckyBuy;
     address admin = address(0x1);
     address user = address(0x2);
@@ -68,12 +55,8 @@ contract TestLuckyBuyCommit is Test {
     uint256 constant COSIGNER_PRIVATE_KEY = 1234;
     address cosigner;
     uint256 protocolFee = 0;
-<<<<<<< HEAD
-
-=======
     uint256 flatFee = 0;
     uint256 bulkCommitFee = 0;
->>>>>>> main
     uint256 seed = 12345;
     address marketplace = address(0);
     uint256 orderAmount = 1 ether;
@@ -83,18 +66,48 @@ contract TestLuckyBuyCommit is Test {
     bytes32 orderHash = hex"";
     uint256 amount = 1 ether;
     uint256 reward = 10 ether; // 10% odds
-<<<<<<< HEAD
-
-=======
     address feeReceiverManager = address(0x3);
->>>>>>> main
     string constant OUTPUT_FILE = "./simulation_results.csv";
+
+    // Override parameters from environment variables if provided
+    function getSimulationSeed() internal view returns (uint256) {
+        try vm.envUint("SIMULATION_SEED") returns (uint256 envSeed) {
+            return envSeed;
+        } catch {
+            return seed;
+        }
+    }
+
+    function getSimulationUser() internal view returns (address) {
+        try vm.envAddress("SIMULATION_USER") returns (address envUser) {
+            return envUser;
+        } catch {
+            return user;
+        }
+    }
+
+    function getSimulationIterations() internal view returns (uint256) {
+        try vm.envUint("SIMULATION_ITERATIONS") returns (
+            uint256 envIterations
+        ) {
+            return envIterations;
+        } catch {
+            return 20_000;
+        }
+    }
+
+    function getOutputFile() internal view returns (string memory) {
+        try vm.envString("SIMULATION_OUTPUT_FILE") returns (
+            string memory envFile
+        ) {
+            return envFile;
+        } catch {
+            return OUTPUT_FILE;
+        }
+    }
 
     function setUp() public {
         vm.startPrank(admin);
-<<<<<<< HEAD
-        luckyBuy = new MockLuckyBuy(protocolFee);
-=======
         prng = new PRNG();
         luckyBuy = new MockLuckyBuy(
             protocolFee,
@@ -104,15 +117,21 @@ contract TestLuckyBuyCommit is Test {
             address(prng),
             feeReceiverManager
         );
->>>>>>> main
         vm.deal(admin, 1000000 ether);
         vm.deal(user, 100000 ether);
+
+        // Also fund the simulation user if different from default user
+        address simulationUser = getSimulationUser();
+        if (simulationUser != user) {
+            vm.deal(simulationUser, 100000 ether);
+        }
 
         (bool success, ) = address(luckyBuy).call{value: 10000 ether}("");
         require(success, "Failed to deploy contract");
 
         // Set up cosigner with known private key
         cosigner = vm.addr(COSIGNER_PRIVATE_KEY);
+        vm.deal(cosigner, 100000 ether);
         // Add a cosigner for testing
         luckyBuy.addCosigner(cosigner);
         vm.stopPrank();
@@ -128,21 +147,18 @@ contract TestLuckyBuyCommit is Test {
         uint256 reward
     ) public returns (bytes memory) {
         // Create the commit data struct
-<<<<<<< HEAD
-        ISignatureVerifier.CommitData memory commitData = ISignatureVerifier
-            .CommitData({
-=======
-        LuckyBuySignatureVerifierUpgradeable.CommitData memory commitData = LuckyBuySignatureVerifierUpgradeable.CommitData({
->>>>>>> main
-                id: commitId,
-                receiver: receiver,
-                cosigner: cosigner,
-                seed: seed,
-                counter: counter,
-                orderHash: orderHash,
-                amount: amount,
-                reward: reward
-            });
+        LuckyBuySignatureVerifierUpgradeable.CommitData
+            memory commitData = LuckyBuySignatureVerifierUpgradeable
+                .CommitData({
+                    id: commitId,
+                    receiver: receiver,
+                    cosigner: cosigner,
+                    seed: seed,
+                    counter: counter,
+                    orderHash: orderHash,
+                    amount: amount,
+                    reward: reward
+                });
 
         // Get the digest using the LuckyBuy contract's hash function
         bytes32 digest = luckyBuy.hash(commitData);
@@ -175,11 +191,7 @@ contract TestLuckyBuyCommit is Test {
 
         uint256 commitAmount = 0.5 ether;
         uint256 rewardAmount = 1 ether;
-<<<<<<< HEAD
-        uint256 feeAmount = luckyBuy.calculateFee(rewardAmount); // This should be .005 ether
-=======
         uint256 feeAmount = luckyBuy.calculateProtocolFee(rewardAmount); // This should be .005 ether
->>>>>>> main
 
         uint256 commitTxAmount = commitAmount + feeAmount;
         console.log("commitTxAmount", commitTxAmount);
@@ -191,16 +203,27 @@ contract TestLuckyBuyCommit is Test {
         console.log("Reward Amount:", rewardAmount);
         console.log("\nStarting 40k game simulations...\n");
 
-        for (uint256 i = 0; i < 20_000; i++) {
+        // Get runtime parameters
+        uint256 simulationSeed = getSimulationSeed();
+        address simulationUser = getSimulationUser();
+        uint256 iterations = getSimulationIterations();
+        string memory outputFile = getOutputFile();
+
+        console.log("Using simulation seed:", simulationSeed);
+        console.log("Using simulation user:", simulationUser);
+        console.log("Running iterations:", iterations);
+        console.log("Output file:", outputFile);
+
+        for (uint256 i = 0; i < iterations; i++) {
             console.log("Game", i + 1, ":");
 
-            vm.startPrank(user);
+            vm.startPrank(simulationUser);
             console.log(commitAmount + feeAmount);
-            // Create commit
+            // Create commit with incremental seed for variance
             uint256 commitId = luckyBuy.commit{value: commitTxAmount}(
-                user, // receiver
+                simulationUser, // receiver
                 cosigner, // cosigner
-                seed, // random seed
+                simulationSeed + i, // incremental seed for variance
                 orderHash, // order hash we just created
                 rewardAmount // reward amount (10x the commit for 10% odds)
             );
@@ -227,24 +250,24 @@ contract TestLuckyBuyCommit is Test {
             console.log("reward", _reward);
 
             // Get the counter for this commit
-            uint256 counter = luckyBuy.luckyBuyCount(user) - 1;
+            uint256 counter = luckyBuy.luckyBuyCount(simulationUser) - 1;
 
-            // Sign the commit
+            // Sign the commit - use the actual stored amount (after fee deduction)
             bytes memory signature = signCommit(
                 commitId,
-                user,
-                seed,
+                simulationUser,
+                simulationSeed + i,
                 counter,
                 orderHash,
-                commitAmount,
+                _amount, // Use the actual amount stored in the commit
                 rewardAmount
             );
 
             // Track treasury balance for win/loss determination
             uint256 initialTreasuryBalance = luckyBuy.treasuryBalance();
 
-            // Fulfill the commit
-            vm.startPrank(user);
+            // Fulfill the commit - only cosigner can fulfill
+            vm.startPrank(cosigner);
             luckyBuy.fulfill(
                 commitId,
                 address(0), // marketplace
@@ -252,13 +275,9 @@ contract TestLuckyBuyCommit is Test {
                 rewardAmount, // orderAmount
                 address(0), // token
                 0, // tokenId
-<<<<<<< HEAD
-                signature
-=======
                 signature,
                 address(0),
                 0
->>>>>>> main
             );
             vm.stopPrank();
 
@@ -295,7 +314,7 @@ contract TestLuckyBuyCommit is Test {
                     vm.toString(luckyBuy.treasuryBalance())
                 )
             );
-            vm.writeLine(OUTPUT_FILE, row);
+            vm.writeLine(outputFile, row);
         }
     }
 }
