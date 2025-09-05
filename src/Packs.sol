@@ -499,6 +499,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a Withdrawal event
     function withdrawTreasury(uint256 amount) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (amount == 0) revert Errors.InvalidAmount();
         if (amount > treasuryBalance) revert Errors.InsufficientBalance();
         treasuryBalance -= amount;
 
@@ -674,6 +675,7 @@ contract Packs is
     /// @param maxReward_ New maximum reward value
     /// @dev Only callable by admin role
     function setMaxReward(uint256 maxReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxReward_ == 0) revert InvalidReward();
         if (maxReward_ < minReward) revert InvalidReward();
 
         uint256 oldMaxReward = maxReward;
@@ -685,6 +687,7 @@ contract Packs is
     /// @param minReward_ New minimum reward value
     /// @dev Only callable by admin role
     function setMinReward(uint256 minReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minReward_ == 0) revert InvalidReward();
         if (minReward_ > maxReward) revert InvalidReward();
 
         uint256 oldMinReward = minReward;
@@ -697,6 +700,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MinPackPriceUpdated event
     function setMinPackPrice(uint256 minPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minPackPrice_ == 0) revert InvalidPackPrice();
         if (minPackPrice_ > maxPackPrice) revert InvalidPackPrice();
 
         uint256 oldMinPackPrice = minPackPrice;
@@ -709,6 +713,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MaxPackPriceUpdated event
     function setMaxPackPrice(uint256 maxPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxPackPrice_ == 0) revert InvalidPackPrice();
         if (maxPackPrice_ < minPackPrice) revert InvalidPackPrice();
 
         uint256 oldMaxPackPrice = maxPackPrice;
@@ -721,6 +726,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MinPackRewardMultiplierUpdated event
     function setMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
         if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert InvalidPackRewardMultiplier();
 
         uint256 oldMinPackRewardMultiplier = minPackRewardMultiplier;
@@ -733,6 +739,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MaxPackRewardMultiplierUpdated event
     function setMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
         if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert InvalidPackRewardMultiplier();
 
         uint256 oldMaxPackRewardMultiplier = maxPackRewardMultiplier;
