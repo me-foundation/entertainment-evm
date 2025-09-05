@@ -199,7 +199,7 @@ contract Packs is
             if (buckets_[i].maxValue > packPrice * maxPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
             if (buckets_[i].oddsBps == 0) revert InvalidBuckets();
             if (buckets_[i].oddsBps > BASE_POINTS) revert InvalidBuckets();
-            if (i < buckets_.length - 1 && buckets_[i].maxValue >= buckets_[i + 1].minValue) revert InvalidBuckets();
+            if (i < buckets_.length - 1 && buckets_[i].maxValue > buckets_[i + 1].minValue) revert InvalidBuckets();
             
             // Sum individual probabilities
             totalOdds += buckets_[i].oddsBps;
