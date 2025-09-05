@@ -364,7 +364,13 @@ contract Packs is
         // Handle user choice and fulfil order or payout
         if (fulfillmentType == FulfillmentOption.NFT) {
             // execute the market data to transfer the nft
-            bool success = _fulfillOrder(marketplace_, orderData_, orderAmount_);
+            bool success = false;
+            try this._fulfillOrder(marketplace_, orderData_, orderAmount_) returns (bool result) {
+                success = result;
+            } catch {
+                success = false;
+            }
+            
             if (success) {
                 // subtract the order amount from the treasury balance
                 treasuryBalance -= orderAmount_;
@@ -792,12 +798,12 @@ contract Packs is
     }
 
     /// @notice Fulfills an order with the specified parameters
-    /// @dev Internal function called by fulfill()
+    /// @dev Public function for try/catch in fulfill()
     /// @param to Address to send the transaction to
     /// @param data Calldata for the transaction
     /// @param amount Amount of ETH to send
     /// @return success Whether the transaction was successful
-    function _fulfillOrder(address to, bytes calldata data, uint256 amount) internal returns (bool success) {
+    function _fulfillOrder(address to, bytes calldata data, uint256 amount) public returns (bool success) {
         (success,) = to.call{value: amount}(data);
     }
 
