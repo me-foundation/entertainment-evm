@@ -782,7 +782,12 @@ contract Packs is
 
     /// @notice Handles receiving ERC721 tokens
     /// @dev Required for contract to receive ERC721 tokens via safeTransferFrom
-    function onERC721Received() external pure returns (bytes4) {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external pure returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
