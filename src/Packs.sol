@@ -115,7 +115,6 @@ contract Packs is
     error CommitIsCancelled();
     error CommitNotCancellable();
     error InvalidFundsReceiverManager();
-    error InitialOwnerCannotBeZero();
     error BucketSelectionFailed();
 
     modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
