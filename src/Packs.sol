@@ -529,7 +529,7 @@ contract Packs is
     /// @dev It's safe to allow receiver to call cancel as the commit should be fulfilled within commitCancellableTime
     /// @dev If not fulfilled before commitCancellableTime, it indicates a fulfillment issue so commit should be refunded
     /// @dev Emits a CommitCancelled event
-    function cancel(uint256 commitId_) external onlyCommitOwnerOrCosigner(commitId_) nonReentrant {
+    function cancel(uint256 commitId_) external nonReentrant onlyCommitOwnerOrCosigner(commitId_) {
         if (commitId_ >= packs.length) revert InvalidCommitId();
         if (isFulfilled[commitId_]) revert AlreadyFulfilled();
         if (isCancelled[commitId_]) revert CommitIsCancelled();
