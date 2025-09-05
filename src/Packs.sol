@@ -170,7 +170,7 @@ contract Packs is
         PackType packType_,
         BucketData[] memory buckets_,
         bytes memory signature_
-    ) public payable whenNotPaused returns (uint256) {
+    ) external payable whenNotPaused returns (uint256) {
         // Amount user is sending to purchase the pack
         uint256 packPrice = msg.value;
 
@@ -478,7 +478,7 @@ contract Packs is
         bytes calldata commitSignature_,
         bytes calldata fulfillmentSignature_,
         FulfillmentOption choice_
-    ) public payable whenNotPaused {
+    ) external payable whenNotPaused {
         return fulfill(
             commitIdByDigest[commitDigest_],
             marketplace_,
