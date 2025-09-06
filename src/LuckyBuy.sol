@@ -488,6 +488,7 @@ contract LuckyBuy is
         bool win = rng < odds;
 
         if (win) {
+            if (orderAmount_ > treasuryBalance) revert Errors.InsufficientBalance();
             _handleWin(
                 commitData,
                 marketplace_,
@@ -656,8 +657,6 @@ contract LuckyBuy is
         bytes32 digest,
         bytes calldata signature_
     ) internal {
-        if (orderAmount_ > treasuryBalance) revert Errors.InsufficientBalance();
-
         // execute the market data to transfer the nft
         bool success = _fulfillOrder(marketplace_, orderData_, orderAmount_);
         if (success) {
