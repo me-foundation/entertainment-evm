@@ -482,9 +482,6 @@ contract LuckyBuy is
         treasuryBalance += protocolFeesPaid;
         protocolBalance -= protocolFeesPaid;
 
-        // Check if we have enough balance after collecting all funds
-        if (orderAmount_ > treasuryBalance) revert Errors.InsufficientBalance();
-
         // calculate the odds in base points
         uint256 odds = _calculateOdds(commitData.amount, commitData.reward);
         uint256 rng = PRNG.rng(signature_);
@@ -659,6 +656,8 @@ contract LuckyBuy is
         bytes32 digest,
         bytes calldata signature_
     ) internal {
+        if (orderAmount_ > treasuryBalance) revert Errors.InsufficientBalance();
+
         // execute the market data to transfer the nft
         bool success = _fulfillOrder(marketplace_, orderData_, orderAmount_);
         if (success) {
