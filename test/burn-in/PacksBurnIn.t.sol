@@ -385,6 +385,201 @@ contract PacksBurnInTest is Test {
         console.log("Upgrade successful!");
     }
 
+    function testStateConsistencyAfterUpgrade() public {
+        // Skip if RPC URL not set
+        if (bytes(BURN_IN_RPC_URL).length == 0) {
+            vm.skip(true);
+            return;
+        }
+        
+        console.log("=== STATE CONSISTENCY TEST ===");
+        
+        // ============ RECORD CURRENT STATE ============
+        
+        // Get current implementation
+        bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+        address currentImplementation = address(uint160(uint256(vm.load(PACKS_PROXY, implementationSlot))));
+        
+        // Record all state variables before upgrade
+        address prngBefore = address(packs.PRNG());
+        address fundsReceiverBefore = packs.fundsReceiver();
+        uint256 treasuryBalanceBefore = packs.treasuryBalance();
+        uint256 commitBalanceBefore = packs.commitBalance();
+        uint256 commitCancellableTimeBefore = packs.commitCancellableTime();
+        uint256 nftFulfillmentExpiryTimeBefore = packs.nftFulfillmentExpiryTime();
+        uint256 minRewardBefore = packs.minReward();
+        uint256 maxRewardBefore = packs.maxReward();
+        uint256 minPackPriceBefore = packs.minPackPrice();
+        uint256 maxPackPriceBefore = packs.maxPackPrice();
+        uint256 minPackRewardMultiplierBefore = packs.minPackRewardMultiplier();
+        uint256 maxPackRewardMultiplierBefore = packs.maxPackRewardMultiplier();
+        
+        // Record some mapping values
+        bool cosignerActiveBefore = packs.isCosigner(cosigner);
+        uint256 user1PackCountBefore = packs.packCount(user1);
+        uint256 user2PackCountBefore = packs.packCount(user2);
+        
+        // Record admin roles
+        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        bool hasAdminRoleBefore = packs.hasRole(packs.DEFAULT_ADMIN_ROLE(), currentAdmin);
+        bool hasFundsManagerRoleBefore = packs.hasRole(packs.FUNDS_RECEIVER_MANAGER_ROLE(), FUNDS_RECEIVER_MANAGER);
+        
+        // Record paused state
+        bool pausedBefore = packs.paused();
+        
+        // Get packs array length by checking if pack 0 exists
+        uint256 packsLengthBefore = 0;
+        try packs.packs(0) returns (uint256, address, address, uint256, uint256, uint256, bytes32) {
+            // Count how many packs exist by iterating
+            for (uint256 i = 0; i < 1000; i++) { // Reasonable upper limit
+                try packs.packs(i) returns (uint256, address, address, uint256, uint256, uint256, bytes32) {
+                    packsLengthBefore++;
+                } catch {
+                    break;
+                }
+            }
+        } catch {
+            packsLengthBefore = 0;
+        }
+        
+        console.log("=== PRE-UPGRADE STATE ===");
+        console.log("Implementation:", currentImplementation);
+        console.log("PRNG:", prngBefore);
+        console.log("Funds Receiver:", fundsReceiverBefore);
+        console.log("Treasury Balance:", treasuryBalanceBefore);
+        console.log("Commit Balance:", commitBalanceBefore);
+        console.log("Commit Cancellable Time:", commitCancellableTimeBefore);
+        console.log("NFT Fulfillment Expiry Time:", nftFulfillmentExpiryTimeBefore);
+        console.log("Min Reward:", minRewardBefore);
+        console.log("Max Reward:", maxRewardBefore);
+        console.log("Min Pack Price:", minPackPriceBefore);
+        console.log("Max Pack Price:", maxPackPriceBefore);
+        console.log("Min Pack Reward Multiplier:", minPackRewardMultiplierBefore);
+        console.log("Max Pack Reward Multiplier:", maxPackRewardMultiplierBefore);
+        console.log("Cosigner Active:", cosignerActiveBefore);
+        console.log("User1 Pack Count:", user1PackCountBefore);
+        console.log("User2 Pack Count:", user2PackCountBefore);
+        console.log("Has Admin Role:", hasAdminRoleBefore);
+        console.log("Has Funds Manager Role:", hasFundsManagerRoleBefore);
+        console.log("Paused:", pausedBefore);
+        console.log("Packs Array Length:", packsLengthBefore);
+        console.log("========================");
+        
+        // ============ PERFORM UPGRADE ============
+        
+        console.log("=== PERFORMING UPGRADE ===");
+        console.log("Upgrading from:", currentImplementation);
+        console.log("Upgrading to:", PACKS_NEXT_IMPLEMENTATION);
+        
+        vm.startPrank(currentAdmin);
+        packs.upgradeToAndCall(PACKS_NEXT_IMPLEMENTATION, "");
+        vm.stopPrank();
+        
+        // Verify implementation changed
+        address newImplementation = address(uint160(uint256(vm.load(PACKS_PROXY, implementationSlot))));
+        assertEq(newImplementation, PACKS_NEXT_IMPLEMENTATION, "Implementation should be upgraded");
+        console.log("Upgrade completed successfully!");
+        console.log("========================");
+        
+        // ============ VERIFY STATE CONSISTENCY ============
+        
+        console.log("=== POST-UPGRADE STATE VERIFICATION ===");
+        
+        // Check all state variables match
+        address prngAfter = address(packs.PRNG());
+        address fundsReceiverAfter = packs.fundsReceiver();
+        uint256 treasuryBalanceAfter = packs.treasuryBalance();
+        uint256 commitBalanceAfter = packs.commitBalance();
+        uint256 commitCancellableTimeAfter = packs.commitCancellableTime();
+        uint256 nftFulfillmentExpiryTimeAfter = packs.nftFulfillmentExpiryTime();
+        uint256 minRewardAfter = packs.minReward();
+        uint256 maxRewardAfter = packs.maxReward();
+        uint256 minPackPriceAfter = packs.minPackPrice();
+        uint256 maxPackPriceAfter = packs.maxPackPrice();
+        uint256 minPackRewardMultiplierAfter = packs.minPackRewardMultiplier();
+        uint256 maxPackRewardMultiplierAfter = packs.maxPackRewardMultiplier();
+        
+        // Check mapping values
+        bool cosignerActiveAfter = packs.isCosigner(cosigner);
+        uint256 user1PackCountAfter = packs.packCount(user1);
+        uint256 user2PackCountAfter = packs.packCount(user2);
+        
+        // Check admin roles
+        bool hasAdminRoleAfter = packs.hasRole(packs.DEFAULT_ADMIN_ROLE(), currentAdmin);
+        bool hasFundsManagerRoleAfter = packs.hasRole(packs.FUNDS_RECEIVER_MANAGER_ROLE(), FUNDS_RECEIVER_MANAGER);
+        
+        // Check paused state
+        bool pausedAfter = packs.paused();
+        
+        // Check packs array length
+        uint256 packsLengthAfter = 0;
+        try packs.packs(0) returns (uint256, address, address, uint256, uint256, uint256, bytes32) {
+            for (uint256 i = 0; i < 1000; i++) {
+                try packs.packs(i) returns (uint256, address, address, uint256, uint256, uint256, bytes32) {
+                    packsLengthAfter++;
+                } catch {
+                    break;
+                }
+            }
+        } catch {
+            packsLengthAfter = 0;
+        }
+        
+        // Assert all state variables are preserved
+        assertEq(prngAfter, prngBefore, "PRNG address should be preserved");
+        assertEq(fundsReceiverAfter, fundsReceiverBefore, "Funds receiver should be preserved");
+        assertEq(treasuryBalanceAfter, treasuryBalanceBefore, "Treasury balance should be preserved");
+        assertEq(commitBalanceAfter, commitBalanceBefore, "Commit balance should be preserved");
+        assertEq(commitCancellableTimeAfter, commitCancellableTimeBefore, "Commit cancellable time should be preserved");
+        assertEq(nftFulfillmentExpiryTimeAfter, nftFulfillmentExpiryTimeBefore, "NFT fulfillment expiry time should be preserved");
+        assertEq(minRewardAfter, minRewardBefore, "Min reward should be preserved");
+        assertEq(maxRewardAfter, maxRewardBefore, "Max reward should be preserved");
+        assertEq(minPackPriceAfter, minPackPriceBefore, "Min pack price should be preserved");
+        assertEq(maxPackPriceAfter, maxPackPriceBefore, "Max pack price should be preserved");
+        assertEq(minPackRewardMultiplierAfter, minPackRewardMultiplierBefore, "Min pack reward multiplier should be preserved");
+        assertEq(maxPackRewardMultiplierAfter, maxPackRewardMultiplierBefore, "Max pack reward multiplier should be preserved");
+        
+        // Assert mapping values are preserved
+        assertEq(cosignerActiveAfter, cosignerActiveBefore, "Cosigner active status should be preserved");
+        assertEq(user1PackCountAfter, user1PackCountBefore, "User1 pack count should be preserved");
+        assertEq(user2PackCountAfter, user2PackCountBefore, "User2 pack count should be preserved");
+        
+        // Assert role assignments are preserved
+        assertEq(hasAdminRoleAfter, hasAdminRoleBefore, "Admin role should be preserved");
+        assertEq(hasFundsManagerRoleAfter, hasFundsManagerRoleBefore, "Funds manager role should be preserved");
+        
+        // Assert paused state is preserved
+        assertEq(pausedAfter, pausedBefore, "Paused state should be preserved");
+        
+        // Assert array length is preserved
+        assertEq(packsLengthAfter, packsLengthBefore, "Packs array length should be preserved");
+        
+        console.log("=== POST-UPGRADE STATE ===");
+        console.log("Implementation:", newImplementation);
+        console.log("PRNG:", prngAfter);
+        console.log("Funds Receiver:", fundsReceiverAfter);
+        console.log("Treasury Balance:", treasuryBalanceAfter);
+        console.log("Commit Balance:", commitBalanceAfter);
+        console.log("Commit Cancellable Time:", commitCancellableTimeAfter);
+        console.log("NFT Fulfillment Expiry Time:", nftFulfillmentExpiryTimeAfter);
+        console.log("Min Reward:", minRewardAfter);
+        console.log("Max Reward:", maxRewardAfter);
+        console.log("Min Pack Price:", minPackPriceAfter);
+        console.log("Max Pack Price:", maxPackPriceAfter);
+        console.log("Min Pack Reward Multiplier:", minPackRewardMultiplierAfter);
+        console.log("Max Pack Reward Multiplier:", maxPackRewardMultiplierAfter);
+        console.log("Cosigner Active:", cosignerActiveAfter);
+        console.log("User1 Pack Count:", user1PackCountAfter);
+        console.log("User2 Pack Count:", user2PackCountAfter);
+        console.log("Has Admin Role:", hasAdminRoleAfter);
+        console.log("Has Funds Manager Role:", hasFundsManagerRoleAfter);
+        console.log("Paused:", pausedAfter);
+        console.log("Packs Array Length:", packsLengthAfter);
+        console.log("========================");
+        
+        console.log("All state variables preserved correctly after upgrade!");
+    }
+
     function testUpgradeToAndHappyPath() public {
         // Skip if RPC URL not set
         if (bytes(BURN_IN_RPC_URL).length == 0) {
