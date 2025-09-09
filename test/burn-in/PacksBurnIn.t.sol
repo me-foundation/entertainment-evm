@@ -33,7 +33,7 @@ contract PacksBurnInTest is Test {
     );
     // Fork configuration
     uint256 public baseFork;
-    string public BURN_IN_RPC_URL = vm.envString("BURN_IN_RPC_URL");
+    string public BURN_IN_RPC_URL;
     
     // Production contract addresses on Base mainnet
     address public constant PACKS_V1_IMPLEMENTATION = 0x06bb79bFcBA7CaCEA2A2604E224ab6218CA81338;
@@ -61,6 +61,9 @@ contract PacksBurnInTest is Test {
     uint256 public user2PrivateKey = 0x4;
     
     function setUp() public {
+        // Initialize RPC URL safely
+        BURN_IN_RPC_URL = vm.envOr("BURN_IN_RPC_URL", string(""));
+        
         // Skip all tests if BURN_IN_RPC_URL is not set
         if (bytes(BURN_IN_RPC_URL).length == 0) {
             vm.skip(true);
