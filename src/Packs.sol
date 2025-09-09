@@ -150,7 +150,7 @@ contract Packs is
         maxPackRewardMultiplier = 300000;
 
         // Initialize expiries
-        commitCancellableTime = 1 days;
+        commitCancellableTime = 1 hours;
         nftFulfillmentExpiryTime = 10 minutes;
     }
 
