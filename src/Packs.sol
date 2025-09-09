@@ -115,7 +115,6 @@ contract Packs is
     error CommitIsCancelled();
     error CommitNotCancellable();
     error InvalidFundsReceiverManager();
-    error InitialOwnerCannotBeZero();
     error BucketSelectionFailed();
 
     modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
@@ -171,7 +170,7 @@ contract Packs is
         PackType packType_,
         BucketData[] memory buckets_,
         bytes memory signature_
-    ) public payable whenNotPaused returns (uint256) {
+    ) external payable whenNotPaused returns (uint256) {
         // Amount user is sending to purchase the pack
         uint256 packPrice = msg.value;
 
@@ -364,7 +363,13 @@ contract Packs is
         // Handle user choice and fulfil order or payout
         if (fulfillmentType == FulfillmentOption.NFT) {
             // execute the market data to transfer the nft
-            bool success = _fulfillOrder(marketplace_, orderData_, orderAmount_);
+            bool success = false;
+            try this._fulfillOrder(marketplace_, orderData_, orderAmount_) returns (bool result) {
+                success = result;
+            } catch {
+                success = false;
+            }
+            
             if (success) {
                 // subtract the order amount from the treasury balance
                 treasuryBalance -= orderAmount_;
@@ -473,7 +478,7 @@ contract Packs is
         bytes calldata commitSignature_,
         bytes calldata fulfillmentSignature_,
         FulfillmentOption choice_
-    ) public payable whenNotPaused {
+    ) external payable whenNotPaused {
         return fulfill(
             commitIdByDigest[commitDigest_],
             marketplace_,
@@ -493,6 +498,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a Withdrawal event
     function withdrawTreasury(uint256 amount) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (amount == 0) revert Errors.InvalidAmount();
         if (amount > treasuryBalance) revert Errors.InsufficientBalance();
         treasuryBalance -= amount;
 
@@ -523,7 +529,7 @@ contract Packs is
     /// @dev It's safe to allow receiver to call cancel as the commit should be fulfilled within commitCancellableTime
     /// @dev If not fulfilled before commitCancellableTime, it indicates a fulfillment issue so commit should be refunded
     /// @dev Emits a CommitCancelled event
-    function cancel(uint256 commitId_) external onlyCommitOwnerOrCosigner(commitId_) nonReentrant {
+    function cancel(uint256 commitId_) external nonReentrant onlyCommitOwnerOrCosigner(commitId_) {
         if (commitId_ >= packs.length) revert InvalidCommitId();
         if (isFulfilled[commitId_]) revert AlreadyFulfilled();
         if (isCancelled[commitId_]) revert CommitIsCancelled();
@@ -668,6 +674,7 @@ contract Packs is
     /// @param maxReward_ New maximum reward value
     /// @dev Only callable by admin role
     function setMaxReward(uint256 maxReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxReward_ == 0) revert InvalidReward();
         if (maxReward_ < minReward) revert InvalidReward();
 
         uint256 oldMaxReward = maxReward;
@@ -679,6 +686,7 @@ contract Packs is
     /// @param minReward_ New minimum reward value
     /// @dev Only callable by admin role
     function setMinReward(uint256 minReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minReward_ == 0) revert InvalidReward();
         if (minReward_ > maxReward) revert InvalidReward();
 
         uint256 oldMinReward = minReward;
@@ -691,6 +699,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MinPackPriceUpdated event
     function setMinPackPrice(uint256 minPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minPackPrice_ == 0) revert InvalidPackPrice();
         if (minPackPrice_ > maxPackPrice) revert InvalidPackPrice();
 
         uint256 oldMinPackPrice = minPackPrice;
@@ -703,6 +712,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MaxPackPriceUpdated event
     function setMaxPackPrice(uint256 maxPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxPackPrice_ == 0) revert InvalidPackPrice();
         if (maxPackPrice_ < minPackPrice) revert InvalidPackPrice();
 
         uint256 oldMaxPackPrice = maxPackPrice;
@@ -715,6 +725,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MinPackRewardMultiplierUpdated event
     function setMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
         if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert InvalidPackRewardMultiplier();
 
         uint256 oldMinPackRewardMultiplier = minPackRewardMultiplier;
@@ -727,6 +738,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MaxPackRewardMultiplierUpdated event
     function setMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
         if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert InvalidPackRewardMultiplier();
 
         uint256 oldMaxPackRewardMultiplier = maxPackRewardMultiplier;
@@ -782,17 +794,22 @@ contract Packs is
 
     /// @notice Handles receiving ERC721 tokens
     /// @dev Required for contract to receive ERC721 tokens via safeTransferFrom
-    function onERC721Received() external pure returns (bytes4) {
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external pure returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
     /// @notice Fulfills an order with the specified parameters
-    /// @dev Internal function called by fulfill()
+    /// @dev Public function for try/catch in fulfill()
     /// @param to Address to send the transaction to
     /// @param data Calldata for the transaction
     /// @param amount Amount of ETH to send
     /// @return success Whether the transaction was successful
-    function _fulfillOrder(address to, bytes calldata data, uint256 amount) internal returns (bool success) {
+    function _fulfillOrder(address to, bytes calldata data, uint256 amount) public returns (bool success) {
         (success,) = to.call{value: amount}(data);
     }
 
