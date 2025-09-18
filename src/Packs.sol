@@ -55,6 +55,8 @@ contract Packs is
 
     uint256 public constant BASE_POINTS = 10000;
 
+    uint256 public flatFee = 0;
+
     event Commit(
         address indexed sender,
         uint256 indexed commitId,
@@ -100,6 +102,7 @@ contract Packs is
     event TransferFailure(uint256 indexed commitId, address indexed receiver, uint256 amount, bytes32 digest);
     event MinPackRewardMultiplierUpdated(uint256 oldMinPackRewardMultiplier, uint256 newMinPackRewardMultiplier);
     event MaxPackRewardMultiplierUpdated(uint256 oldMaxPackRewardMultiplier, uint256 newMaxPackRewardMultiplier);
+    event FlatFeeUpdated(uint256 oldFlatFee, uint256 newFlatFee);
 
     error AlreadyCosigner();
     error AlreadyFulfilled();
@@ -124,7 +127,7 @@ contract Packs is
         _;
     }
 
-    constructor(address fundsReceiver_, address prng_, address fundsReceiverManager_) initializer {
+    constructor(uint256 flatFee_, address fundsReceiver_, address prng_, address fundsReceiverManager_) initializer {
         __MEAccessControl_init();
         __Pausable_init();
         __PacksSignatureVerifier_init("Packs", "1");
@@ -135,6 +138,7 @@ contract Packs is
             _depositTreasury(existingBalance);
         }
 
+        _setFlatFee(flatFee_);
         _setFundsReceiver(fundsReceiver_);
         PRNG = IPRNG(prng_);
         _grantRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiverManager_);
@@ -851,5 +855,19 @@ contract Packs is
         address oldFundsReceiver = fundsReceiver;
         fundsReceiver = payable(fundsReceiver_);
         emit FundsReceiverUpdated(oldFundsReceiver, fundsReceiver_);
+    }
+
+    /// @notice Sets the flat fee. Is a static amount that comes off the top of the commit amount.
+    /// @param flatFee_ New flat fee
+    /// @dev Only callable by ops role
+    /// @dev Emits a FlatFeeUpdated event
+    function setFlatFee(uint256 flatFee_) external onlyRole(OPS_ROLE) {
+        _setFlatFee(flatFee_);
+    }
+
+    function _setFlatFee(uint256 flatFee_) internal {
+        uint256 oldFlatFee = flatFee;
+        flatFee = flatFee_;
+        emit FlatFeeUpdated(oldFlatFee, flatFee_);
     }
 }

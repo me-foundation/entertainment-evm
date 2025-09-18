@@ -81,10 +81,10 @@ contract TestPacks is Test {
     address receiver = vm.addr(RECEIVER_PRIVATE_KEY); // Derive receiver from known private key
     address fundsReceiverManager = address(0x4);
     address fundsReceiver = address(0x5);
-
+    
     uint256 seed = 12345;
     uint256 packPrice = 0.01 ether;
-
+    uint256 flatFee = 0 ether;
     // Test bucket data
     PacksSignatureVerifierUpgradeable.BucketData[] buckets;
     PacksSignatureVerifierUpgradeable.BucketData[] bucketsMulti;
@@ -141,7 +141,7 @@ contract TestPacks is Test {
         vm.startPrank(admin);
         prng = new PRNG();
 
-        packs = new Packs(fundsReceiver, address(prng), fundsReceiverManager);
+        packs = new Packs(flatFee, fundsReceiver, address(prng), fundsReceiverManager);
 
         vm.deal(admin, 100 ether);
         vm.deal(receiver, 100 ether);

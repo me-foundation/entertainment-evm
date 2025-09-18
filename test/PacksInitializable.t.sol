@@ -34,6 +34,7 @@ contract PacksInitializableProxyTest is Test {
     MockPacksInitializable packs;
     address admin = address(0x1);
     address user = address(0x2);
+    uint256 flatFee = 0 ether;
     uint256 constant RECEIVER_PRIVATE_KEY = 5678; // Known private key for receiver
     bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
     bytes32 constant OPS_ROLE = keccak256("OPS_ROLE");
@@ -47,7 +48,7 @@ contract PacksInitializableProxyTest is Test {
 
         // Encode initializer call
         bytes memory initData = abi.encodeWithSignature(
-            "initialize(address,address,address,address)", admin, address(0x5), address(prng), address(0x4)
+            "initialize(uint256,address,address,address,address)", flatFee, admin, address(0x5), address(prng), address(0x4)
         );
 
         // Deploy proxy and cast the address for convenience
@@ -101,7 +102,7 @@ contract PacksInitializableProxyTest is Test {
 
         // Encode initializer call
         bytes memory initData = abi.encodeWithSignature(
-            "initialize(address,address,address,address)",
+            "initialize(uint256,address,address,address,address)", flatFee,
             admin,
             address(0x5),
             address(prng),
@@ -123,7 +124,7 @@ contract PacksInitializableProxyTest is Test {
         vm.prank(admin);
         vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         MockPacksInitializable(payable(address(packs))).initialize(
-            admin, address(0x5), address(prng), address(0x4)
+            flatFee, admin, address(0x5), address(prng), address(0x4)
         );
     }
 
