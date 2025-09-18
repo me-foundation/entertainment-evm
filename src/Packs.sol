@@ -176,9 +176,14 @@ contract Packs is
         bytes memory signature_
     ) external payable whenNotPaused returns (uint256) {
         // Amount user is sending to purchase the pack
-        uint256 packPrice = msg.value;
+        uint256 totalAmount = msg.value;
 
-        if (packPrice == 0) revert Errors.InvalidAmount();
+        if (totalAmount == 0) revert Errors.InvalidAmount();
+        if (totalAmount <= flatFee) revert Errors.InvalidAmount(); 
+        
+        // Calculate actual pack price after flat fee deduction
+        uint256 packPrice = totalAmount - flatFee;
+        
         if (packPrice < minPackPrice) revert Errors.InvalidAmount();
         if (packPrice > maxPackPrice) revert Errors.InvalidAmount();
 
@@ -221,6 +226,10 @@ contract Packs is
         uint256 commitId = packs.length;
         uint256 userCounter = packCount[receiver_]++;
 
+        // Handle flat fee payment
+        _handleFlatFeePayment();
+
+        // Track pack price (after flat fee) in commit balance
         commitBalance += packPrice;
 
         CommitData memory commitData = CommitData({
@@ -869,5 +878,19 @@ contract Packs is
         uint256 oldFlatFee = flatFee;
         flatFee = flatFee_;
         emit FlatFeeUpdated(oldFlatFee, flatFee_);
+    }
+
+    /// @notice Internal function to handle flat fee payment
+    function _handleFlatFeePayment() internal {
+        if (flatFee > 0 && fundsReceiver != address(0)) {
+            (bool success, ) = fundsReceiver.call{value: flatFee}("");
+            if (!success) {
+                // If transfer fails, add to treasury for later rescue
+                treasuryBalance += flatFee;
+            }
+        } else if (flatFee > 0) {
+            // No fundsReceiver set, add to treasury
+            treasuryBalance += flatFee;
+        }
     }
 }
