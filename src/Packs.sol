@@ -354,11 +354,7 @@ contract Packs is
 
         // Forward pack revenue to the funds receiver
         commitBalance -= commitData.packPrice;
-        (bool revenueSuccess,) = payable(fundsReceiver).call{value: commitData.packPrice}("");
-        if (!revenueSuccess) {
-            // If the transfer fails, fall back to treasury so the admin can rescue later
-            treasuryBalance += commitData.packPrice;
-        }
+        treasuryBalance += commitData.packPrice;
 
         // Handle user choice and fulfil order or payout
         if (fulfillmentType == FulfillmentOption.NFT) {
@@ -416,8 +412,6 @@ contract Packs is
             }
         } else {
             // Payout fulfillment route
-            // Calculate payout remainder to fundsReceiver
-            uint256 remainderAmount = orderAmount_ - payoutAmount_;
 
             (bool success,) = commitData.receiver.call{value: payoutAmount_}("");
             if (success) {
@@ -426,14 +420,7 @@ contract Packs is
                 emit TransferFailure(commitData.id, commitData.receiver, payoutAmount_, digest);
             }
 
-            // Transfer the remainder to the funds receiver
-            if (remainderAmount > 0) {
-                (bool remainderSuccess,) = payable(fundsReceiver).call{value: remainderAmount}("");
-                if (remainderSuccess) {
-                    treasuryBalance -= remainderAmount;
-                }
-                // If transfer fails, keep funds in the treasury for later rescue
-            }
+            // Keep remainder in treasury (no transfer needed since it's already there)
 
             // emit the payout
             emit Fulfillment(
