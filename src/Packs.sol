@@ -55,6 +55,8 @@ contract Packs is
 
     uint256 public constant BASE_POINTS = 10000;
 
+    uint256 public protocolFee = 0;
+
     event Commit(
         address indexed sender,
         uint256 indexed commitId,
@@ -64,7 +66,8 @@ contract Packs is
         uint256 counter,
         uint256 packPrice,
         bytes32 packHash,
-        bytes32 digest
+        bytes32 digest,
+        uint256 protocolFee
     );
     event Fulfillment(
         address indexed sender,
@@ -100,6 +103,7 @@ contract Packs is
     event TransferFailure(uint256 indexed commitId, address indexed receiver, uint256 amount, bytes32 digest);
     event MinPackRewardMultiplierUpdated(uint256 oldMinPackRewardMultiplier, uint256 newMinPackRewardMultiplier);
     event MaxPackRewardMultiplierUpdated(uint256 oldMaxPackRewardMultiplier, uint256 newMaxPackRewardMultiplier);
+    event ProtocolFeeUpdated(uint256 oldProtocolFee, uint256 newProtocolFee);
 
     error AlreadyCosigner();
     error AlreadyFulfilled();
@@ -124,7 +128,7 @@ contract Packs is
         _;
     }
 
-    constructor(address fundsReceiver_, address prng_, address fundsReceiverManager_) initializer {
+    constructor(uint256 protocolFee_,address fundsReceiver_, address prng_, address fundsReceiverManager_) initializer {
         __MEAccessControl_init();
         __Pausable_init();
         __PacksSignatureVerifier_init("Packs", "1");
@@ -135,6 +139,7 @@ contract Packs is
             _depositTreasury(existingBalance);
         }
 
+        _setProtocolFee(protocolFee_);
         _setFundsReceiver(fundsReceiver_);
         PRNG = IPRNG(prng_);
         _grantRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiverManager_);
@@ -851,5 +856,16 @@ contract Packs is
         address oldFundsReceiver = fundsReceiver;
         fundsReceiver = payable(fundsReceiver_);
         emit FundsReceiverUpdated(oldFundsReceiver, fundsReceiver_);
+    }
+
+    function setProtocolFee(uint256 protocolFee_) external onlyRole(OPS_ROLE) {
+        _setProtocolFee(protocolFee_);
+    }
+
+    function _setProtocolFee(uint256 protocolFee_) internal {
+        if (protocolFee_ > BASE_POINTS) revert InvalidProtocolFee();
+        uint256 oldProtocolFee = protocolFee;
+        protocolFee = protocolFee_;
+        emit ProtocolFeeUpdated(oldProtocolFee, protocolFee_);
     }
 }
