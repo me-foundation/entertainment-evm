@@ -66,7 +66,8 @@ contract Packs is
         uint256 counter,
         uint256 packPrice,
         bytes32 packHash,
-        bytes32 digest
+        bytes32 digest,
+        uint256 flatFee
     );
     event Fulfillment(
         address indexed sender,
