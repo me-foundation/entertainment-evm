@@ -251,7 +251,7 @@ contract Packs is
         bytes32 digest = hashCommit(commitData);
         commitIdByDigest[digest] = commitId;
 
-        emit Commit(msg.sender, commitId, receiver_, cosigner_, seed_, userCounter, packPrice, packHash, digest);
+        emit Commit(msg.sender, commitId, receiver_, cosigner_, seed_, userCounter, packPrice, packHash, digest, flatFee);
 
         return commitId;
     }

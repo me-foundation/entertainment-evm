@@ -104,7 +104,8 @@ contract TestPacks is Test {
         uint256 counter,
         uint256 packPrice,
         bytes32 bucketsHash,
-        bytes32 digest
+        bytes32 digest,
+        uint256 flatFee
     );
 
     event Fulfillment(
@@ -240,7 +241,8 @@ contract TestPacks is Test {
                 packPrice,
                 buckets
             ),
-            digest
+            digest,
+            flatFee
         );
 
         uint256 commitId = packs.commit{value: packPrice}(
