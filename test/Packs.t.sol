@@ -84,6 +84,8 @@ contract TestPacks is Test {
 
     uint256 seed = 12345;
     uint256 packPrice = 0.01 ether;
+    uint256 protocolFee = 0;
+    
 
     // Test bucket data
     PacksSignatureVerifierUpgradeable.BucketData[] buckets;
@@ -104,7 +106,8 @@ contract TestPacks is Test {
         uint256 counter,
         uint256 packPrice,
         bytes32 bucketsHash,
-        bytes32 digest
+        bytes32 digest,
+        uint256 protocolFee
     );
 
     event Fulfillment(
@@ -141,7 +144,7 @@ contract TestPacks is Test {
         vm.startPrank(admin);
         prng = new PRNG();
 
-        packs = new Packs(fundsReceiver, address(prng), fundsReceiverManager);
+        packs = new Packs(protocolFee, fundsReceiver, address(prng), fundsReceiverManager);
 
         vm.deal(admin, 100 ether);
         vm.deal(receiver, 100 ether);
@@ -240,7 +243,8 @@ contract TestPacks is Test {
                 packPrice,
                 buckets
             ),
-            digest
+            digest,
+            protocolFee
         );
 
         uint256 commitId = packs.commit{value: packPrice}(

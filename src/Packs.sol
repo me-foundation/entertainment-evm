@@ -56,6 +56,8 @@ contract Packs is
     uint256 public constant BASE_POINTS = 10000;
 
     uint256 public protocolFee = 0;
+    uint256 public protocolBalance = 0;
+    mapping(uint256 commitId => uint256 protocolFee) public feesPaid;
 
     event Commit(
         address indexed sender,
@@ -120,6 +122,7 @@ contract Packs is
     error CommitNotCancellable();
     error InvalidFundsReceiverManager();
     error BucketSelectionFailed();
+    error InvalidProtocolFee();
 
     modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
         if (packs[commitId_].receiver != msg.sender && packs[commitId_].cosigner != msg.sender) {
@@ -177,7 +180,7 @@ contract Packs is
         bytes memory signature_
     ) external payable whenNotPaused returns (uint256) {
         // Amount user is sending to purchase the pack
-        uint256 packPrice = msg.value;
+        uint256 packPrice = calculateContributionWithoutFee(msg.value, protocolFee);
 
         if (packPrice == 0) revert Errors.InvalidAmount();
         if (packPrice < minPackPrice) revert Errors.InvalidAmount();
@@ -222,6 +225,9 @@ contract Packs is
         uint256 commitId = packs.length;
         uint256 userCounter = packCount[receiver_]++;
 
+        feesPaid[commitId] = msg.value - packPrice;
+        protocolBalance += feesPaid[commitId];
+
         commitBalance += packPrice;
 
         CommitData memory commitData = CommitData({
@@ -242,7 +248,7 @@ contract Packs is
         bytes32 digest = hashCommit(commitData);
         commitIdByDigest[digest] = commitId;
 
-        emit Commit(msg.sender, commitId, receiver_, cosigner_, seed_, userCounter, packPrice, packHash, digest);
+        emit Commit(msg.sender, commitId, receiver_, cosigner_, seed_, userCounter, packPrice, packHash, digest, feesPaid[commitId]);
 
         return commitId;
     }
@@ -867,5 +873,18 @@ contract Packs is
         uint256 oldProtocolFee = protocolFee;
         protocolFee = protocolFee_;
         emit ProtocolFeeUpdated(oldProtocolFee, protocolFee_);
+    }
+
+    /// @notice Calculate contribution amount with custom fee rate
+    /// @param amount The original amount including fee
+    /// @param feeRate The fee rate to apply (in basis points)
+    /// @return The contribution amount without the fee
+    /// @dev Uses formula: contribution = (amount * FEE_DENOMINATOR) / (FEE_DENOMINATOR + feePercent)
+    /// @dev This ensures fee isn't charged on the fee portion itself
+    function calculateContributionWithoutFee(
+        uint256 amount,
+        uint256 feeRate
+    ) public view returns (uint256) {
+        return (amount * BASE_POINTS) / (BASE_POINTS + feeRate);
     }
 }
