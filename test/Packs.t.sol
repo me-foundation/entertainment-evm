@@ -1430,7 +1430,7 @@ contract TestPacks is Test {
             cosigner
         );
 
-        uint256 initialFundsReceiverBalance = fundsReceiver.balance;
+        uint256 initialTreasuryBalance = packs.treasuryBalance();
 
         // Funds cosigner
         vm.deal(cosigner, 1 ether);
@@ -1450,11 +1450,15 @@ contract TestPacks is Test {
             PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout
         );
 
-        // fundsReceiver should have received pack price plus remainder of payout
-        uint256 remainderAmount = orderAmount - 0.0135 ether; // Fixed payout amount
+        // Treasury should have grown by:
+        // + pack price (from commit) 
+        // + 1 ether (from fulfill call)
+        // - payout amount (to user)
+        // (remainder now stays in treasury)
+        uint256 expectedTreasuryBalance = initialTreasuryBalance + packPrice + 1 ether - 0.0135 ether;
         assertEq(
-            fundsReceiver.balance,
-            initialFundsReceiverBalance + packPrice + remainderAmount
+            packs.treasuryBalance(),
+            expectedTreasuryBalance
         );
     }
 
@@ -1506,7 +1510,7 @@ contract TestPacks is Test {
             cosigner
         );
 
-        uint256 initialFundsReceiverBalance = fundsReceiver.balance;
+        uint256 initialTreasuryBalance = packs.treasuryBalance();
 
         // Funds cosigner
         vm.deal(cosigner, 1 ether);
@@ -1526,10 +1530,11 @@ contract TestPacks is Test {
             PacksSignatureVerifierUpgradeable.FulfillmentOption.NFT
         );
 
-        // fundsReceiver should have received only the pack price (no remainder for NFT path)
+        // Treasury should have grown by pack price plus 1 ether (from fulfill call) minus order amount (for NFT purchase)
+        uint256 expectedTreasuryBalance = initialTreasuryBalance + packPrice + 1 ether - orderAmount;
         assertEq(
-            fundsReceiver.balance,
-            initialFundsReceiverBalance + packPrice
+            packs.treasuryBalance(),
+            expectedTreasuryBalance
         );
     }
 
