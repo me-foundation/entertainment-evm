@@ -371,6 +371,11 @@ contract Packs is
             treasuryBalance += commitData.packPrice;
         }
 
+        // Move protocol fees to treasury balance
+        uint256 protocolFeesPaid = feesPaid[commitId_];
+        protocolBalance -= protocolFeesPaid;
+        treasuryBalance += protocolFeesPaid;
+
         // Handle user choice and fulfil order or payout
         if (fulfillmentType == FulfillmentOption.NFT) {
             // execute the market data to transfer the nft
@@ -555,11 +560,17 @@ contract Packs is
         uint256 commitAmount = commitData.packPrice;
         commitBalance -= commitAmount;
 
-        (bool success,) = payable(commitData.receiver).call{value: commitAmount}("");
+        // Also refund protocol fees
+        uint256 protocolFeesPaid = feesPaid[commitId_];
+        protocolBalance -= protocolFeesPaid;
+        
+        uint256 totalRefund = commitAmount + protocolFeesPaid;
+
+        (bool success,) = payable(commitData.receiver).call{value: totalRefund}("");
         if (!success) {
             // If the transfer fails, fall back to treasury so the admin can rescue later
-            treasuryBalance += commitAmount;
-            emit TransferFailure(commitId_, commitData.receiver, commitAmount, hashCommit(commitData));
+            treasuryBalance += totalRefund;
+            emit TransferFailure(commitId_, commitData.receiver, totalRefund, hashCommit(commitData));
         }
 
         emit CommitCancelled(commitId_, hashCommit(commitData));
