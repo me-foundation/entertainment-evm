@@ -2887,4 +2887,129 @@ contract TestPacks is Test {
         vm.stopPrank();
     }
 
+    function testProtocolFeeDeductionAndHandling() public {
+        // Set protocol fee to 5% (500 basis points)
+        vm.prank(admin);
+        packs.setProtocolFee(500);
+        
+        uint256 totalAmount = 0.011 ether; // Use larger amount to ensure pack price meets minimum
+        uint256 expectedPackPrice = packs.calculateContributionWithoutFee(totalAmount, 500);
+        uint256 expectedProtocolFee = totalAmount - expectedPackPrice;
+        
+        uint256 initialProtocolBalance = packs.protocolBalance();
+        uint256 initialCommitBalance = packs.commitBalance();
+        uint256 initialTreasuryBalance = packs.treasuryBalance();
+
+        // User commits with protocol fee
+        vm.startPrank(user);
+        vm.deal(user, totalAmount);
+        bytes memory packSignature = signPack(expectedPackPrice, buckets);
+        
+        uint256 commitId = packs.commit{value: totalAmount}(
+            receiver,
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+
+        // Verify protocol fee was tracked correctly
+        assertEq(packs.protocolBalance(), initialProtocolBalance + expectedProtocolFee);
+        assertEq(packs.feesPaid(commitId), expectedProtocolFee);
+        
+        // Verify only pack price (after fee) was added to commitBalance
+        assertEq(packs.commitBalance(), initialCommitBalance + expectedPackPrice);
+        
+        // Verify stored pack price is correct
+        (,,,,,uint256 storedPackPrice,) = packs.packs(commitId);
+        assertEq(storedPackPrice, expectedPackPrice);
+
+        // Test fulfillment - protocol fees should move to treasury
+        vm.deal(cosigner, 1 ether);
+        vm.startPrank(cosigner);
+        
+        bytes memory commitSignature = signCommit(commitId, receiver, seed, 0, expectedPackPrice, buckets);
+        bytes memory fulfillmentSignature = signFulfillment(
+            commitId, receiver, seed, 0, expectedPackPrice, buckets, 
+            address(0x123), 0.015 ether, hex"", address(0), 0, 0.012 ether,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+            cosigner
+        );
+
+        packs.fulfill{value: 1 ether}(
+            commitId,
+            address(0x123),
+            hex"",
+            0.015 ether,
+            address(0),
+            0,
+            0.012 ether,
+            commitSignature,
+            fulfillmentSignature,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout
+        );
+        vm.stopPrank();
+
+        // Verify protocol fees moved to treasury and protocolBalance decreased
+        assertEq(packs.protocolBalance(), initialProtocolBalance);
+        
+        // Treasury should have: initial + 1 ether (from fulfill) + protocol fee - payout (0.012 ether) - remainder (0.003 ether)
+        uint256 remainderAmount = 0.015 ether - 0.012 ether; // orderAmount - payoutAmount
+        uint256 expectedTreasuryBalance = initialTreasuryBalance + 1 ether + expectedProtocolFee - 0.012 ether - remainderAmount;
+        assertEq(packs.treasuryBalance(), expectedTreasuryBalance);
+    }
+
+    function testProtocolFeeRefundedOnCancel() public {
+        // Set protocol fee to 5% (500 basis points)
+        vm.prank(admin);
+        packs.setProtocolFee(500);
+        
+        uint256 totalAmount = 0.011 ether;
+        uint256 expectedPackPrice = packs.calculateContributionWithoutFee(totalAmount, 500);
+        uint256 expectedProtocolFee = totalAmount - expectedPackPrice;
+        
+        uint256 initialProtocolBalance = packs.protocolBalance();
+        uint256 initialCommitBalance = packs.commitBalance();
+        uint256 initialReceiverBalance = receiver.balance;
+
+        // User commits with protocol fee
+        vm.startPrank(user);
+        vm.deal(user, totalAmount);
+        bytes memory packSignature = signPack(expectedPackPrice, buckets);
+        
+        uint256 commitId = packs.commit{value: totalAmount}(
+            receiver,
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+
+        // Verify protocol fee was tracked correctly after commit
+        assertEq(packs.protocolBalance(), initialProtocolBalance + expectedProtocolFee);
+        assertEq(packs.feesPaid(commitId), expectedProtocolFee);
+        assertEq(packs.commitBalance(), initialCommitBalance + expectedPackPrice);
+
+        // Wait for cancellation period to pass
+        vm.warp(block.timestamp + 2 hours);
+        
+        vm.prank(receiver);
+        packs.cancel(commitId);
+
+        // Verify protocol fees were refunded along with pack price
+        assertEq(packs.protocolBalance(), initialProtocolBalance); // Protocol balance should be back to initial
+        assertEq(packs.commitBalance(), initialCommitBalance); // Commit balance should be back to initial
+        
+        // Receiver should have received full refund (pack price + protocol fee)
+        assertEq(receiver.balance, initialReceiverBalance + totalAmount);
+        
+        // Verify commit is marked as cancelled
+        assertTrue(packs.isCancelled(commitId));
+        assertFalse(packs.isFulfilled(commitId));
+    }
+
 }
