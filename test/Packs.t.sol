@@ -81,10 +81,10 @@ contract TestPacks is Test {
     address receiver = vm.addr(RECEIVER_PRIVATE_KEY); // Derive receiver from known private key
     address fundsReceiverManager = address(0x4);
     address fundsReceiver = address(0x5);
-
+    
     uint256 seed = 12345;
     uint256 packPrice = 0.01 ether;
-
+    uint256 flatFee = 0 ether;
     // Test bucket data
     PacksSignatureVerifierUpgradeable.BucketData[] buckets;
     PacksSignatureVerifierUpgradeable.BucketData[] bucketsMulti;
@@ -104,7 +104,8 @@ contract TestPacks is Test {
         uint256 counter,
         uint256 packPrice,
         bytes32 bucketsHash,
-        bytes32 digest
+        bytes32 digest,
+        uint256 flatFee
     );
 
     event Fulfillment(
@@ -141,7 +142,7 @@ contract TestPacks is Test {
         vm.startPrank(admin);
         prng = new PRNG();
 
-        packs = new Packs(fundsReceiver, address(prng), fundsReceiverManager);
+        packs = new Packs(flatFee, fundsReceiver, address(prng), fundsReceiverManager);
 
         vm.deal(admin, 100 ether);
         vm.deal(receiver, 100 ether);
@@ -240,7 +241,8 @@ contract TestPacks is Test {
                 packPrice,
                 buckets
             ),
-            digest
+            digest,
+            flatFee
         );
 
         uint256 commitId = packs.commit{value: packPrice}(
@@ -2886,6 +2888,111 @@ contract TestPacks is Test {
         );
 
         vm.stopPrank();
+    }
+
+    function testFlatFeeCommit() public {
+        // Set flat fee to 0.001 ETH
+        vm.prank(admin);
+        packs.setFlatFee(0.001 ether);
+        assertEq(packs.flatFee(), 0.001 ether);
+
+        uint256 totalAmount = 0.011 ether; // Total amount user sends (pack price + flat fee)
+        uint256 expectedPackPrice = 0.01 ether; // Expected pack price after fee deduction
+
+        uint256 initialFundsReceiverBalance = fundsReceiver.balance;
+
+        // Commit with flat fee
+        vm.startPrank(user);
+        vm.deal(user, totalAmount);
+        bytes memory packSignature = signPack(expectedPackPrice, buckets);
+        uint256 commitId = packs.commit{value: totalAmount}(
+            receiver,
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+
+        // Check that flat fee was sent to fundsReceiver
+        assertEq(fundsReceiver.balance, initialFundsReceiverBalance + 0.001 ether);
+
+        // Check that commit balance reflects pack price (after fee deduction)
+        assertEq(packs.commitBalance(), expectedPackPrice);
+
+        // Check that stored pack price is the pack price (after fee deduction)
+        (,,,,,uint256 storedPackPrice,) = packs.packs(commitId);
+        assertEq(storedPackPrice, expectedPackPrice);
+    }
+
+    function testFlatFeeCommitInsufficientAmount() public {
+        // Set flat fee to 0.005 ETH
+        vm.prank(admin);
+        packs.setFlatFee(0.005 ether);
+
+        // Try to commit with amount equal to flat fee (should fail)
+        vm.startPrank(user);
+        vm.deal(user, 0.005 ether);
+        vm.expectRevert(Errors.InvalidAmount.selector);
+        packs.commit{value: 0.005 ether}(
+            receiver,
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            ""
+        );
+        vm.stopPrank();
+    }
+
+    function testFlatFeeSetterSecurity() public {
+        // Test that only admin can set flat fee
+        vm.expectRevert();
+        vm.prank(user);
+        packs.setFlatFee(0.001 ether);
+
+        // Test that admin can set flat fee
+        vm.prank(admin);
+        packs.setFlatFee(0.001 ether);
+        assertEq(packs.flatFee(), 0.001 ether);
+    }
+
+    function testFlatFeeDeductionAndPayment() public {
+        // Set flat fee to 0.001 ETH
+        vm.prank(admin);
+        packs.setFlatFee(0.001 ether);
+
+        uint256 packPrice = 0.01 ether;
+        uint256 totalAmount = packPrice + 0.001 ether; // pack price + flat fee
+        
+        uint256 initialFundsReceiverBalance = fundsReceiver.balance;
+        uint256 initialCommitBalance = packs.commitBalance();
+
+        // User commits with total amount
+        vm.startPrank(user);
+        vm.deal(user, totalAmount);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        
+        uint256 commitId = packs.commit{value: totalAmount}(
+            receiver,
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+
+        // Verify flat fee was sent to fundsReceiver
+        assertEq(fundsReceiver.balance, initialFundsReceiverBalance + 0.001 ether);
+        
+        // Verify only pack price (after fee) was added to commitBalance
+        assertEq(packs.commitBalance(), initialCommitBalance + packPrice);
+        
+        // Verify stored pack price is the actual pack price (after fee deduction)
+        (,,,,,uint256 storedPackPrice,) = packs.packs(commitId);
+        assertEq(storedPackPrice, packPrice);
     }
 
 }

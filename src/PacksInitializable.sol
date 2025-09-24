@@ -9,13 +9,14 @@ contract PacksInitializable is Packs, UUPSUpgradeable {
     error InvalidZeroAddress();
 
     /// @dev Disables initializers for the implementation contract.
-    constructor() Packs(address(0x2), address(0x3), address(0x4)) {
+    constructor() Packs(0, address(0x2), address(0x3), address(0x4)) {
         _disableInitializers();
     }
 
     /// @notice Initializes the contract and handles any pre-existing balance
     /// @dev Sets up EIP712 domain separator and deposits any ETH sent during deployment
     function initialize(
+        uint256 flatFee_,
         address initialOwner_,
         address fundsReceiver_,
         address prng_,
@@ -33,6 +34,7 @@ contract PacksInitializable is Packs, UUPSUpgradeable {
             _depositTreasury(existingBalance);
         }
 
+        _setFlatFee(flatFee_);
         _setFundsReceiver(fundsReceiver_);
         PRNG = IPRNG(prng_);
         _grantRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiverManager_);
