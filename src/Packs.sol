@@ -185,12 +185,10 @@ contract Packs is
     ) external payable whenNotPaused returns (uint256) {
         // Amount user is sending to purchase the pack
         uint256 totalAmount = msg.value;
-        uint256 packPrice = calculateContributionWithoutFee(totalAmount, protocolFee + flatFee);
+        uint256 packPrice = calculateContributionWithoutFee(totalAmount, protocolFee) - flatFee;
 
         if (totalAmount == 0) revert Errors.InvalidAmount();
         if (totalAmount <= flatFee) revert Errors.InvalidAmount(); 
-        
-        
         
         if (packPrice < minPackPrice) revert Errors.InvalidAmount();
         if (packPrice > maxPackPrice) revert Errors.InvalidAmount();
