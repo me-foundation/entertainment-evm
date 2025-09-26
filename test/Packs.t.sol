@@ -84,6 +84,9 @@ contract TestPacks is Test {
     
     uint256 seed = 12345;
     uint256 packPrice = 0.01 ether;
+    uint256 protocolFee = 0;
+    
+
     uint256 flatFee = 0 ether;
     // Test bucket data
     PacksSignatureVerifierUpgradeable.BucketData[] buckets;
@@ -105,6 +108,7 @@ contract TestPacks is Test {
         uint256 packPrice,
         bytes32 bucketsHash,
         bytes32 digest,
+        uint256 protocolFee,
         uint256 flatFee
     );
 
@@ -142,7 +146,7 @@ contract TestPacks is Test {
         vm.startPrank(admin);
         prng = new PRNG();
 
-        packs = new Packs(flatFee, fundsReceiver, address(prng), fundsReceiverManager);
+        packs = new Packs(protocolFee, flatFee, fundsReceiver, address(prng), fundsReceiverManager);
 
         vm.deal(admin, 100 ether);
         vm.deal(receiver, 100 ether);
@@ -242,6 +246,7 @@ contract TestPacks is Test {
                 buckets
             ),
             digest,
+            protocolFee,
             flatFee
         );
 
@@ -2889,7 +2894,7 @@ contract TestPacks is Test {
 
         vm.stopPrank();
     }
-
+    
     function testFlatFeeCommit() public {
         // Set flat fee to 0.001 ETH
         vm.prank(admin);
@@ -2994,5 +2999,6 @@ contract TestPacks is Test {
         (,,,,,uint256 storedPackPrice,) = packs.packs(commitId);
         assertEq(storedPackPrice, packPrice);
     }
+
 
 }
