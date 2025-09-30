@@ -36,8 +36,8 @@ contract PacksBurnInTest is Test {
     string public BURN_IN_RPC_URL;
     
     // Production contract addresses on Base mainnet
-    address public constant PACKS_V1_IMPLEMENTATION = 0x06bb79bFcBA7CaCEA2A2604E224ab6218CA81338;
-    address public constant PACKS_NEXT_IMPLEMENTATION = 0x06bb79bFcBA7CaCEA2A2604E224ab6218CA81338;
+    address public constant PACKS_V1_IMPLEMENTATION = 0x90BaCf195755C76B2bf2b31f8E23e9313586a57F;
+    address public constant PACKS_NEXT_IMPLEMENTATION = 0x90BaCf195755C76B2bf2b31f8E23e9313586a57F;
 
 
     address public constant PACKS_PROXY = 0xf541d82630A5ba513eB709c41d06ac3D009C0248;
@@ -778,11 +778,127 @@ contract PacksBurnInTest is Test {
     }
 
     
-    // ============ PLACEHOLDER FOR FUTURE TESTS ============
+    // ============ POST-UPGRADE BURN-IN TEST ============
     
-    // Tests will verify:
-    // 1. Basic functionality works on forked mainnet (completed above)
-    // 2. Upgrade scenarios  
-    // 3. State consistency after upgrades
-    // 4. Integration with existing mainnet state
+    function testPostUpgradeHappyPath() public {
+        // Skip if RPC URL not set
+        if (bytes(BURN_IN_RPC_URL).length == 0) {
+            vm.skip(true);
+            return;
+        }
+        
+        console.log("=== POST-UPGRADE HAPPY PATH TEST ===");
+        console.log("Testing already-upgraded proxy at:", PACKS_PROXY);
+        
+        // Verify we're connected to the proxy
+        address currentImplementation = address(uint160(uint256(vm.load(
+            PACKS_PROXY, 
+            0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc
+        ))));
+        console.log("Current implementation:", currentImplementation);
+        
+        // Add our test cosigner
+        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        vm.prank(currentAdmin);
+        packs.addCosigner(cosigner);
+        console.log("Test cosigner added:", cosigner);
+        
+        // Setup test parameters
+        uint256 packPrice = 0.25 ether;
+        PacksSignatureVerifierUpgradeable.BucketData[] memory buckets = _createBuckets();
+        
+        // Step 1: User creates a commit
+        console.log("=== COMMIT PHASE ===");
+        console.log("User1 balance before commit:", user1.balance);
+        
+        vm.startPrank(user1);
+        bytes memory packSignature = _signPack(packPrice, buckets, cosignerPrivateKey);
+        uint256 commitId = packs.commit{value: packPrice}(
+            user1,
+            cosigner,
+            12345,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        console.log("Commit created with ID:", commitId);
+        console.log("User1 balance after commit:", user1.balance);
+        
+        // Fund contract treasury
+        (bool success, ) = payable(address(packs)).call{value: 10 ether}("");
+        require(success, "Failed to fund contract");
+        vm.stopPrank();
+        
+        // Fund cosigner
+        vm.deal(cosigner, 5 ether);
+        
+        console.log("Treasury funded with 10 ether");
+        
+        // Step 2: Calculate digest and fulfill
+        console.log("=== FULFILLMENT PHASE ===");
+        
+        uint256 userCounter = packs.packCount(user1) - 1;
+        PacksSignatureVerifierUpgradeable.CommitData memory commitData = 
+            PacksSignatureVerifierUpgradeable.CommitData({
+                id: commitId,
+                receiver: user1,
+                cosigner: cosigner,
+                seed: 12345,
+                counter: userCounter,
+                packPrice: packPrice,
+                buckets: buckets,
+                packHash: packs.hashPack(
+                    PacksSignatureVerifierUpgradeable.PackType.NFT,
+                    packPrice,
+                    buckets
+                )
+            });
+        bytes32 digest = packs.hashCommit(commitData);
+        console.log("Commit digest:", vm.toString(digest));
+        
+        // Fulfill with payout
+        address marketplace = address(0x123);
+        uint256 orderAmount = 1.0 ether;
+        uint256 expectedPayoutAmount = 1.0 ether;
+        bytes memory fulfillmentSignature = _signFulfillment(
+            digest,
+            marketplace,
+            orderAmount,
+            "",
+            address(0),
+            0,
+            expectedPayoutAmount,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+            cosignerPrivateKey
+        );
+        
+        bytes memory commitSignature = _signCommit(commitData, cosignerPrivateKey);
+        uint256 rng = prng.rng(commitSignature);
+        console.log("RNG roll:", rng);
+        
+        uint256 userBalanceBefore = user1.balance;
+        console.log("User1 balance before fulfillment:", userBalanceBefore);
+        
+        vm.prank(cosigner);
+        packs.fulfill(
+            commitId,
+            marketplace,
+            "",
+            orderAmount,
+            address(0),
+            0,
+            expectedPayoutAmount,
+            commitSignature,
+            fulfillmentSignature,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout
+        );
+        
+        console.log("User1 balance after fulfillment:", user1.balance);
+        console.log("User1 balance change:", user1.balance - userBalanceBefore);
+        
+        // Verify fulfillment
+        assertTrue(packs.isFulfilled(commitId), "Pack should be fulfilled");
+        console.log("=== TEST PASSED ===");
+        console.log("Post-upgrade happy path completed successfully!");
+    }
 }
