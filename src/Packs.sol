@@ -57,6 +57,7 @@ contract Packs is
 
     uint256 public protocolFee = 0;
     uint256 public protocolBalance = 0;
+    
     mapping(uint256 commitId => uint256 protocolFee) public feesPaid;
     uint256 public flatFee = 0;
 

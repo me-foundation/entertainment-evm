@@ -32,7 +32,8 @@ contract DeployPacks is Script {
 
         // 3. Prepare initializer calldata
         bytes memory initData = abi.encodeWithSignature(
-            "initialize(address,address,address,address)",
+            "initialize(uint256,uint256,address,address,address,address)",
+            0,0,
             admin, // initialOwner_
             fundsReceiver, // fundsReceiver_
             address(prng), // prng_
