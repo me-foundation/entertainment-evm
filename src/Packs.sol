@@ -16,6 +16,10 @@ contract Packs is
     ReentrancyGuardUpgradeable,
     TokenRescuer
 {
+    // ============================================================
+    // STORAGE
+    // ============================================================
+
     IPRNG public PRNG;
     address payable public fundsReceiver;
 
@@ -57,9 +61,12 @@ contract Packs is
 
     uint256 public protocolFee = 0;
     uint256 public protocolBalance = 0;
-    
     mapping(uint256 commitId => uint256 protocolFee) public feesPaid;
     uint256 public flatFee = 0;
+
+    // ============================================================
+    // EVENTS
+    // ============================================================
 
     event Commit(
         address indexed sender,
@@ -111,29 +118,20 @@ contract Packs is
     event ProtocolFeeUpdated(uint256 oldProtocolFee, uint256 newProtocolFee);
     event FlatFeeUpdated(uint256 oldFlatFee, uint256 newFlatFee);
 
-    error AlreadyCosigner();
-    error AlreadyFulfilled();
-    error InvalidCommitOwner();
-    error InvalidBuckets();
-    error InvalidReward();
-    error InvalidPackPrice();
-    error InvalidPackRewardMultiplier();
-    error InvalidCommitId();
-    error WithdrawalFailed();
-    error InvalidCommitCancellableTime();
-    error InvalidNftFulfillmentExpiryTime();
-    error CommitIsCancelled();
-    error CommitNotCancellable();
-    error InvalidFundsReceiverManager();
-    error BucketSelectionFailed();
-    error InvalidProtocolFee();
+    // ============================================================
+    // MODIFIERS
+    // ============================================================
 
     modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
         if (packs[commitId_].receiver != msg.sender && packs[commitId_].cosigner != msg.sender) {
-            revert InvalidCommitOwner();
+            revert Errors.InvalidCommitOwner();
         }
         _;
     }
+
+    // ============================================================
+    // CONSTRUCTOR
+    // ============================================================
 
     constructor(uint256 protocolFee_,uint256 flatFee_,address fundsReceiver_, address prng_, address fundsReceiverManager_) initializer {
         __MEAccessControl_init();
@@ -167,6 +165,10 @@ contract Packs is
         nftFulfillmentExpiryTime = 10 minutes;
     }
 
+    // ============================================================
+    // CORE BUSINESS LOGIC
+    // ============================================================
+
     /// @notice Allows a user to commit funds for a pack purchase
     /// @param receiver_ Address that will receive the NFT/ETH if won
     /// @param cosigner_ Address of the authorized cosigner
@@ -184,100 +186,7 @@ contract Packs is
         BucketData[] memory buckets_,
         bytes memory signature_
     ) external payable whenNotPaused returns (uint256) {
-        // Amount user is sending to purchase the pack
-        uint256 totalAmount = msg.value;
-        uint256 packPrice = calculateContributionWithoutFee(totalAmount, protocolFee) - flatFee;
-
-        if (totalAmount == 0) revert Errors.InvalidAmount();
-        if (totalAmount <= flatFee) revert Errors.InvalidAmount(); 
-        
-        if (packPrice < minPackPrice) revert Errors.InvalidAmount();
-        if (packPrice > maxPackPrice) revert Errors.InvalidAmount();
-
-        if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
-        if (cosigner_ == address(0)) revert Errors.InvalidAddress();
-        if (receiver_ == address(0)) revert Errors.InvalidAddress();
-
-        // Validate bucket count
-        if (buckets_.length < MIN_BUCKETS) revert InvalidBuckets();
-        if (buckets_.length > MAX_BUCKETS) revert InvalidBuckets();
-
-        // Validate bucket's min and max values, ascending value range, and odds
-        uint256 totalOdds = 0;
-        for (uint256 i = 0; i < buckets_.length; i++) {
-            if (buckets_[i].minValue == 0) revert InvalidReward();
-            if (buckets_[i].maxValue == 0) revert InvalidReward();
-            if (buckets_[i].minValue > buckets_[i].maxValue) revert InvalidReward();
-            if (buckets_[i].minValue < minReward) revert InvalidReward();
-            if (buckets_[i].maxValue > maxReward) revert InvalidReward();
-            if (buckets_[i].minValue < packPrice * minPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
-            if (buckets_[i].maxValue > packPrice * maxPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
-            if (buckets_[i].oddsBps == 0) revert InvalidBuckets();
-            if (buckets_[i].oddsBps > BASE_POINTS) revert InvalidBuckets();
-            if (i < buckets_.length - 1 && buckets_[i].maxValue > buckets_[i + 1].minValue) revert InvalidBuckets();
-            
-            // Sum individual probabilities
-            totalOdds += buckets_[i].oddsBps;
-        }
-
-        // Final total odds check - must equal 10000 (100%)
-        if (totalOdds != BASE_POINTS) revert InvalidBuckets();
-
-        // Hash pack for cosigner validation and event emission
-        // Pack data gets re-checked in commitSignature on fulfill
-        bytes32 packHash = hashPack(packType_, packPrice, buckets_);
-        address cosigner = verifyHash(packHash, signature_);
-        if (cosigner != cosigner_) revert Errors.InvalidAddress();
-        if (!isCosigner[cosigner]) revert Errors.InvalidAddress();
-
-        uint256 commitId = packs.length;
-        uint256 userCounter = packCount[receiver_]++;
-
-        feesPaid[commitId] = msg.value - packPrice;
-        protocolBalance += feesPaid[commitId];
-
-        // Handle flat fee payment
-        _handleFlatFeePayment();
-
-        // Track pack price (after flat fee) in commit balance
-        commitBalance += packPrice;
-
-        CommitData memory commitData = CommitData({
-            id: commitId,
-            receiver: receiver_,
-            cosigner: cosigner_,
-            seed: seed_,
-            counter: userCounter,
-            packPrice: packPrice,
-            buckets: buckets_,
-            packHash: packHash
-        });
-
-        packs.push(commitData);
-        commitCancellableAt[commitId] = block.timestamp + commitCancellableTime;
-        nftFulfillmentExpiresAt[commitId] = block.timestamp + nftFulfillmentExpiryTime;
-
-        bytes32 digest = hashCommit(commitData);
-        commitIdByDigest[digest] = commitId;
-
-        emit Commit(msg.sender, commitId, receiver_, cosigner_, seed_, userCounter, packPrice, packHash, digest, feesPaid[commitId], flatFee);
-
-        return commitId;
-    }
-
-    /// @notice Get the index of the bucket selected for a given RNG value
-    /// @param rng RNG value (0-10000)
-    /// @param buckets Array of bucket data
-    /// @return bucketIndex_ Index of the selected bucket
-    function _getBucketIndex(uint256 rng, BucketData[] memory buckets) internal pure returns (uint256 bucketIndex_) {
-        uint256 cumulativeOdds = 0;
-        for (uint256 i = 0; i < buckets.length; i++) {
-            cumulativeOdds += buckets[i].oddsBps;
-            if (rng < cumulativeOdds) {
-                return i;
-            }
-        }
-        revert BucketSelectionFailed();
+        return _commit(receiver_, cosigner_, seed_, packType_, buckets_, signature_);
     }
 
     /// @notice Fulfills a commit with the result of the random number generation
@@ -316,157 +225,6 @@ contract Packs is
             fulfillmentSignature_,
             choice_
         );
-    }
-
-    function _fulfill(
-        uint256 commitId_,
-        address marketplace_,
-        bytes calldata orderData_,
-        uint256 orderAmount_,
-        address token_,
-        uint256 tokenId_,
-        uint256 payoutAmount_,
-        bytes calldata commitSignature_,
-        bytes calldata fulfillmentSignature_,
-        FulfillmentOption choice_
-    ) internal nonReentrant {
-        // Basic validation of tx
-        if (commitId_ >= packs.length) revert InvalidCommitId();
-        if (msg.sender != packs[commitId_].cosigner) revert Errors.Unauthorized();
-        if (marketplace_ == address(0)) revert Errors.InvalidAddress();
-        if (msg.value > 0) _depositTreasury(msg.value);
-        if (orderAmount_ > treasuryBalance) revert Errors.InsufficientBalance();
-        if (isFulfilled[commitId_]) revert AlreadyFulfilled();
-        if (isCancelled[commitId_]) revert CommitIsCancelled();
-
-        if (payoutAmount_ > orderAmount_) revert Errors.InvalidAmount();
-
-        CommitData memory commitData = packs[commitId_];
-
-        // Check the cosigner signed the commit
-        address commitCosigner = verifyCommit(commitData, commitSignature_);
-        if (commitCosigner != commitData.cosigner) revert Errors.InvalidAddress();
-        if (!isCosigner[commitCosigner]) revert Errors.InvalidAddress();
-
-        uint256 rng = PRNG.rng(commitSignature_);
-        bytes32 digest = hashCommit(commitData);
-        bytes32 fulfillmentHash =
-            hashFulfillment(digest, marketplace_, orderAmount_, orderData_, token_, tokenId_, payoutAmount_, choice_);
-
-        // Check the cosigner signed the order data
-        address fulfillmentCosigner = verifyHash(fulfillmentHash, fulfillmentSignature_);
-        if (fulfillmentCosigner != commitData.cosigner) revert Errors.InvalidAddress();
-        if (!isCosigner[fulfillmentCosigner]) revert Errors.InvalidAddress();
-
-        // Determine bucket and validate orderAmount and payoutAmount are within bucket range
-        uint256 bucketIndex = _getBucketIndex(rng, commitData.buckets);
-        BucketData memory bucket = commitData.buckets[bucketIndex];
-        if (orderAmount_ < bucket.minValue) revert Errors.InvalidAmount();
-        if (orderAmount_ > bucket.maxValue) revert Errors.InvalidAmount();
-        if (payoutAmount_ < bucket.minValue) revert Errors.InvalidAmount();
-        if (payoutAmount_ > bucket.maxValue) revert Errors.InvalidAmount();
-
-        // If we want to fulfill via NFT but the option has expired, default to payout
-        FulfillmentOption fulfillmentType = choice_;
-        if (choice_ == FulfillmentOption.NFT && block.timestamp > nftFulfillmentExpiresAt[commitId_]) {
-            fulfillmentType = FulfillmentOption.Payout;
-        }
-
-        // Mark the commit as fulfilled
-        isFulfilled[commitId_] = true;
-
-        // Forward pack revenue to the funds receiver
-        commitBalance -= commitData.packPrice;
-        treasuryBalance += commitData.packPrice;
-
-        // Move protocol fees to treasury balance
-        uint256 protocolFeesPaid = feesPaid[commitId_];
-        protocolBalance -= protocolFeesPaid;
-        treasuryBalance += protocolFeesPaid;
-
-        // Handle user choice and fulfil order or payout
-        if (fulfillmentType == FulfillmentOption.NFT) {
-            // execute the market data to transfer the nft
-            bool success = false;
-            try this._fulfillOrder(marketplace_, orderData_, orderAmount_) returns (bool result) {
-                success = result;
-            } catch {
-                success = false;
-            }
-            
-            if (success) {
-                // subtract the order amount from the treasury balance
-                treasuryBalance -= orderAmount_;
-                // emit a success transfer for the nft
-                emit Fulfillment(
-                    msg.sender,
-                    commitId_,
-                    rng,
-                    bucket.oddsBps,
-                    bucketIndex,
-                    0, // payout is 0 ETH for NFT fulfillment
-                    token_,
-                    tokenId_,
-                    orderAmount_,
-                    commitData.receiver,
-                    choice_,
-                    fulfillmentType,
-                    digest
-                );
-            } else {
-                // The order failed to fulfill, it could be bought already or invalid, make the best effort to send the user the value of the order they won.
-                (bool fallbackSuccess,) = commitData.receiver.call{value: orderAmount_}("");
-                if (fallbackSuccess) {
-                    treasuryBalance -= orderAmount_;
-                } else {
-                    emit TransferFailure(commitData.id, commitData.receiver, orderAmount_, digest);
-                }
-                // emit the failure (they wanted the NFT but got the NFT value as a payout)
-                emit Fulfillment(
-                    msg.sender,
-                    commitId_,
-                    rng,
-                    bucket.oddsBps,
-                    bucketIndex,
-                    orderAmount_, // payout amount when NFT fails (full order amount)
-                    address(0), // no NFT token address when NFT fails
-                    0, // no NFT token ID when NFT fails
-                    0, // no NFT amount when NFT fails
-                    commitData.receiver,
-                    choice_,
-                    fulfillmentType,
-                    digest
-                );
-            }
-        } else {
-            // Payout fulfillment route
-
-            (bool success,) = commitData.receiver.call{value: payoutAmount_}("");
-            if (success) {
-                treasuryBalance -= payoutAmount_;
-            } else {
-                emit TransferFailure(commitData.id, commitData.receiver, payoutAmount_, digest);
-            }
-
-            // Keep remainder in treasury (no transfer needed since it's already there)
-
-            // emit the payout
-            emit Fulfillment(
-                msg.sender,
-                commitId_,
-                rng,
-                bucket.oddsBps,
-                bucketIndex,
-                payoutAmount_,
-                address(0), // no NFT token address for payout
-                0, // no NFT token ID for payout
-                0, // no NFT amount for payout
-                commitData.receiver,
-                choice_,
-                fulfillmentType,
-                digest
-            );
-        }
     }
 
     /// @notice Fulfills a commit with the result of the random number generation
@@ -508,17 +266,31 @@ contract Packs is
         );
     }
 
+    /// @notice Allows the receiver or cosigner to cancel a commit in the event that the commit is not or cannot be fulfilled
+    /// @param commitId_ ID of the commit to cancel
+    /// @dev Only callable by the receiver or cosigner
+    /// @dev It's safe to allow receiver to call cancel as the commit should be fulfilled within commitCancellableTime
+    /// @dev If not fulfilled before commitCancellableTime, it indicates a fulfillment issue so commit should be refunded
+    /// @dev Emits a CommitCancelled event
+    function cancel(uint256 commitId_) external nonReentrant onlyCommitOwnerOrCosigner(commitId_) {
+        _cancel(commitId_);
+    }
+
+    // ============================================================
+    // TREASURY MANAGEMENT
+    // ============================================================
+
     /// @notice Allows the admin to withdraw ETH from the treasury balance
     /// @param amount The amount of ETH to withdraw
     /// @dev Only callable by admin role
     /// @dev Emits a Withdrawal event
     function withdrawTreasury(uint256 amount) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (amount == 0) revert Errors.InvalidAmount();
-        if (amount > treasuryBalance) revert Errors.InsufficientBalance();
+        if (amount == 0) revert Errors.WithdrawAmountZero();
+        if (amount > treasuryBalance) revert Errors.WithdrawAmountExceedsTreasury();
         treasuryBalance -= amount;
 
         (bool success,) = payable(fundsReceiver).call{value: amount}("");
-        if (!success) revert WithdrawalFailed();
+        if (!success) revert Errors.WithdrawalFailed();
 
         emit TreasuryWithdrawal(msg.sender, amount, fundsReceiver);
     }
@@ -538,46 +310,200 @@ contract Packs is
         emit EmergencyWithdrawal(msg.sender, currentBalance, fundsReceiver);
     }
 
-    /// @notice Allows the receiver or cosigner to cancel a commit in the event that the commit is not or cannot be fulfilled
-    /// @param commitId_ ID of the commit to cancel
-    /// @dev Only callable by the receiver or cosigner
-    /// @dev It's safe to allow receiver to call cancel as the commit should be fulfilled within commitCancellableTime
-    /// @dev If not fulfilled before commitCancellableTime, it indicates a fulfillment issue so commit should be refunded
-    /// @dev Emits a CommitCancelled event
-    function cancel(uint256 commitId_) external nonReentrant onlyCommitOwnerOrCosigner(commitId_) {
-        if (commitId_ >= packs.length) revert InvalidCommitId();
-        if (isFulfilled[commitId_]) revert AlreadyFulfilled();
-        if (isCancelled[commitId_]) revert CommitIsCancelled();
-        if (block.timestamp < commitCancellableAt[commitId_]) {
-            revert CommitNotCancellable();
-        }
-
-        isCancelled[commitId_] = true;
-
-        CommitData memory commitData = packs[commitId_];
-
-        uint256 commitAmount = commitData.packPrice;
-        commitBalance -= commitAmount;
-
-        // Also refund protocol fees
-        uint256 protocolFeesPaid = feesPaid[commitId_];
-        protocolBalance -= protocolFeesPaid;
-        
-        uint256 totalRefund = commitAmount + protocolFeesPaid;
-
-        (bool success,) = payable(commitData.receiver).call{value: totalRefund}("");
-        if (!success) {
-            // If the transfer fails, fall back to treasury so the admin can rescue later
-            treasuryBalance += totalRefund;
-            emit TransferFailure(commitId_, commitData.receiver, totalRefund, hashCommit(commitData));
-        }
-
-        emit CommitCancelled(commitId_, hashCommit(commitData));
+    /// @notice Handles receiving ETH
+    /// @dev Required for contract to receive ETH
+    receive() external payable {
+        _depositTreasury(msg.value);
     }
 
-    // ############################################################
-    // ############ RESCUE FUNCTIONS ############
-    // ############################################################
+    // ============================================================
+    // ADMIN CONFIGURATION
+    // ============================================================
+
+    // ---------- Cosigner Management ----------
+
+    /// @notice Adds a new authorized cosigner
+    /// @param cosigner_ Address to add as cosigner
+    /// @dev Only callable by admin role
+    /// @dev Emits a CoSignerAdded event
+    function addCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (cosigner_ == address(0)) revert Errors.CosignerAddressZero();
+        if (isCosigner[cosigner_]) revert Errors.AlreadyCosigner();
+        isCosigner[cosigner_] = true;
+        emit CosignerAdded(cosigner_);
+    }
+
+    /// @notice Removes an authorized cosigner
+    /// @param cosigner_ Address to remove as cosigner
+    /// @dev Only callable by admin role
+    /// @dev Emits a CoSignerRemoved event
+    function removeCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (!isCosigner[cosigner_]) revert Errors.NotActiveCosigner();
+        isCosigner[cosigner_] = false;
+        emit CosignerRemoved(cosigner_);
+    }
+
+    // ---------- Time Parameters ----------
+
+    /// @notice Sets the commit cancellable time.
+    /// @param commitCancellableTime_ New commit cancellable time
+    /// @dev Only callable by admin role
+    /// @dev Emits a CommitCancellableTimeUpdated event
+    function setCommitCancellableTime(uint256 commitCancellableTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (commitCancellableTime_ < MIN_COMMIT_CANCELLABLE_TIME) {
+            revert Errors.InvalidCommitCancellableTime();
+        }
+        uint256 oldCommitCancellableTime = commitCancellableTime;
+        commitCancellableTime = commitCancellableTime_;
+        emit CommitCancellableTimeUpdated(oldCommitCancellableTime, commitCancellableTime_);
+    }
+
+    /// @notice Sets the NFT fulfillment expiry time
+    /// @param nftFulfillmentExpiryTime_ New NFT fulfillment expiry time
+    /// @dev Only callable by admin role
+    /// @dev Emits a NftFulfillmentExpiryTimeUpdated event
+    function setNftFulfillmentExpiryTime(uint256 nftFulfillmentExpiryTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (nftFulfillmentExpiryTime_ < MIN_NFT_FULFILLMENT_EXPIRY_TIME) {
+            revert Errors.InvalidNftFulfillmentExpiryTime();
+        }
+        uint256 oldNftFulfillmentExpiryTime = nftFulfillmentExpiryTime;
+        nftFulfillmentExpiryTime = nftFulfillmentExpiryTime_;
+        emit NftFulfillmentExpiryTimeUpdated(oldNftFulfillmentExpiryTime, nftFulfillmentExpiryTime_);
+    }
+
+    // ---------- Reward Limits ----------
+
+    /// @notice Sets the minimum allowed reward
+    /// @param minReward_ New minimum reward value
+    /// @dev Only callable by admin role
+    function setMinReward(uint256 minReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minReward_ == 0) revert Errors.InvalidReward();
+        if (minReward_ > maxReward) revert Errors.InvalidReward();
+
+        uint256 oldMinReward = minReward;
+        minReward = minReward_;
+        emit MinRewardUpdated(oldMinReward, minReward_);
+    }
+
+    /// @notice Sets the maximum allowed reward
+    /// @param maxReward_ New maximum reward value
+    /// @dev Only callable by admin role
+    function setMaxReward(uint256 maxReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxReward_ == 0) revert Errors.InvalidReward();
+        if (maxReward_ < minReward) revert Errors.InvalidReward();
+
+        uint256 oldMaxReward = maxReward;
+        maxReward = maxReward_;
+        emit MaxRewardUpdated(oldMaxReward, maxReward_);
+    }
+
+    // ---------- Pack Price Limits ----------
+
+    /// @notice Sets the minimum pack price
+    /// @param minPackPrice_ New minimum pack price
+    /// @dev Only callable by admin role
+    /// @dev Emits a MinPackPriceUpdated event
+    function setMinPackPrice(uint256 minPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minPackPrice_ == 0) revert Errors.InvalidPackPrice();
+        if (minPackPrice_ > maxPackPrice) revert Errors.InvalidPackPrice();
+
+        uint256 oldMinPackPrice = minPackPrice;
+        minPackPrice = minPackPrice_;
+        emit MinPackPriceUpdated(oldMinPackPrice, minPackPrice_);
+    }
+
+    /// @notice Sets the maximum pack price
+    /// @param maxPackPrice_ New maximum pack price
+    /// @dev Only callable by admin role
+    /// @dev Emits a MaxPackPriceUpdated event
+    function setMaxPackPrice(uint256 maxPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxPackPrice_ == 0) revert Errors.InvalidPackPrice();
+        if (maxPackPrice_ < minPackPrice) revert Errors.InvalidPackPrice();
+
+        uint256 oldMaxPackPrice = maxPackPrice;
+        maxPackPrice = maxPackPrice_;
+        emit MaxPackPriceUpdated(oldMaxPackPrice, maxPackPrice_);
+    }
+
+    // ---------- Multipliers ----------
+
+    /// @notice Sets the minimum pack reward multiplier
+    /// @param minPackRewardMultiplier_ New minimum pack reward multiplier
+    /// @dev Only callable by admin role
+    /// @dev Emits a MinPackRewardMultiplierUpdated event
+    function setMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minPackRewardMultiplier_ == 0) revert Errors.InvalidPackRewardMultiplier();
+        if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert Errors.InvalidPackRewardMultiplier();
+
+        uint256 oldMinPackRewardMultiplier = minPackRewardMultiplier;
+        minPackRewardMultiplier = minPackRewardMultiplier_;
+        emit MinPackRewardMultiplierUpdated(oldMinPackRewardMultiplier, minPackRewardMultiplier_);
+    }
+
+    /// @notice Sets the maximum pack reward multiplier
+    /// @param maxPackRewardMultiplier_ New maximum pack reward multiplier
+    /// @dev Only callable by admin role
+    /// @dev Emits a MaxPackRewardMultiplierUpdated event
+    function setMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxPackRewardMultiplier_ == 0) revert Errors.InvalidPackRewardMultiplier();
+        if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert Errors.InvalidPackRewardMultiplier();
+
+        uint256 oldMaxPackRewardMultiplier = maxPackRewardMultiplier;
+        maxPackRewardMultiplier = maxPackRewardMultiplier_;
+        emit MaxPackRewardMultiplierUpdated(oldMaxPackRewardMultiplier, maxPackRewardMultiplier_);
+    }
+
+    // ---------- Fees ----------
+
+    function setProtocolFee(uint256 protocolFee_) external onlyRole(OPS_ROLE) {
+        _setProtocolFee(protocolFee_);
+    }
+
+    /// @notice Sets the flat fee. Is a static amount that comes off the top of the commit amount.
+    /// @param flatFee_ New flat fee
+    /// @dev Only callable by ops role
+    /// @dev Emits a FlatFeeUpdated event
+    function setFlatFee(uint256 flatFee_) external onlyRole(OPS_ROLE) {
+        _setFlatFee(flatFee_);
+    }
+
+    // ---------- Funds Receiver ----------
+
+    /// @notice Sets the funds receiver
+    /// @param fundsReceiver_ Address to set as funds receiver
+    /// @dev Only callable by funds receiver manager role
+    function setFundsReceiver(address fundsReceiver_) external onlyRole(FUNDS_RECEIVER_MANAGER_ROLE) {
+        _setFundsReceiver(fundsReceiver_);
+    }
+
+    /// @notice Transfers the funds receiver manager role
+    /// @param newFundsReceiverManager_ New funds receiver manager
+    /// @dev Only callable by funds receiver manager role
+    function transferFundsReceiverManager(address newFundsReceiverManager_)
+        external
+        onlyRole(FUNDS_RECEIVER_MANAGER_ROLE)
+    {
+        if (newFundsReceiverManager_ == address(0)) {
+            revert Errors.InvalidFundsReceiverManager();
+        }
+        _transferFundsReceiverManager(newFundsReceiverManager_);
+    }
+
+    // ---------- Pause Controls ----------
+
+    /// @notice Pauses the contract
+    /// @dev Only callable by admin role
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
+    }
+
+    // ============================================================
+    // RESCUE FUNCTIONS (Token Recovery)
+    // ============================================================
 
     function rescueERC20(address token, address to, uint256 amount) external onlyRole(RESCUE_ROLE) {
         address[] memory tokens = new address[](1);
@@ -640,155 +566,19 @@ contract Packs is
         _rescueERC1155Batch(tokens, tos, tokenIds, amounts);
     }
 
-    // ############################################################
-    // ############ GETTERS & SETTERS ############
-    // ############################################################
+    // ============================================================
+    // TOKEN RECEIVERS (Required for NFTs)
+    // ============================================================
 
-    /// @notice Adds a new authorized cosigner
-    /// @param cosigner_ Address to add as cosigner
-    /// @dev Only callable by admin role
-    /// @dev Emits a CoSignerAdded event
-    function addCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (cosigner_ == address(0)) revert Errors.InvalidAddress();
-        if (isCosigner[cosigner_]) revert AlreadyCosigner();
-        isCosigner[cosigner_] = true;
-        emit CosignerAdded(cosigner_);
-    }
-
-    /// @notice Removes an authorized cosigner
-    /// @param cosigner_ Address to remove as cosigner
-    /// @dev Only callable by admin role
-    /// @dev Emits a CoSignerRemoved event
-    function removeCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
-        isCosigner[cosigner_] = false;
-        emit CosignerRemoved(cosigner_);
-    }
-
-    /// @notice Sets the commit cancellable time.
-    /// @param commitCancellableTime_ New commit cancellable time
-    /// @dev Only callable by admin role
-    /// @dev Emits a CommitCancellableTimeUpdated event
-    function setCommitCancellableTime(uint256 commitCancellableTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (commitCancellableTime_ < MIN_COMMIT_CANCELLABLE_TIME) {
-            revert InvalidCommitCancellableTime();
-        }
-        uint256 oldCommitCancellableTime = commitCancellableTime;
-        commitCancellableTime = commitCancellableTime_;
-        emit CommitCancellableTimeUpdated(oldCommitCancellableTime, commitCancellableTime_);
-    }
-
-    /// @notice Sets the NFT fulfillment expiry time
-    /// @param nftFulfillmentExpiryTime_ New NFT fulfillment expiry time
-    /// @dev Only callable by admin role
-    /// @dev Emits a NftFulfillmentExpiryTimeUpdated event
-    function setNftFulfillmentExpiryTime(uint256 nftFulfillmentExpiryTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (nftFulfillmentExpiryTime_ < MIN_NFT_FULFILLMENT_EXPIRY_TIME) {
-            revert InvalidNftFulfillmentExpiryTime();
-        }
-        uint256 oldNftFulfillmentExpiryTime = nftFulfillmentExpiryTime;
-        nftFulfillmentExpiryTime = nftFulfillmentExpiryTime_;
-        emit NftFulfillmentExpiryTimeUpdated(oldNftFulfillmentExpiryTime, nftFulfillmentExpiryTime_);
-    }
-
-    /// @notice Sets the maximum allowed reward
-    /// @param maxReward_ New maximum reward value
-    /// @dev Only callable by admin role
-    function setMaxReward(uint256 maxReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (maxReward_ == 0) revert InvalidReward();
-        if (maxReward_ < minReward) revert InvalidReward();
-
-        uint256 oldMaxReward = maxReward;
-        maxReward = maxReward_;
-        emit MaxRewardUpdated(oldMaxReward, maxReward_);
-    }
-
-    /// @notice Sets the minimum allowed reward
-    /// @param minReward_ New minimum reward value
-    /// @dev Only callable by admin role
-    function setMinReward(uint256 minReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (minReward_ == 0) revert InvalidReward();
-        if (minReward_ > maxReward) revert InvalidReward();
-
-        uint256 oldMinReward = minReward;
-        minReward = minReward_;
-        emit MinRewardUpdated(oldMinReward, minReward_);
-    }
-
-    /// @notice Sets the minimum pack price
-    /// @param minPackPrice_ New minimum pack price
-    /// @dev Only callable by admin role
-    /// @dev Emits a MinPackPriceUpdated event
-    function setMinPackPrice(uint256 minPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (minPackPrice_ == 0) revert InvalidPackPrice();
-        if (minPackPrice_ > maxPackPrice) revert InvalidPackPrice();
-
-        uint256 oldMinPackPrice = minPackPrice;
-        minPackPrice = minPackPrice_;
-        emit MinPackPriceUpdated(oldMinPackPrice, minPackPrice_);
-    }
-
-    /// @notice Sets the maximum pack price
-    /// @param maxPackPrice_ New maximum pack price
-    /// @dev Only callable by admin role
-    /// @dev Emits a MaxPackPriceUpdated event
-    function setMaxPackPrice(uint256 maxPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (maxPackPrice_ == 0) revert InvalidPackPrice();
-        if (maxPackPrice_ < minPackPrice) revert InvalidPackPrice();
-
-        uint256 oldMaxPackPrice = maxPackPrice;
-        maxPackPrice = maxPackPrice_;
-        emit MaxPackPriceUpdated(oldMaxPackPrice, maxPackPrice_);
-    }
-
-    /// @notice Sets the minimum pack reward multiplier
-    /// @param minPackRewardMultiplier_ New minimum pack reward multiplier
-    /// @dev Only callable by admin role
-    /// @dev Emits a MinPackRewardMultiplierUpdated event
-    function setMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (minPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
-        if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert InvalidPackRewardMultiplier();
-
-        uint256 oldMinPackRewardMultiplier = minPackRewardMultiplier;
-        minPackRewardMultiplier = minPackRewardMultiplier_;
-        emit MinPackRewardMultiplierUpdated(oldMinPackRewardMultiplier, minPackRewardMultiplier_);
-    }
-
-    /// @notice Sets the maximum pack reward multiplier
-    /// @param maxPackRewardMultiplier_ New maximum pack reward multiplier
-    /// @dev Only callable by admin role
-    /// @dev Emits a MaxPackRewardMultiplierUpdated event
-    function setMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (maxPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
-        if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert InvalidPackRewardMultiplier();
-
-        uint256 oldMaxPackRewardMultiplier = maxPackRewardMultiplier;
-        maxPackRewardMultiplier = maxPackRewardMultiplier_;
-        emit MaxPackRewardMultiplierUpdated(oldMaxPackRewardMultiplier, maxPackRewardMultiplier_);
-    }
-
-    /// @notice Deposits ETH into the treasury
-    /// @dev Called internally when receiving ETH
-    /// @param amount Amount of ETH to deposit
-    function _depositTreasury(uint256 amount) internal {
-        treasuryBalance += amount;
-        emit TreasuryDeposit(msg.sender, amount);
-    }
-
-    /// @notice Pauses the contract
-    /// @dev Only callable by admin role
-    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _pause();
-    }
-
-    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _unpause();
-    }
-
-    /// @notice Handles receiving ETH
-    /// @dev Required for contract to receive ETH
-    receive() external payable {
-        _depositTreasury(msg.value);
+    /// @notice Handles receiving ERC721 tokens
+    /// @dev Required for contract to receive ERC721 tokens via safeTransferFrom
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external pure returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     /// @notice Handles receiving ERC1155 tokens
@@ -813,77 +603,9 @@ contract Packs is
         return this.onERC1155BatchReceived.selector;
     }
 
-    /// @notice Handles receiving ERC721 tokens
-    /// @dev Required for contract to receive ERC721 tokens via safeTransferFrom
-    function onERC721Received(
-        address operator,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
-    ) external pure returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
-
-    /// @notice Fulfills an order with the specified parameters
-    /// @dev Public function for try/catch in fulfill()
-    /// @param to Address to send the transaction to
-    /// @param data Calldata for the transaction
-    /// @param amount Amount of ETH to send
-    /// @return success Whether the transaction was successful
-    function _fulfillOrder(address to, bytes calldata data, uint256 amount) public returns (bool success) {
-        (success,) = to.call{value: amount}(data);
-    }
-
-    /// @notice Transfers the funds receiver manager role
-    /// @param newFundsReceiverManager_ New funds receiver manager
-    /// @dev Only callable by funds receiver manager role
-    function transferFundsReceiverManager(address newFundsReceiverManager_)
-        external
-        onlyRole(FUNDS_RECEIVER_MANAGER_ROLE)
-    {
-        if (newFundsReceiverManager_ == address(0)) {
-            revert InvalidFundsReceiverManager();
-        }
-        _transferFundsReceiverManager(newFundsReceiverManager_);
-    }
-
-    /// @notice Transfers the funds receiver manager role
-    /// @param newFundsReceiverManager_ New funds receiver manager
-    function _transferFundsReceiverManager(address newFundsReceiverManager_) internal {
-        _revokeRole(FUNDS_RECEIVER_MANAGER_ROLE, msg.sender);
-        _grantRole(FUNDS_RECEIVER_MANAGER_ROLE, newFundsReceiverManager_);
-        emit FundsReceiverManagerTransferred(msg.sender, newFundsReceiverManager_);
-    }
-
-    /// @notice Sets the funds receiver
-    /// @param fundsReceiver_ Address to set as funds receiver
-    /// @dev Only callable by funds receiver manager role
-    function setFundsReceiver(address fundsReceiver_) external onlyRole(FUNDS_RECEIVER_MANAGER_ROLE) {
-        _setFundsReceiver(fundsReceiver_);
-    }
-
-    /// @notice Sets the funds receiver
-    /// @param fundsReceiver_ Address to set as funds receiver
-    function _setFundsReceiver(address fundsReceiver_) internal {
-        if (fundsReceiver_ == address(0)) revert Errors.InvalidAddress();
-        if (hasRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiver_)) {
-            revert InvalidFundsReceiverManager();
-        }
-        address oldFundsReceiver = fundsReceiver;
-        fundsReceiver = payable(fundsReceiver_);
-        emit FundsReceiverUpdated(oldFundsReceiver, fundsReceiver_);
-    }
-
-    function setProtocolFee(uint256 protocolFee_) external onlyRole(OPS_ROLE) {
-        _setProtocolFee(protocolFee_);
-    }
-
-    function _setProtocolFee(uint256 protocolFee_) internal {
-        if (protocolFee_ > BASE_POINTS) revert InvalidProtocolFee();
-        uint256 oldProtocolFee = protocolFee;
-        protocolFee = protocolFee_;
-        emit ProtocolFeeUpdated(oldProtocolFee, protocolFee_);
-    }
+    // ============================================================
+    // VIEW FUNCTIONS & UTILITIES
+    // ============================================================
 
     /// @notice Calculate contribution amount with custom fee rate
     /// @param amount The original amount including fee
@@ -898,12 +620,646 @@ contract Packs is
         return (amount * BASE_POINTS) / (BASE_POINTS + feeRate);
     }
 
-    /// @notice Sets the flat fee. Is a static amount that comes off the top of the commit amount.
-    /// @param flatFee_ New flat fee
-    /// @dev Only callable by ops role
-    /// @dev Emits a FlatFeeUpdated event
-    function setFlatFee(uint256 flatFee_) external onlyRole(OPS_ROLE) {
-        _setFlatFee(flatFee_);
+    /// @notice Get the total number of packs created
+    /// @return The length of the packs array
+    function getPacksLength() external view returns (uint256) {
+        return packs.length;
+    }
+
+    /// @notice Fulfills an order with the specified parameters
+    /// @dev Public function for try/catch in fulfill()
+    /// @param to Address to send the transaction to
+    /// @param data Calldata for the transaction
+    /// @param amount Amount of ETH to send
+    /// @return success Whether the transaction was successful
+    function _fulfillOrder(address to, bytes calldata data, uint256 amount) public returns (bool success) {
+        (success,) = to.call{value: amount}(data);
+    }
+
+    // ============================================================
+    // INTERNAL HELPERS - COMMIT FLOW
+    // ============================================================
+
+    function _commit(
+        address receiver_,
+        address cosigner_,
+        uint256 seed_,
+        PackType packType_,
+        BucketData[] memory buckets_,
+        bytes memory signature_
+    ) internal returns (uint256) {
+        // Calculate pack price from payment
+        uint256 packPrice = _validateAndCalculatePackPrice(msg.value);
+        
+        // Validate all input parameters
+        _validateCommitAddresses(receiver_, cosigner_);
+        _validateBuckets(buckets_, packPrice);
+        
+        // Verify cosigner signature
+        bytes32 packHash = _verifyPackSignature(packType_, packPrice, buckets_, signature_, cosigner_);
+        
+        // Create and store the commit
+        uint256 commitId = _createCommit(receiver_, cosigner_, seed_, packPrice, buckets_, packHash);
+        
+        // Process fees and balances
+        _processCommitFees(commitId, packPrice);
+        
+        // Set expiry times
+        _setCommitExpiryTimes(commitId);
+        
+        // Emit event and return
+        bytes32 digest = hashCommit(packs[commitId]);
+        commitIdByDigest[digest] = commitId;
+        
+        emit Commit(
+            msg.sender, 
+            commitId, 
+            receiver_, 
+            cosigner_, 
+            seed_, 
+            packs[commitId].counter, 
+            packPrice, 
+            packHash, 
+            digest, 
+            feesPaid[commitId], 
+            flatFee
+        );
+        
+        return commitId;
+    }
+
+    /// @dev Validates payment amount and calculates pack price after fees
+    function _validateAndCalculatePackPrice(uint256 totalAmount) internal view returns (uint256) {
+        if (totalAmount == 0) revert Errors.CommitAmountZero();
+        if (totalAmount <= flatFee) revert Errors.CommitAmountTooLowForFlatFee();
+        
+        uint256 packPrice = calculateContributionWithoutFee(totalAmount, protocolFee) - flatFee;
+        
+        if (packPrice < minPackPrice) revert Errors.PackPriceBelowMinimum();
+        if (packPrice > maxPackPrice) revert Errors.PackPriceAboveMaximum();
+        
+        return packPrice;
+    }
+
+    /// @dev Validates receiver and cosigner addresses
+    function _validateCommitAddresses(address receiver_, address cosigner_) internal view {
+        if (receiver_ == address(0)) revert Errors.ReceiverAddressZero();
+        if (cosigner_ == address(0)) revert Errors.CosignerAddressZeroInCommit();
+        if (!isCosigner[cosigner_]) revert Errors.CosignerNotActive();
+    }
+
+    /// @dev Validates bucket configuration and odds
+    function _validateBuckets(BucketData[] memory buckets_, uint256 packPrice) internal view {
+        // Validate bucket count
+        if (buckets_.length < MIN_BUCKETS) revert Errors.InvalidBuckets();
+        if (buckets_.length > MAX_BUCKETS) revert Errors.InvalidBuckets();
+
+        // Validate each bucket's configuration
+        uint256 totalOdds = 0;
+        for (uint256 i = 0; i < buckets_.length; i++) {
+            _validateBucketValues(buckets_[i], packPrice);
+            _validateBucketOdds(buckets_[i]);
+            
+            // Check ascending order between buckets
+            if (i < buckets_.length - 1 && buckets_[i].maxValue > buckets_[i + 1].minValue) {
+                revert Errors.InvalidBuckets();
+            }
+            
+            totalOdds += buckets_[i].oddsBps;
+        }
+
+        // Total odds must equal 100%
+        if (totalOdds != BASE_POINTS) revert Errors.InvalidBuckets();
+    }
+
+    /// @dev Validates a single bucket's min/max values
+    function _validateBucketValues(BucketData memory bucket, uint256 packPrice) internal view {
+        if (bucket.minValue == 0) revert Errors.InvalidReward();
+        if (bucket.maxValue == 0) revert Errors.InvalidReward();
+        if (bucket.minValue > bucket.maxValue) revert Errors.InvalidReward();
+        if (bucket.minValue < minReward) revert Errors.InvalidReward();
+        if (bucket.maxValue > maxReward) revert Errors.InvalidReward();
+        if (bucket.minValue < packPrice * minPackRewardMultiplier / BASE_POINTS) revert Errors.InvalidReward();
+        if (bucket.maxValue > packPrice * maxPackRewardMultiplier / BASE_POINTS) revert Errors.InvalidReward();
+    }
+
+    /// @dev Validates a single bucket's odds
+    function _validateBucketOdds(BucketData memory bucket) internal pure {
+        if (bucket.oddsBps == 0) revert Errors.InvalidBuckets();
+        if (bucket.oddsBps > BASE_POINTS) revert Errors.InvalidBuckets();
+    }
+
+    /// @dev Verifies the pack was cosigned and returns pack hash
+    function _verifyPackSignature(
+        PackType packType_,
+        uint256 packPrice,
+        BucketData[] memory buckets_,
+        bytes memory signature_,
+        address expectedCosigner
+    ) internal view returns (bytes32) {
+        bytes32 packHash = hashPack(packType_, packPrice, buckets_);
+        address signer = verifyHash(packHash, signature_);
+        
+        if (signer != expectedCosigner) revert Errors.PackSignerMismatch();
+        if (!isCosigner[signer]) revert Errors.PackSignerNotCosigner();
+        
+        return packHash;
+    }
+
+    /// @dev Creates commit data and stores it
+    function _createCommit(
+        address receiver_,
+        address cosigner_,
+        uint256 seed_,
+        uint256 packPrice,
+        BucketData[] memory buckets_,
+        bytes32 packHash
+    ) internal returns (uint256) {
+        uint256 commitId = packs.length;
+        uint256 userCounter = packCount[receiver_]++;
+
+        CommitData memory commitData = CommitData({
+            id: commitId,
+            receiver: receiver_,
+            cosigner: cosigner_,
+            seed: seed_,
+            counter: userCounter,
+            packPrice: packPrice,
+            buckets: buckets_,
+            packHash: packHash
+        });
+
+        packs.push(commitData);
+        
+        return commitId;
+    }
+
+    /// @dev Processes fees and updates balances
+    function _processCommitFees(uint256 commitId, uint256 packPrice) internal {
+        // Record protocol fees
+        feesPaid[commitId] = msg.value - packPrice;
+        protocolBalance += feesPaid[commitId];
+
+        // Handle flat fee payment
+        _handleFlatFeePayment();
+
+        // Track pack price in commit balance
+        commitBalance += packPrice;
+    }
+
+    /// @dev Sets cancellation and fulfillment expiry times
+    function _setCommitExpiryTimes(uint256 commitId) internal {
+        commitCancellableAt[commitId] = block.timestamp + commitCancellableTime;
+        nftFulfillmentExpiresAt[commitId] = block.timestamp + nftFulfillmentExpiryTime;
+    }
+
+    // ============================================================
+    // INTERNAL HELPERS - FULFILL FLOW
+    // ============================================================
+
+    function _fulfill(
+        uint256 commitId_,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        uint256 payoutAmount_,
+        bytes calldata commitSignature_,
+        bytes calldata fulfillmentSignature_,
+        FulfillmentOption choice_
+    ) internal nonReentrant {
+        // Validate fulfillment request
+        CommitData memory commitData = _validateFulfillmentRequest(
+            commitId_, 
+            marketplace_, 
+            orderAmount_, 
+            payoutAmount_
+        );
+        
+        // Verify signatures and generate randomness
+        (uint256 rng, bytes32 digest) = _verifyFulfillmentSignatures(
+            commitData,
+            commitSignature_,
+            fulfillmentSignature_,
+            marketplace_,
+            orderData_,
+            orderAmount_,
+            token_,
+            tokenId_,
+            payoutAmount_,
+            choice_
+        );
+        
+        // Determine outcome and validate amounts
+        (uint256 bucketIndex, BucketData memory bucket) = _determineOutcomeAndValidate(
+            rng,
+            commitData.buckets,
+            orderAmount_,
+            payoutAmount_
+        );
+        
+        // Determine fulfillment type (check expiry)
+        FulfillmentOption fulfillmentType = _determineFulfillmentType(commitId_, choice_);
+        
+        // Mark fulfilled and update balances
+        _markFulfilledAndUpdateBalances(commitId_, commitData.packPrice);
+        
+        // Execute the fulfillment
+        _executeFulfillment(
+            commitId_,
+            commitData,
+            marketplace_,
+            orderData_,
+            orderAmount_,
+            token_,
+            tokenId_,
+            payoutAmount_,
+            rng,
+            bucket,
+            bucketIndex,
+            choice_,
+            fulfillmentType,
+            digest
+        );
+    }
+
+    /// @dev Validates the fulfillment request parameters
+    function _validateFulfillmentRequest(
+        uint256 commitId_,
+        address marketplace_,
+        uint256 orderAmount_,
+        uint256 payoutAmount_
+    ) internal returns (CommitData memory) {
+        if (commitId_ >= packs.length) revert Errors.InvalidCommitId();
+        if (msg.sender != packs[commitId_].cosigner) revert Errors.OnlyCosignerCanFulfill();
+        if (marketplace_ == address(0)) revert Errors.MarketplaceAddressZero();
+        if (msg.value > 0) _depositTreasury(msg.value);
+        if (orderAmount_ > treasuryBalance) revert Errors.InsufficientTreasuryBalance();
+        if (isFulfilled[commitId_]) revert Errors.AlreadyFulfilled();
+        if (isCancelled[commitId_]) revert Errors.CommitIsCancelled();
+        if (payoutAmount_ > orderAmount_) revert Errors.PayoutExceedsOrderAmount();
+
+        return packs[commitId_];
+    }
+
+    /// @dev Verifies commit and fulfillment signatures, generates RNG
+    function _verifyFulfillmentSignatures(
+        CommitData memory commitData,
+        bytes calldata commitSignature_,
+        bytes calldata fulfillmentSignature_,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        uint256 payoutAmount_,
+        FulfillmentOption choice_
+    ) internal view returns (uint256 rng, bytes32 digest) {
+        // Verify commit signature
+        address commitCosigner = verifyCommit(commitData, commitSignature_);
+        if (commitCosigner != commitData.cosigner) revert Errors.CommitSignerMismatch();
+        if (!isCosigner[commitCosigner]) revert Errors.CommitSignerNotCosigner();
+
+        // Generate RNG and digest
+        rng = PRNG.rng(commitSignature_);
+        digest = hashCommit(commitData);
+
+        // Verify fulfillment signature
+        bytes32 fulfillmentHash = hashFulfillment(
+            digest, 
+            marketplace_, 
+            orderAmount_, 
+            orderData_, 
+            token_, 
+            tokenId_, 
+            payoutAmount_, 
+            choice_
+        );
+        address fulfillmentCosigner = verifyHash(fulfillmentHash, fulfillmentSignature_);
+        if (fulfillmentCosigner != commitData.cosigner) revert Errors.FulfillmentSignerMismatch();
+        if (!isCosigner[fulfillmentCosigner]) revert Errors.FulfillmentSignerNotCosigner();
+    }
+
+    /// @dev Determines outcome bucket and validates amounts are within range
+    function _determineOutcomeAndValidate(
+        uint256 rng,
+        BucketData[] memory buckets,
+        uint256 orderAmount_,
+        uint256 payoutAmount_
+    ) internal pure returns (uint256 bucketIndex, BucketData memory bucket) {
+        bucketIndex = _getBucketIndex(rng, buckets);
+        bucket = buckets[bucketIndex];
+        
+        if (orderAmount_ < bucket.minValue) revert Errors.OrderAmountBelowBucketMin();
+        if (orderAmount_ > bucket.maxValue) revert Errors.OrderAmountAboveBucketMax();
+        if (payoutAmount_ < bucket.minValue) revert Errors.PayoutAmountBelowBucketMin();
+        if (payoutAmount_ > bucket.maxValue) revert Errors.PayoutAmountAboveBucketMax();
+    }
+
+    /// @notice Get the index of the bucket selected for a given RNG value
+    /// @param rng RNG value (0-10000)
+    /// @param buckets Array of bucket data
+    /// @return bucketIndex_ Index of the selected bucket
+    function _getBucketIndex(uint256 rng, BucketData[] memory buckets) internal pure returns (uint256 bucketIndex_) {
+        uint256 cumulativeOdds = 0;
+        for (uint256 i = 0; i < buckets.length; i++) {
+            cumulativeOdds += buckets[i].oddsBps;
+            if (rng < cumulativeOdds) {
+                return i;
+            }
+        }
+        revert Errors.BucketSelectionFailed();
+    }
+
+    /// @dev Determines actual fulfillment type based on choice and expiry
+    function _determineFulfillmentType(
+        uint256 commitId_,
+        FulfillmentOption choice_
+    ) internal view returns (FulfillmentOption) {
+        if (choice_ == FulfillmentOption.NFT && block.timestamp > nftFulfillmentExpiresAt[commitId_]) {
+            return FulfillmentOption.Payout;
+        }
+        return choice_;
+    }
+
+    /// @dev Marks commit as fulfilled and updates all balances
+    function _markFulfilledAndUpdateBalances(uint256 commitId_, uint256 packPrice) internal {
+        isFulfilled[commitId_] = true;
+
+        // Move pack revenue to treasury
+        commitBalance -= packPrice;
+        treasuryBalance += packPrice;
+
+        // Move protocol fees to treasury
+        uint256 protocolFeesPaid = feesPaid[commitId_];
+        protocolBalance -= protocolFeesPaid;
+        treasuryBalance += protocolFeesPaid;
+    }
+
+    /// @dev Executes the fulfillment (NFT or payout)
+    function _executeFulfillment(
+        uint256 commitId_,
+        CommitData memory commitData,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        uint256 payoutAmount_,
+        uint256 rng,
+        BucketData memory bucket,
+        uint256 bucketIndex,
+        FulfillmentOption choice_,
+        FulfillmentOption fulfillmentType,
+        bytes32 digest
+    ) internal {
+        if (fulfillmentType == FulfillmentOption.NFT) {
+            _executeNFTFulfillment(
+                commitId_,
+                commitData,
+                marketplace_,
+                orderData_,
+                orderAmount_,
+                token_,
+                tokenId_,
+                rng,
+                bucket,
+                bucketIndex,
+                choice_,
+                fulfillmentType,
+                digest
+            );
+        } else {
+            _executePayoutFulfillment(
+                commitId_,
+                commitData,
+                payoutAmount_,
+                rng,
+                bucket,
+                bucketIndex,
+                choice_,
+                fulfillmentType,
+                digest
+            );
+        }
+    }
+
+    /// @dev Executes NFT fulfillment with fallback to payout on failure
+    function _executeNFTFulfillment(
+        uint256 commitId_,
+        CommitData memory commitData,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        uint256 rng,
+        BucketData memory bucket,
+        uint256 bucketIndex,
+        FulfillmentOption choice_,
+        FulfillmentOption fulfillmentType,
+        bytes32 digest
+    ) internal {
+        bool success = _tryFulfillNFTOrder(marketplace_, orderData_, orderAmount_);
+        
+        if (success) {
+            treasuryBalance -= orderAmount_;
+            emit Fulfillment(
+                msg.sender,
+                commitId_,
+                rng,
+                bucket.oddsBps,
+                bucketIndex,
+                0, // payout is 0 for successful NFT
+                token_,
+                tokenId_,
+                orderAmount_,
+                commitData.receiver,
+                choice_,
+                fulfillmentType,
+                digest
+            );
+        } else {
+            _handleNFTFulfillmentFailure(
+                commitId_,
+                commitData,
+                orderAmount_,
+                rng,
+                bucket,
+                bucketIndex,
+                choice_,
+                fulfillmentType,
+                digest
+            );
+        }
+    }
+
+    /// @dev Attempts to fulfill NFT order via marketplace
+    function _tryFulfillNFTOrder(
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_
+    ) internal returns (bool) {
+        try this._fulfillOrder(marketplace_, orderData_, orderAmount_) returns (bool result) {
+            return result;
+        } catch {
+            return false;
+        }
+    }
+
+    /// @dev Handles NFT fulfillment failure by sending ETH instead
+    function _handleNFTFulfillmentFailure(
+        uint256 commitId_,
+        CommitData memory commitData,
+        uint256 orderAmount_,
+        uint256 rng,
+        BucketData memory bucket,
+        uint256 bucketIndex,
+        FulfillmentOption choice_,
+        FulfillmentOption fulfillmentType,
+        bytes32 digest
+    ) internal {
+        // Fallback: send ETH value to receiver
+        (bool fallbackSuccess,) = commitData.receiver.call{value: orderAmount_}("");
+        if (fallbackSuccess) {
+            treasuryBalance -= orderAmount_;
+        } else {
+            emit TransferFailure(commitData.id, commitData.receiver, orderAmount_, digest);
+        }
+        
+        emit Fulfillment(
+            msg.sender,
+            commitId_,
+            rng,
+            bucket.oddsBps,
+            bucketIndex,
+            orderAmount_, // payout when NFT fails
+            address(0), // no NFT token
+            0, // no NFT token ID
+            0, // no NFT amount
+            commitData.receiver,
+            choice_,
+            fulfillmentType,
+            digest
+        );
+    }
+
+    /// @dev Executes payout fulfillment
+    function _executePayoutFulfillment(
+        uint256 commitId_,
+        CommitData memory commitData,
+        uint256 payoutAmount_,
+        uint256 rng,
+        BucketData memory bucket,
+        uint256 bucketIndex,
+        FulfillmentOption choice_,
+        FulfillmentOption fulfillmentType,
+        bytes32 digest
+    ) internal {
+        (bool success,) = commitData.receiver.call{value: payoutAmount_}("");
+        if (success) {
+            treasuryBalance -= payoutAmount_;
+        } else {
+            emit TransferFailure(commitData.id, commitData.receiver, payoutAmount_, digest);
+        }
+
+        emit Fulfillment(
+            msg.sender,
+            commitId_,
+            rng,
+            bucket.oddsBps,
+            bucketIndex,
+            payoutAmount_,
+            address(0), // no NFT for payout
+            0, // no NFT token ID
+            0, // no NFT amount
+            commitData.receiver,
+            choice_,
+            fulfillmentType,
+            digest
+        );
+    }
+
+    // ============================================================
+    // INTERNAL HELPERS - CANCEL FLOW
+    // ============================================================
+
+    function _cancel(uint256 commitId_) internal {
+        // Validate cancellation request
+        _validateCancellationRequest(commitId_);
+        
+        // Mark as cancelled
+        isCancelled[commitId_] = true;
+        
+        // Calculate refund and update balances
+        CommitData memory commitData = packs[commitId_];
+        uint256 totalRefund = _calculateAndUpdateRefund(commitId_, commitData.packPrice);
+        
+        // Process refund to receiver
+        _processRefund(commitId_, commitData.receiver, totalRefund, commitData);
+        
+        // Emit cancellation event
+        emit CommitCancelled(commitId_, hashCommit(commitData));
+    }
+
+    /// @dev Validates that the commit can be cancelled
+    function _validateCancellationRequest(uint256 commitId_) internal view {
+        if (commitId_ >= packs.length) revert Errors.InvalidCommitId();
+        if (isFulfilled[commitId_]) revert Errors.AlreadyFulfilled();
+        if (isCancelled[commitId_]) revert Errors.CommitIsCancelled();
+        if (block.timestamp < commitCancellableAt[commitId_]) {
+            revert Errors.CommitNotCancellable();
+        }
+    }
+
+    /// @dev Calculates total refund and updates balances
+    function _calculateAndUpdateRefund(
+        uint256 commitId_,
+        uint256 packPrice
+    ) internal returns (uint256 totalRefund) {
+        // Refund pack price
+        commitBalance -= packPrice;
+        
+        // Also refund protocol fees
+        uint256 protocolFeesPaid = feesPaid[commitId_];
+        protocolBalance -= protocolFeesPaid;
+        
+        totalRefund = packPrice + protocolFeesPaid;
+    }
+
+    /// @dev Processes refund to receiver with fallback to treasury
+    function _processRefund(
+        uint256 commitId_,
+        address receiver,
+        uint256 amount,
+        CommitData memory commitData
+    ) internal {
+        (bool success,) = payable(receiver).call{value: amount}("");
+        if (!success) {
+            // If the transfer fails, fall back to treasury so admin can rescue later
+            treasuryBalance += amount;
+            emit TransferFailure(commitId_, receiver, amount, hashCommit(commitData));
+        }
+    }
+
+    // ============================================================
+    // INTERNAL HELPERS - SHARED
+    // ============================================================
+
+    /// @notice Deposits ETH into the treasury
+    /// @dev Called internally when receiving ETH
+    /// @param amount Amount of ETH to deposit
+    function _depositTreasury(uint256 amount) internal {
+        treasuryBalance += amount;
+        emit TreasuryDeposit(msg.sender, amount);
+    }
+
+    function _setProtocolFee(uint256 protocolFee_) internal {
+        if (protocolFee_ > BASE_POINTS) revert Errors.InvalidProtocolFee();
+        uint256 oldProtocolFee = protocolFee;
+        protocolFee = protocolFee_;
+        emit ProtocolFeeUpdated(oldProtocolFee, protocolFee_);
     }
 
     function _setFlatFee(uint256 flatFee_) internal {
@@ -924,5 +1280,25 @@ contract Packs is
             // No fundsReceiver set, add to treasury
             treasuryBalance += flatFee;
         }
+    }
+
+    /// @notice Sets the funds receiver
+    /// @param fundsReceiver_ Address to set as funds receiver
+    function _setFundsReceiver(address fundsReceiver_) internal {
+        if (fundsReceiver_ == address(0)) revert Errors.FundsReceiverAddressZero();
+        if (hasRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiver_)) {
+            revert Errors.InvalidFundsReceiverManager();
+        }
+        address oldFundsReceiver = fundsReceiver;
+        fundsReceiver = payable(fundsReceiver_);
+        emit FundsReceiverUpdated(oldFundsReceiver, fundsReceiver_);
+    }
+
+    /// @notice Transfers the funds receiver manager role
+    /// @param newFundsReceiverManager_ New funds receiver manager
+    function _transferFundsReceiverManager(address newFundsReceiverManager_) internal {
+        _revokeRole(FUNDS_RECEIVER_MANAGER_ROLE, msg.sender);
+        _grantRole(FUNDS_RECEIVER_MANAGER_ROLE, newFundsReceiverManager_);
+        emit FundsReceiverManagerTransferred(msg.sender, newFundsReceiverManager_);
     }
 }

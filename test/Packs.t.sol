@@ -298,7 +298,7 @@ contract TestPacks is Test {
 
         bytes memory signature = signPack(0.5 ether, buckets);
 
-        vm.expectRevert(Errors.InvalidAmount.selector);
+        vm.expectRevert(Errors.PackPriceAboveMaximum.selector);
         packs.commit{value: 0.5 ether}(
             receiver,
             cosigner,
@@ -317,7 +317,7 @@ contract TestPacks is Test {
 
         bytes memory signature = signPack(packPrice, buckets);
 
-        vm.expectRevert(Errors.InvalidAddress.selector);
+        vm.expectRevert(Errors.CosignerNotActive.selector);
         packs.commit{value: packPrice}(
             receiver,
             address(0x999),
@@ -341,7 +341,7 @@ contract TestPacks is Test {
             );
         bytes memory signature = signPack(packPrice, emptyBuckets);
 
-        vm.expectRevert(Packs.InvalidBuckets.selector);
+        vm.expectRevert(Errors.InvalidBuckets.selector);
         packs.commit{value: packPrice}(
             receiver,
             cosigner,
@@ -365,7 +365,7 @@ contract TestPacks is Test {
         }
         signature = signPack(packPrice, tooManyBuckets);
 
-        vm.expectRevert(Packs.InvalidBuckets.selector);
+        vm.expectRevert(Errors.InvalidBuckets.selector);
         packs.commit{value: packPrice}(
             receiver,
             cosigner,
@@ -394,7 +394,7 @@ contract TestPacks is Test {
         });
         bytes memory signature = signPack(packPrice, invalidBuckets);
 
-        vm.expectRevert(Packs.InvalidReward.selector);
+        vm.expectRevert(Errors.InvalidReward.selector);
         packs.commit{value: packPrice}(
             receiver,
             cosigner,
@@ -423,7 +423,7 @@ contract TestPacks is Test {
         });
         bytes memory signature = signPack(packPrice, invalidBuckets);
 
-        vm.expectRevert(Packs.InvalidReward.selector);
+        vm.expectRevert(Errors.InvalidReward.selector);
         packs.commit{value: packPrice}(
             receiver,
             cosigner,
@@ -455,7 +455,7 @@ contract TestPacks is Test {
         });
         bytes memory signature = signPack(packPrice, overlappingBuckets);
 
-        vm.expectRevert(Packs.InvalidBuckets.selector);
+        vm.expectRevert(Errors.InvalidBuckets.selector);
         packs.commit{value: packPrice}(
             receiver,
             cosigner,
@@ -489,7 +489,7 @@ contract TestPacks is Test {
         });
         bytes memory signature = signPack(packPrice, invalidOddsBuckets);
 
-        vm.expectRevert(Packs.InvalidBuckets.selector);
+        vm.expectRevert(Errors.InvalidBuckets.selector);
         packs.commit{value: packPrice}(
             receiver,
             cosigner,
@@ -508,7 +508,7 @@ contract TestPacks is Test {
 
         bytes memory wrongSignature = signPack(packPrice + 0.1 ether, buckets);
 
-        vm.expectRevert(Errors.InvalidAddress.selector);
+        vm.expectRevert(Errors.PackSignerMismatch.selector);
         packs.commit{value: packPrice}(
             receiver,
             cosigner,
@@ -830,7 +830,7 @@ contract TestPacks is Test {
         );
 
         vm.prank(cosigner);
-        vm.expectRevert(Errors.InvalidAddress.selector);
+        vm.expectRevert(Errors.CommitSignerMismatch.selector);
         packs.fulfill(
             commitId,
             marketplace,
@@ -914,7 +914,7 @@ contract TestPacks is Test {
         );
 
         vm.prank(bob);
-        vm.expectRevert(Errors.Unauthorized.selector);
+        vm.expectRevert(Errors.OnlyCosignerCanFulfill.selector);
         packs.fulfill(
             commitId,
             marketplace, // marketplace
@@ -1000,7 +1000,7 @@ contract TestPacks is Test {
         );
 
         vm.prank(cosigner);
-        vm.expectRevert(Errors.InvalidAmount.selector);
+        vm.expectRevert(Errors.OrderAmountAboveBucketMax.selector);
         packs.fulfill(
             commitId,
             marketplace,
@@ -1099,7 +1099,7 @@ contract TestPacks is Test {
 
         // Try to fulfill again with different order data - but this will fail with AlreadyFulfilled first
         vm.prank(cosigner);
-        vm.expectRevert(Packs.AlreadyFulfilled.selector);
+        vm.expectRevert(Errors.AlreadyFulfilled.selector);
         packs.fulfill(
             commitId,
             marketplace,
@@ -1195,7 +1195,7 @@ contract TestPacks is Test {
 
         // Try to fulfill again
         vm.prank(cosigner);
-        vm.expectRevert(Packs.AlreadyFulfilled.selector);
+        vm.expectRevert(Errors.AlreadyFulfilled.selector);
         packs.fulfill{value: 0}(
             commitId,
             marketplace,
@@ -1336,7 +1336,7 @@ contract TestPacks is Test {
 
         // Try to cancel before cancellation time as cosigner
         vm.prank(cosigner);
-        vm.expectRevert(Packs.CommitNotCancellable.selector);
+        vm.expectRevert(Errors.CommitNotCancellable.selector);
         packs.cancel(commitId);
     }
 
@@ -1363,7 +1363,7 @@ contract TestPacks is Test {
         vm.warp(block.timestamp + 2 days);
 
         // Try to cancel as non-cosigner
-        vm.expectRevert(Packs.InvalidCommitOwner.selector);
+        vm.expectRevert(Errors.InvalidCommitOwner.selector);
         vm.prank(bob);
         packs.cancel(commitId);
     }
@@ -1389,7 +1389,7 @@ contract TestPacks is Test {
     }
 
     function testWithdrawTreasuryInsufficientBalance() public {
-        vm.expectRevert(Errors.InsufficientBalance.selector);
+        vm.expectRevert(Errors.WithdrawAmountExceedsTreasury.selector);
         vm.prank(admin);
         packs.withdrawTreasury(1 ether);
     }
@@ -1796,7 +1796,7 @@ contract TestPacks is Test {
         );
 
         vm.prank(cosigner);
-        vm.expectRevert(Errors.InvalidAddress.selector);
+        vm.expectRevert(Errors.CommitSignerMismatch.selector);
         packs.fulfill(
             commitId,
             marketplace,
@@ -1897,7 +1897,7 @@ contract TestPacks is Test {
         );
 
         vm.prank(cosigner);
-        vm.expectRevert(Errors.InvalidAddress.selector);
+        vm.expectRevert(Errors.FulfillmentSignerMismatch.selector);
         packs.fulfill(
             commitId,
             marketplace,
@@ -2222,14 +2222,14 @@ contract TestPacks is Test {
 
     function testInvalidFundsReceiverManager() public {
         vm.startPrank(fundsReceiverManager);
-        vm.expectRevert(Packs.InvalidFundsReceiverManager.selector);
+        vm.expectRevert(Errors.InvalidFundsReceiverManager.selector);
         packs.transferFundsReceiverManager(address(0));
         vm.stopPrank();
     }
 
     function testInvalidFundsReceiver() public {
         vm.startPrank(fundsReceiverManager);
-        vm.expectRevert(Errors.InvalidAddress.selector);
+        vm.expectRevert(Errors.FundsReceiverAddressZero.selector);
         packs.setFundsReceiver(address(0));
         vm.stopPrank();
     }
@@ -2563,7 +2563,7 @@ contract TestPacks is Test {
         require(success, "Failed to fund contract");
 
         vm.prank(cosigner);
-        vm.expectRevert(Packs.InvalidCommitId.selector);
+        vm.expectRevert(Errors.InvalidCommitId.selector);
 
         packs.fulfillByDigest(
             invalidDigest,
@@ -2606,11 +2606,11 @@ contract TestPacks is Test {
         vm.startPrank(admin);
 
         // Test invalid min reward
-        vm.expectRevert(Packs.InvalidReward.selector);
+        vm.expectRevert(Errors.InvalidReward.selector);
         packs.setMinReward(10 ether); // Greater than max reward
 
         // Test invalid max pack price
-        vm.expectRevert(Packs.InvalidPackPrice.selector);
+        vm.expectRevert(Errors.InvalidPackPrice.selector);
         packs.setMaxPackPrice(0.005 ether); // Less than min pack price
 
         // Test invalid payout bps - payoutBps is no longer used
@@ -2641,7 +2641,7 @@ contract TestPacks is Test {
         assertEq(packs.commitCancellableTime(), 2 days);
 
         // Test minimum cancellable time
-        vm.expectRevert(Packs.InvalidCommitCancellableTime.selector);
+        vm.expectRevert(Errors.InvalidCommitCancellableTime.selector);
         packs.setCommitCancellableTime(30 seconds); // Less than MIN_COMMIT_CANCELLABLE_TIME
         vm.stopPrank();
     }
@@ -2667,15 +2667,15 @@ contract TestPacks is Test {
         assertTrue(packs.isCosigner(bob));
 
         // Test adding zero address
-        vm.expectRevert(Errors.InvalidAddress.selector);
+        vm.expectRevert(Errors.CosignerAddressZero.selector);
         packs.addCosigner(address(0));
 
         // Test adding already existing cosigner
-        vm.expectRevert(Packs.AlreadyCosigner.selector);
+        vm.expectRevert(Errors.AlreadyCosigner.selector);
         packs.addCosigner(bob);
 
         // Test removing non-existent cosigner
-        vm.expectRevert(Errors.InvalidAddress.selector);
+        vm.expectRevert(Errors.NotActiveCosigner.selector);
         packs.removeCosigner(charlie);
 
         packs.removeCosigner(bob);
@@ -2702,7 +2702,7 @@ contract TestPacks is Test {
 
         // Admin cannot set a value below the minimum
         vm.startPrank(admin);
-        vm.expectRevert(Packs.InvalidNftFulfillmentExpiryTime.selector);
+        vm.expectRevert(Errors.InvalidNftFulfillmentExpiryTime.selector);
         packs.setNftFulfillmentExpiryTime(20 seconds); // Less than MIN_NFT_FULFILLMENT_EXPIRY_TIME (30s)
         vm.stopPrank();
 
@@ -2939,7 +2939,7 @@ contract TestPacks is Test {
         // Try to commit with amount equal to flat fee (should fail)
         vm.startPrank(user);
         vm.deal(user, 0.005 ether);
-        vm.expectRevert(Errors.InvalidAmount.selector);
+        vm.expectRevert(Errors.CommitAmountTooLowForFlatFee.selector);
         packs.commit{value: 0.005 ether}(
             receiver,
             cosigner,
