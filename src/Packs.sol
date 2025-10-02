@@ -424,7 +424,68 @@ contract Packs is
         bytes calldata fulfillmentSignature_,
         FulfillmentOption choice_
     ) internal nonReentrant {
-        // Basic validation of tx
+        // Validate fulfillment request
+        CommitData memory commitData = _validateFulfillmentRequest(
+            commitId_, 
+            marketplace_, 
+            orderAmount_, 
+            payoutAmount_
+        );
+        
+        // Verify signatures and generate randomness
+        (uint256 rng, bytes32 digest) = _verifyFulfillmentSignatures(
+            commitData,
+            commitSignature_,
+            fulfillmentSignature_,
+            marketplace_,
+            orderData_,
+            orderAmount_,
+            token_,
+            tokenId_,
+            payoutAmount_,
+            choice_
+        );
+        
+        // Determine outcome and validate amounts
+        (uint256 bucketIndex, BucketData memory bucket) = _determineOutcomeAndValidate(
+            rng,
+            commitData.buckets,
+            orderAmount_,
+            payoutAmount_
+        );
+        
+        // Determine fulfillment type (check expiry)
+        FulfillmentOption fulfillmentType = _determineFulfillmentType(commitId_, choice_);
+        
+        // Mark fulfilled and update balances
+        _markFulfilledAndUpdateBalances(commitId_, commitData.packPrice);
+        
+        // Execute the fulfillment
+        _executeFulfillment(
+            commitId_,
+            commitData,
+            marketplace_,
+            orderData_,
+            orderAmount_,
+            token_,
+            tokenId_,
+            payoutAmount_,
+            rng,
+            bucket,
+            bucketIndex,
+            choice_,
+            fulfillmentType,
+            digest
+        );
+    }
+
+    /// @dev Validates the fulfillment request parameters
+    function _validateFulfillmentRequest(
+        uint256 commitId_,
+        address marketplace_,
+        uint256 orderAmount_,
+        uint256 payoutAmount_
+    ) internal returns (CommitData memory) {
         if (commitId_ >= packs.length) revert InvalidCommitId();
         if (msg.sender != packs[commitId_].cosigner) revert Errors.Unauthorized();
         if (marketplace_ == address(0)) revert Errors.InvalidAddress();
@@ -432,135 +493,272 @@ contract Packs is
         if (orderAmount_ > treasuryBalance) revert Errors.InsufficientBalance();
         if (isFulfilled[commitId_]) revert AlreadyFulfilled();
         if (isCancelled[commitId_]) revert CommitIsCancelled();
-
         if (payoutAmount_ > orderAmount_) revert Errors.InvalidAmount();
 
-        CommitData memory commitData = packs[commitId_];
+        return packs[commitId_];
+    }
 
-        // Check the cosigner signed the commit
+    /// @dev Verifies commit and fulfillment signatures, generates RNG
+    function _verifyFulfillmentSignatures(
+        CommitData memory commitData,
+        bytes calldata commitSignature_,
+        bytes calldata fulfillmentSignature_,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        uint256 payoutAmount_,
+        FulfillmentOption choice_
+    ) internal view returns (uint256 rng, bytes32 digest) {
+        // Verify commit signature
         address commitCosigner = verifyCommit(commitData, commitSignature_);
         if (commitCosigner != commitData.cosigner) revert Errors.InvalidAddress();
         if (!isCosigner[commitCosigner]) revert Errors.InvalidAddress();
 
-        uint256 rng = PRNG.rng(commitSignature_);
-        bytes32 digest = hashCommit(commitData);
-        bytes32 fulfillmentHash =
-            hashFulfillment(digest, marketplace_, orderAmount_, orderData_, token_, tokenId_, payoutAmount_, choice_);
+        // Generate RNG and digest
+        rng = PRNG.rng(commitSignature_);
+        digest = hashCommit(commitData);
 
-        // Check the cosigner signed the order data
+        // Verify fulfillment signature
+        bytes32 fulfillmentHash = hashFulfillment(
+            digest, 
+            marketplace_, 
+            orderAmount_, 
+            orderData_, 
+            token_, 
+            tokenId_, 
+            payoutAmount_, 
+            choice_
+        );
         address fulfillmentCosigner = verifyHash(fulfillmentHash, fulfillmentSignature_);
         if (fulfillmentCosigner != commitData.cosigner) revert Errors.InvalidAddress();
         if (!isCosigner[fulfillmentCosigner]) revert Errors.InvalidAddress();
+    }
 
-        // Determine bucket and validate orderAmount and payoutAmount are within bucket range
-        uint256 bucketIndex = _getBucketIndex(rng, commitData.buckets);
-        BucketData memory bucket = commitData.buckets[bucketIndex];
+    /// @dev Determines outcome bucket and validates amounts are within range
+    function _determineOutcomeAndValidate(
+        uint256 rng,
+        BucketData[] memory buckets,
+        uint256 orderAmount_,
+        uint256 payoutAmount_
+    ) internal pure returns (uint256 bucketIndex, BucketData memory bucket) {
+        bucketIndex = _getBucketIndex(rng, buckets);
+        bucket = buckets[bucketIndex];
+        
         if (orderAmount_ < bucket.minValue) revert Errors.InvalidAmount();
         if (orderAmount_ > bucket.maxValue) revert Errors.InvalidAmount();
         if (payoutAmount_ < bucket.minValue) revert Errors.InvalidAmount();
         if (payoutAmount_ > bucket.maxValue) revert Errors.InvalidAmount();
+    }
 
-        // If we want to fulfill via NFT but the option has expired, default to payout
-        FulfillmentOption fulfillmentType = choice_;
+    /// @dev Determines actual fulfillment type based on choice and expiry
+    function _determineFulfillmentType(
+        uint256 commitId_,
+        FulfillmentOption choice_
+    ) internal view returns (FulfillmentOption) {
         if (choice_ == FulfillmentOption.NFT && block.timestamp > nftFulfillmentExpiresAt[commitId_]) {
-            fulfillmentType = FulfillmentOption.Payout;
+            return FulfillmentOption.Payout;
         }
+        return choice_;
+    }
 
-        // Mark the commit as fulfilled
+    /// @dev Marks commit as fulfilled and updates all balances
+    function _markFulfilledAndUpdateBalances(uint256 commitId_, uint256 packPrice) internal {
         isFulfilled[commitId_] = true;
 
-        // Forward pack revenue to the funds receiver
-        commitBalance -= commitData.packPrice;
-        treasuryBalance += commitData.packPrice;
+        // Move pack revenue to treasury
+        commitBalance -= packPrice;
+        treasuryBalance += packPrice;
 
-        // Move protocol fees to treasury balance
+        // Move protocol fees to treasury
         uint256 protocolFeesPaid = feesPaid[commitId_];
         protocolBalance -= protocolFeesPaid;
         treasuryBalance += protocolFeesPaid;
+    }
 
-        // Handle user choice and fulfil order or payout
+    /// @dev Executes the fulfillment (NFT or payout)
+    function _executeFulfillment(
+        uint256 commitId_,
+        CommitData memory commitData,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        uint256 payoutAmount_,
+        uint256 rng,
+        BucketData memory bucket,
+        uint256 bucketIndex,
+        FulfillmentOption choice_,
+        FulfillmentOption fulfillmentType,
+        bytes32 digest
+    ) internal {
         if (fulfillmentType == FulfillmentOption.NFT) {
-            // execute the market data to transfer the nft
-            bool success = false;
-            try this._fulfillOrder(marketplace_, orderData_, orderAmount_) returns (bool result) {
-                success = result;
-            } catch {
-                success = false;
-            }
-            
-            if (success) {
-                // subtract the order amount from the treasury balance
-                treasuryBalance -= orderAmount_;
-                // emit a success transfer for the nft
-                emit Fulfillment(
-                    msg.sender,
-                    commitId_,
-                    rng,
-                    bucket.oddsBps,
-                    bucketIndex,
-                    0, // payout is 0 ETH for NFT fulfillment
-                    token_,
-                    tokenId_,
-                    orderAmount_,
-                    commitData.receiver,
-                    choice_,
-                    fulfillmentType,
-                    digest
-                );
-            } else {
-                // The order failed to fulfill, it could be bought already or invalid, make the best effort to send the user the value of the order they won.
-                (bool fallbackSuccess,) = commitData.receiver.call{value: orderAmount_}("");
-                if (fallbackSuccess) {
-                    treasuryBalance -= orderAmount_;
-                } else {
-                    emit TransferFailure(commitData.id, commitData.receiver, orderAmount_, digest);
-                }
-                // emit the failure (they wanted the NFT but got the NFT value as a payout)
-                emit Fulfillment(
-                    msg.sender,
-                    commitId_,
-                    rng,
-                    bucket.oddsBps,
-                    bucketIndex,
-                    orderAmount_, // payout amount when NFT fails (full order amount)
-                    address(0), // no NFT token address when NFT fails
-                    0, // no NFT token ID when NFT fails
-                    0, // no NFT amount when NFT fails
-                    commitData.receiver,
-                    choice_,
-                    fulfillmentType,
-                    digest
-                );
-            }
+            _executeNFTFulfillment(
+                commitId_,
+                commitData,
+                marketplace_,
+                orderData_,
+                orderAmount_,
+                token_,
+                tokenId_,
+                rng,
+                bucket,
+                bucketIndex,
+                choice_,
+                fulfillmentType,
+                digest
+            );
         } else {
-            // Payout fulfillment route
+            _executePayoutFulfillment(
+                commitId_,
+                commitData,
+                payoutAmount_,
+                rng,
+                bucket,
+                bucketIndex,
+                choice_,
+                fulfillmentType,
+                digest
+            );
+        }
+    }
 
-            (bool success,) = commitData.receiver.call{value: payoutAmount_}("");
-            if (success) {
-                treasuryBalance -= payoutAmount_;
-            } else {
-                emit TransferFailure(commitData.id, commitData.receiver, payoutAmount_, digest);
-            }
-
-            // Keep remainder in treasury (no transfer needed since it's already there)
-
-            // emit the payout
+    /// @dev Executes NFT fulfillment with fallback to payout on failure
+    function _executeNFTFulfillment(
+        uint256 commitId_,
+        CommitData memory commitData,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        uint256 rng,
+        BucketData memory bucket,
+        uint256 bucketIndex,
+        FulfillmentOption choice_,
+        FulfillmentOption fulfillmentType,
+        bytes32 digest
+    ) internal {
+        bool success = _tryFulfillNFTOrder(marketplace_, orderData_, orderAmount_);
+        
+        if (success) {
+            treasuryBalance -= orderAmount_;
             emit Fulfillment(
                 msg.sender,
                 commitId_,
                 rng,
                 bucket.oddsBps,
                 bucketIndex,
-                payoutAmount_,
-                address(0), // no NFT token address for payout
-                0, // no NFT token ID for payout
-                0, // no NFT amount for payout
+                0, // payout is 0 for successful NFT
+                token_,
+                tokenId_,
+                orderAmount_,
                 commitData.receiver,
                 choice_,
                 fulfillmentType,
                 digest
             );
+        } else {
+            _handleNFTFulfillmentFailure(
+                commitId_,
+                commitData,
+                orderAmount_,
+                rng,
+                bucket,
+                bucketIndex,
+                choice_,
+                fulfillmentType,
+                digest
+            );
         }
+    }
+
+    /// @dev Attempts to fulfill NFT order via marketplace
+    function _tryFulfillNFTOrder(
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_
+    ) internal returns (bool) {
+        try this._fulfillOrder(marketplace_, orderData_, orderAmount_) returns (bool result) {
+            return result;
+        } catch {
+            return false;
+        }
+    }
+
+    /// @dev Handles NFT fulfillment failure by sending ETH instead
+    function _handleNFTFulfillmentFailure(
+        uint256 commitId_,
+        CommitData memory commitData,
+        uint256 orderAmount_,
+        uint256 rng,
+        BucketData memory bucket,
+        uint256 bucketIndex,
+        FulfillmentOption choice_,
+        FulfillmentOption fulfillmentType,
+        bytes32 digest
+    ) internal {
+        // Fallback: send ETH value to receiver
+        (bool fallbackSuccess,) = commitData.receiver.call{value: orderAmount_}("");
+        if (fallbackSuccess) {
+            treasuryBalance -= orderAmount_;
+        } else {
+            emit TransferFailure(commitData.id, commitData.receiver, orderAmount_, digest);
+        }
+        
+        emit Fulfillment(
+            msg.sender,
+            commitId_,
+            rng,
+            bucket.oddsBps,
+            bucketIndex,
+            orderAmount_, // payout when NFT fails
+            address(0), // no NFT token
+            0, // no NFT token ID
+            0, // no NFT amount
+            commitData.receiver,
+            choice_,
+            fulfillmentType,
+            digest
+        );
+    }
+
+    /// @dev Executes payout fulfillment
+    function _executePayoutFulfillment(
+        uint256 commitId_,
+        CommitData memory commitData,
+        uint256 payoutAmount_,
+        uint256 rng,
+        BucketData memory bucket,
+        uint256 bucketIndex,
+        FulfillmentOption choice_,
+        FulfillmentOption fulfillmentType,
+        bytes32 digest
+    ) internal {
+        (bool success,) = commitData.receiver.call{value: payoutAmount_}("");
+        if (success) {
+            treasuryBalance -= payoutAmount_;
+        } else {
+            emit TransferFailure(commitData.id, commitData.receiver, payoutAmount_, digest);
+        }
+
+        emit Fulfillment(
+            msg.sender,
+            commitId_,
+            rng,
+            bucket.oddsBps,
+            bucketIndex,
+            payoutAmount_,
+            address(0), // no NFT for payout
+            0, // no NFT token ID
+            0, // no NFT amount
+            commitData.receiver,
+            choice_,
+            fulfillmentType,
+            digest
+        );
     }
 
     /// @notice Fulfills a commit with the result of the random number generation
