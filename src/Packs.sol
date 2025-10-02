@@ -57,7 +57,6 @@ contract Packs is
 
     uint256 public protocolFee = 0;
     uint256 public protocolBalance = 0;
-    
     mapping(uint256 commitId => uint256 protocolFee) public feesPaid;
     uint256 public flatFee = 0;
 
@@ -184,63 +183,147 @@ contract Packs is
         BucketData[] memory buckets_,
         bytes memory signature_
     ) external payable whenNotPaused returns (uint256) {
-        // Amount user is sending to purchase the pack
-        uint256 totalAmount = msg.value;
-        uint256 packPrice = calculateContributionWithoutFee(totalAmount, protocolFee) - flatFee;
+        return _commit(receiver_, cosigner_, seed_, packType_, buckets_, signature_);
+    }
 
+    /// @dev Internal commit orchestration
+    function _commit(
+        address receiver_,
+        address cosigner_,
+        uint256 seed_,
+        PackType packType_,
+        BucketData[] memory buckets_,
+        bytes memory signature_
+    ) internal returns (uint256) {
+        // Calculate pack price from payment
+        uint256 packPrice = _validateAndCalculatePackPrice(msg.value);
+        
+        // Validate all input parameters
+        _validateCommitAddresses(receiver_, cosigner_);
+        _validateBuckets(buckets_, packPrice);
+        
+        // Verify cosigner signature
+        bytes32 packHash = _verifyPackSignature(packType_, packPrice, buckets_, signature_, cosigner_);
+        
+        // Create and store the commit
+        uint256 commitId = _createCommit(receiver_, cosigner_, seed_, packPrice, buckets_, packHash);
+        
+        // Process fees and balances
+        _processCommitFees(commitId, packPrice);
+        
+        // Set expiry times
+        _setCommitExpiryTimes(commitId);
+        
+        // Emit event and return
+        bytes32 digest = hashCommit(packs[commitId]);
+        commitIdByDigest[digest] = commitId;
+        
+        emit Commit(
+            msg.sender, 
+            commitId, 
+            receiver_, 
+            cosigner_, 
+            seed_, 
+            packs[commitId].counter, 
+            packPrice, 
+            packHash, 
+            digest, 
+            feesPaid[commitId], 
+            flatFee
+        );
+        
+        return commitId;
+    }
+
+    /// @dev Validates payment amount and calculates pack price after fees
+    function _validateAndCalculatePackPrice(uint256 totalAmount) internal view returns (uint256) {
         if (totalAmount == 0) revert Errors.InvalidAmount();
-        if (totalAmount <= flatFee) revert Errors.InvalidAmount(); 
+        if (totalAmount <= flatFee) revert Errors.InvalidAmount();
+        
+        uint256 packPrice = calculateContributionWithoutFee(totalAmount, protocolFee) - flatFee;
         
         if (packPrice < minPackPrice) revert Errors.InvalidAmount();
         if (packPrice > maxPackPrice) revert Errors.InvalidAmount();
+        
+        return packPrice;
+    }
 
-        if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
-        if (cosigner_ == address(0)) revert Errors.InvalidAddress();
+    /// @dev Validates receiver and cosigner addresses
+    function _validateCommitAddresses(address receiver_, address cosigner_) internal view {
         if (receiver_ == address(0)) revert Errors.InvalidAddress();
+        if (cosigner_ == address(0)) revert Errors.InvalidAddress();
+        if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
+    }
 
+    /// @dev Validates bucket configuration and odds
+    function _validateBuckets(BucketData[] memory buckets_, uint256 packPrice) internal view {
         // Validate bucket count
         if (buckets_.length < MIN_BUCKETS) revert InvalidBuckets();
         if (buckets_.length > MAX_BUCKETS) revert InvalidBuckets();
 
-        // Validate bucket's min and max values, ascending value range, and odds
+        // Validate each bucket's configuration
         uint256 totalOdds = 0;
         for (uint256 i = 0; i < buckets_.length; i++) {
-            if (buckets_[i].minValue == 0) revert InvalidReward();
-            if (buckets_[i].maxValue == 0) revert InvalidReward();
-            if (buckets_[i].minValue > buckets_[i].maxValue) revert InvalidReward();
-            if (buckets_[i].minValue < minReward) revert InvalidReward();
-            if (buckets_[i].maxValue > maxReward) revert InvalidReward();
-            if (buckets_[i].minValue < packPrice * minPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
-            if (buckets_[i].maxValue > packPrice * maxPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
-            if (buckets_[i].oddsBps == 0) revert InvalidBuckets();
-            if (buckets_[i].oddsBps > BASE_POINTS) revert InvalidBuckets();
-            if (i < buckets_.length - 1 && buckets_[i].maxValue > buckets_[i + 1].minValue) revert InvalidBuckets();
+            _validateBucketValues(buckets_[i], packPrice);
+            _validateBucketOdds(buckets_[i]);
             
-            // Sum individual probabilities
+            // Check ascending order between buckets
+            if (i < buckets_.length - 1 && buckets_[i].maxValue > buckets_[i + 1].minValue) {
+                revert InvalidBuckets();
+            }
+            
             totalOdds += buckets_[i].oddsBps;
         }
 
-        // Final total odds check - must equal 10000 (100%)
+        // Total odds must equal 100%
         if (totalOdds != BASE_POINTS) revert InvalidBuckets();
+    }
 
-        // Hash pack for cosigner validation and event emission
-        // Pack data gets re-checked in commitSignature on fulfill
+    /// @dev Validates a single bucket's min/max values
+    function _validateBucketValues(BucketData memory bucket, uint256 packPrice) internal view {
+        if (bucket.minValue == 0) revert InvalidReward();
+        if (bucket.maxValue == 0) revert InvalidReward();
+        if (bucket.minValue > bucket.maxValue) revert InvalidReward();
+        if (bucket.minValue < minReward) revert InvalidReward();
+        if (bucket.maxValue > maxReward) revert InvalidReward();
+        if (bucket.minValue < packPrice * minPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
+        if (bucket.maxValue > packPrice * maxPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
+    }
+
+    /// @dev Validates a single bucket's odds
+    function _validateBucketOdds(BucketData memory bucket) internal pure {
+        if (bucket.oddsBps == 0) revert InvalidBuckets();
+        if (bucket.oddsBps > BASE_POINTS) revert InvalidBuckets();
+    }
+
+    /// @dev Verifies the pack was cosigned and returns pack hash
+    function _verifyPackSignature(
+        PackType packType_,
+        uint256 packPrice,
+        BucketData[] memory buckets_,
+        bytes memory signature_,
+        address expectedCosigner
+    ) internal view returns (bytes32) {
         bytes32 packHash = hashPack(packType_, packPrice, buckets_);
-        address cosigner = verifyHash(packHash, signature_);
-        if (cosigner != cosigner_) revert Errors.InvalidAddress();
-        if (!isCosigner[cosigner]) revert Errors.InvalidAddress();
+        address signer = verifyHash(packHash, signature_);
+        
+        if (signer != expectedCosigner) revert Errors.InvalidAddress();
+        if (!isCosigner[signer]) revert Errors.InvalidAddress();
+        
+        return packHash;
+    }
 
+    /// @dev Creates commit data and stores it
+    function _createCommit(
+        address receiver_,
+        address cosigner_,
+        uint256 seed_,
+        uint256 packPrice,
+        BucketData[] memory buckets_,
+        bytes32 packHash
+    ) internal returns (uint256) {
         uint256 commitId = packs.length;
         uint256 userCounter = packCount[receiver_]++;
-
-        feesPaid[commitId] = msg.value - packPrice;
-        protocolBalance += feesPaid[commitId];
-
-        // Handle flat fee payment
-        _handleFlatFeePayment();
-
-        // Track pack price (after flat fee) in commit balance
-        commitBalance += packPrice;
 
         CommitData memory commitData = CommitData({
             id: commitId,
@@ -254,15 +337,27 @@ contract Packs is
         });
 
         packs.push(commitData);
+        
+        return commitId;
+    }
+
+    /// @dev Processes fees and updates balances
+    function _processCommitFees(uint256 commitId, uint256 packPrice) internal {
+        // Record protocol fees
+        feesPaid[commitId] = msg.value - packPrice;
+        protocolBalance += feesPaid[commitId];
+
+        // Handle flat fee payment
+        _handleFlatFeePayment();
+
+        // Track pack price in commit balance
+        commitBalance += packPrice;
+    }
+
+    /// @dev Sets cancellation and fulfillment expiry times
+    function _setCommitExpiryTimes(uint256 commitId) internal {
         commitCancellableAt[commitId] = block.timestamp + commitCancellableTime;
         nftFulfillmentExpiresAt[commitId] = block.timestamp + nftFulfillmentExpiryTime;
-
-        bytes32 digest = hashCommit(commitData);
-        commitIdByDigest[digest] = commitId;
-
-        emit Commit(msg.sender, commitId, receiver_, cosigner_, seed_, userCounter, packPrice, packHash, digest, feesPaid[commitId], flatFee);
-
-        return commitId;
     }
 
     /// @notice Get the index of the bucket selected for a given RNG value
@@ -924,5 +1019,11 @@ contract Packs is
             // No fundsReceiver set, add to treasury
             treasuryBalance += flatFee;
         }
+    }
+
+    /// @notice Get the total number of packs created
+    /// @return The length of the packs array
+    function getPacksLength() external view returns (uint256) {
+        return packs.length;
     }
 }
