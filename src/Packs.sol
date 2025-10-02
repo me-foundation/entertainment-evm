@@ -16,6 +16,10 @@ contract Packs is
     ReentrancyGuardUpgradeable,
     TokenRescuer
 {
+    // ============================================================
+    // STORAGE
+    // ============================================================
+
     IPRNG public PRNG;
     address payable public fundsReceiver;
 
@@ -59,6 +63,10 @@ contract Packs is
     uint256 public protocolBalance = 0;
     mapping(uint256 commitId => uint256 protocolFee) public feesPaid;
     uint256 public flatFee = 0;
+
+    // ============================================================
+    // EVENTS
+    // ============================================================
 
     event Commit(
         address indexed sender,
@@ -110,6 +118,10 @@ contract Packs is
     event ProtocolFeeUpdated(uint256 oldProtocolFee, uint256 newProtocolFee);
     event FlatFeeUpdated(uint256 oldFlatFee, uint256 newFlatFee);
 
+    // ============================================================
+    // ERRORS
+    // ============================================================
+
     error AlreadyCosigner();
     error AlreadyFulfilled();
     error InvalidCommitOwner();
@@ -127,12 +139,20 @@ contract Packs is
     error BucketSelectionFailed();
     error InvalidProtocolFee();
 
+    // ============================================================
+    // MODIFIERS
+    // ============================================================
+
     modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
         if (packs[commitId_].receiver != msg.sender && packs[commitId_].cosigner != msg.sender) {
             revert InvalidCommitOwner();
         }
         _;
     }
+
+    // ============================================================
+    // CONSTRUCTOR
+    // ============================================================
 
     constructor(uint256 protocolFee_,uint256 flatFee_,address fundsReceiver_, address prng_, address fundsReceiverManager_) initializer {
         __MEAccessControl_init();
@@ -166,6 +186,10 @@ contract Packs is
         nftFulfillmentExpiryTime = 10 minutes;
     }
 
+    // ============================================================
+    // CORE BUSINESS LOGIC
+    // ============================================================
+
     /// @notice Allows a user to commit funds for a pack purchase
     /// @param receiver_ Address that will receive the NFT/ETH if won
     /// @param cosigner_ Address of the authorized cosigner
@@ -185,6 +209,457 @@ contract Packs is
     ) external payable whenNotPaused returns (uint256) {
         return _commit(receiver_, cosigner_, seed_, packType_, buckets_, signature_);
     }
+
+    /// @notice Fulfills a commit with the result of the random number generation
+    /// @param commitId_ ID of the commit to fulfill
+    /// @param marketplace_ Address where the order should be executed
+    /// @param orderData_ Calldata for the order execution
+    /// @param orderAmount_ Amount of ETH to send with the order
+    /// @param token_ Address of the token being transferred (zero address for ETH)
+    /// @param tokenId_ ID of the token if it's an NFT
+    /// @param payoutAmount_ Amount of ETH to send to the receiver on payout choice
+    /// @param commitSignature_ Signature used for commit data
+    /// @param fulfillmentSignature_ Signature used for orderData (and to validate orderData)
+    /// @param choice_ Choice made by the receiver (Payout = 0, NFT = 1)
+    /// @dev Emits a Fulfillment event on success
+    function fulfill(
+        uint256 commitId_,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        uint256 payoutAmount_,
+        bytes calldata commitSignature_,
+        bytes calldata fulfillmentSignature_,
+        FulfillmentOption choice_
+    ) public payable whenNotPaused {
+        _fulfill(
+            commitId_,
+            marketplace_,
+            orderData_,
+            orderAmount_,
+            token_,
+            tokenId_,
+            payoutAmount_,
+            commitSignature_,
+            fulfillmentSignature_,
+            choice_
+        );
+    }
+
+    /// @notice Fulfills a commit with the result of the random number generation
+    /// @param commitDigest_ Digest of the commit to fulfill
+    /// @param marketplace_ Address where the order should be executed
+    /// @param orderData_ Calldata for the order execution
+    /// @param orderAmount_ Amount of ETH to send with the order
+    /// @param token_ Address of the token being transferred (zero address for ETH)
+    /// @param tokenId_ ID of the token if it's an NFT
+    /// @param payoutAmount_ Amount of ETH to send to the receiver on payout choice
+    /// @param commitSignature_ Signature used for commit data
+    /// @param fulfillmentSignature_ Signature used for fulfillment data
+    /// @param choice_ Choice made by the receiver
+    /// @dev Only callable by the cosigner of the commit
+    /// @dev Emits a Fulfillment event on success
+    function fulfillByDigest(
+        bytes32 commitDigest_,
+        address marketplace_,
+        bytes calldata orderData_,
+        uint256 orderAmount_,
+        address token_,
+        uint256 tokenId_,
+        uint256 payoutAmount_,
+        bytes calldata commitSignature_,
+        bytes calldata fulfillmentSignature_,
+        FulfillmentOption choice_
+    ) external payable whenNotPaused {
+        return fulfill(
+            commitIdByDigest[commitDigest_],
+            marketplace_,
+            orderData_,
+            orderAmount_,
+            token_,
+            tokenId_,
+            payoutAmount_,
+            commitSignature_,
+            fulfillmentSignature_,
+            choice_
+        );
+    }
+
+    /// @notice Allows the receiver or cosigner to cancel a commit in the event that the commit is not or cannot be fulfilled
+    /// @param commitId_ ID of the commit to cancel
+    /// @dev Only callable by the receiver or cosigner
+    /// @dev It's safe to allow receiver to call cancel as the commit should be fulfilled within commitCancellableTime
+    /// @dev If not fulfilled before commitCancellableTime, it indicates a fulfillment issue so commit should be refunded
+    /// @dev Emits a CommitCancelled event
+    function cancel(uint256 commitId_) external nonReentrant onlyCommitOwnerOrCosigner(commitId_) {
+        _cancel(commitId_);
+    }
+
+    // ============================================================
+    // TREASURY MANAGEMENT
+    // ============================================================
+
+    /// @notice Allows the admin to withdraw ETH from the treasury balance
+    /// @param amount The amount of ETH to withdraw
+    /// @dev Only callable by admin role
+    /// @dev Emits a Withdrawal event
+    function withdrawTreasury(uint256 amount) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (amount == 0) revert Errors.InvalidAmount();
+        if (amount > treasuryBalance) revert Errors.InsufficientBalance();
+        treasuryBalance -= amount;
+
+        (bool success,) = payable(fundsReceiver).call{value: amount}("");
+        if (!success) revert WithdrawalFailed();
+
+        emit TreasuryWithdrawal(msg.sender, amount, fundsReceiver);
+    }
+
+    /// @notice Allows the admin to withdraw all ETH from the contract
+    /// @dev Only callable by admin role
+    /// @dev Emits a Withdrawal event
+    function emergencyWithdraw() external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
+        treasuryBalance = 0;
+        commitBalance = 0;
+
+        uint256 currentBalance = address(this).balance;
+
+        _rescueETH(fundsReceiver, currentBalance);
+
+        _pause();
+        emit EmergencyWithdrawal(msg.sender, currentBalance, fundsReceiver);
+    }
+
+    /// @notice Handles receiving ETH
+    /// @dev Required for contract to receive ETH
+    receive() external payable {
+        _depositTreasury(msg.value);
+    }
+
+    // ============================================================
+    // ADMIN CONFIGURATION
+    // ============================================================
+
+    // ---------- Cosigner Management ----------
+
+    /// @notice Adds a new authorized cosigner
+    /// @param cosigner_ Address to add as cosigner
+    /// @dev Only callable by admin role
+    /// @dev Emits a CoSignerAdded event
+    function addCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (cosigner_ == address(0)) revert Errors.InvalidAddress();
+        if (isCosigner[cosigner_]) revert AlreadyCosigner();
+        isCosigner[cosigner_] = true;
+        emit CosignerAdded(cosigner_);
+    }
+
+    /// @notice Removes an authorized cosigner
+    /// @param cosigner_ Address to remove as cosigner
+    /// @dev Only callable by admin role
+    /// @dev Emits a CoSignerRemoved event
+    function removeCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
+        isCosigner[cosigner_] = false;
+        emit CosignerRemoved(cosigner_);
+    }
+
+    // ---------- Time Parameters ----------
+
+    /// @notice Sets the commit cancellable time.
+    /// @param commitCancellableTime_ New commit cancellable time
+    /// @dev Only callable by admin role
+    /// @dev Emits a CommitCancellableTimeUpdated event
+    function setCommitCancellableTime(uint256 commitCancellableTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (commitCancellableTime_ < MIN_COMMIT_CANCELLABLE_TIME) {
+            revert InvalidCommitCancellableTime();
+        }
+        uint256 oldCommitCancellableTime = commitCancellableTime;
+        commitCancellableTime = commitCancellableTime_;
+        emit CommitCancellableTimeUpdated(oldCommitCancellableTime, commitCancellableTime_);
+    }
+
+    /// @notice Sets the NFT fulfillment expiry time
+    /// @param nftFulfillmentExpiryTime_ New NFT fulfillment expiry time
+    /// @dev Only callable by admin role
+    /// @dev Emits a NftFulfillmentExpiryTimeUpdated event
+    function setNftFulfillmentExpiryTime(uint256 nftFulfillmentExpiryTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (nftFulfillmentExpiryTime_ < MIN_NFT_FULFILLMENT_EXPIRY_TIME) {
+            revert InvalidNftFulfillmentExpiryTime();
+        }
+        uint256 oldNftFulfillmentExpiryTime = nftFulfillmentExpiryTime;
+        nftFulfillmentExpiryTime = nftFulfillmentExpiryTime_;
+        emit NftFulfillmentExpiryTimeUpdated(oldNftFulfillmentExpiryTime, nftFulfillmentExpiryTime_);
+    }
+
+    // ---------- Reward Limits ----------
+
+    /// @notice Sets the minimum allowed reward
+    /// @param minReward_ New minimum reward value
+    /// @dev Only callable by admin role
+    function setMinReward(uint256 minReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minReward_ == 0) revert InvalidReward();
+        if (minReward_ > maxReward) revert InvalidReward();
+
+        uint256 oldMinReward = minReward;
+        minReward = minReward_;
+        emit MinRewardUpdated(oldMinReward, minReward_);
+    }
+
+    /// @notice Sets the maximum allowed reward
+    /// @param maxReward_ New maximum reward value
+    /// @dev Only callable by admin role
+    function setMaxReward(uint256 maxReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxReward_ == 0) revert InvalidReward();
+        if (maxReward_ < minReward) revert InvalidReward();
+
+        uint256 oldMaxReward = maxReward;
+        maxReward = maxReward_;
+        emit MaxRewardUpdated(oldMaxReward, maxReward_);
+    }
+
+    // ---------- Pack Price Limits ----------
+
+    /// @notice Sets the minimum pack price
+    /// @param minPackPrice_ New minimum pack price
+    /// @dev Only callable by admin role
+    /// @dev Emits a MinPackPriceUpdated event
+    function setMinPackPrice(uint256 minPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minPackPrice_ == 0) revert InvalidPackPrice();
+        if (minPackPrice_ > maxPackPrice) revert InvalidPackPrice();
+
+        uint256 oldMinPackPrice = minPackPrice;
+        minPackPrice = minPackPrice_;
+        emit MinPackPriceUpdated(oldMinPackPrice, minPackPrice_);
+    }
+
+    /// @notice Sets the maximum pack price
+    /// @param maxPackPrice_ New maximum pack price
+    /// @dev Only callable by admin role
+    /// @dev Emits a MaxPackPriceUpdated event
+    function setMaxPackPrice(uint256 maxPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxPackPrice_ == 0) revert InvalidPackPrice();
+        if (maxPackPrice_ < minPackPrice) revert InvalidPackPrice();
+
+        uint256 oldMaxPackPrice = maxPackPrice;
+        maxPackPrice = maxPackPrice_;
+        emit MaxPackPriceUpdated(oldMaxPackPrice, maxPackPrice_);
+    }
+
+    // ---------- Multipliers ----------
+
+    /// @notice Sets the minimum pack reward multiplier
+    /// @param minPackRewardMultiplier_ New minimum pack reward multiplier
+    /// @dev Only callable by admin role
+    /// @dev Emits a MinPackRewardMultiplierUpdated event
+    function setMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (minPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
+        if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert InvalidPackRewardMultiplier();
+
+        uint256 oldMinPackRewardMultiplier = minPackRewardMultiplier;
+        minPackRewardMultiplier = minPackRewardMultiplier_;
+        emit MinPackRewardMultiplierUpdated(oldMinPackRewardMultiplier, minPackRewardMultiplier_);
+    }
+
+    /// @notice Sets the maximum pack reward multiplier
+    /// @param maxPackRewardMultiplier_ New maximum pack reward multiplier
+    /// @dev Only callable by admin role
+    /// @dev Emits a MaxPackRewardMultiplierUpdated event
+    function setMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (maxPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
+        if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert InvalidPackRewardMultiplier();
+
+        uint256 oldMaxPackRewardMultiplier = maxPackRewardMultiplier;
+        maxPackRewardMultiplier = maxPackRewardMultiplier_;
+        emit MaxPackRewardMultiplierUpdated(oldMaxPackRewardMultiplier, maxPackRewardMultiplier_);
+    }
+
+    // ---------- Fees ----------
+
+    function setProtocolFee(uint256 protocolFee_) external onlyRole(OPS_ROLE) {
+        _setProtocolFee(protocolFee_);
+    }
+
+    /// @notice Sets the flat fee. Is a static amount that comes off the top of the commit amount.
+    /// @param flatFee_ New flat fee
+    /// @dev Only callable by ops role
+    /// @dev Emits a FlatFeeUpdated event
+    function setFlatFee(uint256 flatFee_) external onlyRole(OPS_ROLE) {
+        _setFlatFee(flatFee_);
+    }
+
+    // ---------- Funds Receiver ----------
+
+    /// @notice Sets the funds receiver
+    /// @param fundsReceiver_ Address to set as funds receiver
+    /// @dev Only callable by funds receiver manager role
+    function setFundsReceiver(address fundsReceiver_) external onlyRole(FUNDS_RECEIVER_MANAGER_ROLE) {
+        _setFundsReceiver(fundsReceiver_);
+    }
+
+    /// @notice Transfers the funds receiver manager role
+    /// @param newFundsReceiverManager_ New funds receiver manager
+    /// @dev Only callable by funds receiver manager role
+    function transferFundsReceiverManager(address newFundsReceiverManager_)
+        external
+        onlyRole(FUNDS_RECEIVER_MANAGER_ROLE)
+    {
+        if (newFundsReceiverManager_ == address(0)) {
+            revert InvalidFundsReceiverManager();
+        }
+        _transferFundsReceiverManager(newFundsReceiverManager_);
+    }
+
+    // ---------- Pause Controls ----------
+
+    /// @notice Pauses the contract
+    /// @dev Only callable by admin role
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
+    }
+
+    // ============================================================
+    // RESCUE FUNCTIONS (Token Recovery)
+    // ============================================================
+
+    function rescueERC20(address token, address to, uint256 amount) external onlyRole(RESCUE_ROLE) {
+        address[] memory tokens = new address[](1);
+        address[] memory tos = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+
+        tokens[0] = token;
+        tos[0] = to;
+        amounts[0] = amount;
+
+        _rescueERC20Batch(tokens, tos, amounts);
+    }
+
+    function rescueERC721(address token, address to, uint256 tokenId) external onlyRole(RESCUE_ROLE) {
+        address[] memory tokens = new address[](1);
+        address[] memory tos = new address[](1);
+        uint256[] memory tokenIds = new uint256[](1);
+
+        tokens[0] = token;
+        tos[0] = to;
+        tokenIds[0] = tokenId;
+
+        _rescueERC721Batch(tokens, tos, tokenIds);
+    }
+
+    function rescueERC1155(address token, address to, uint256 tokenId, uint256 amount) external onlyRole(RESCUE_ROLE) {
+        address[] memory tokens = new address[](1);
+        address[] memory tos = new address[](1);
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory amounts = new uint256[](1);
+
+        tokens[0] = token;
+        tos[0] = to;
+        tokenIds[0] = tokenId;
+        amounts[0] = amount;
+
+        _rescueERC1155Batch(tokens, tos, tokenIds, amounts);
+    }
+
+    function rescueERC20Batch(address[] calldata tokens, address[] calldata tos, uint256[] calldata amounts)
+        external
+        onlyRole(RESCUE_ROLE)
+    {
+        _rescueERC20Batch(tokens, tos, amounts);
+    }
+
+    function rescueERC721Batch(address[] calldata tokens, address[] calldata tos, uint256[] calldata tokenIds)
+        external
+        onlyRole(RESCUE_ROLE)
+    {
+        _rescueERC721Batch(tokens, tos, tokenIds);
+    }
+
+    function rescueERC1155Batch(
+        address[] calldata tokens,
+        address[] calldata tos,
+        uint256[] calldata tokenIds,
+        uint256[] calldata amounts
+    ) external onlyRole(RESCUE_ROLE) {
+        _rescueERC1155Batch(tokens, tos, tokenIds, amounts);
+    }
+
+    // ============================================================
+    // TOKEN RECEIVERS (Required for NFTs)
+    // ============================================================
+
+    /// @notice Handles receiving ERC721 tokens
+    /// @dev Required for contract to receive ERC721 tokens via safeTransferFrom
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external pure returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+    /// @notice Handles receiving ERC1155 tokens
+    /// @dev Required for contract to receive ERC1155 tokens
+    function onERC1155Received(address operator, address from, uint256 id, uint256 value, bytes calldata data)
+        external
+        pure
+        returns (bytes4)
+    {
+        return this.onERC1155Received.selector;
+    }
+
+    /// @notice Handles receiving batch ERC1155 tokens
+    /// @dev Required for contract to receive batch ERC1155 tokens
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external pure returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
+    }
+
+    // ============================================================
+    // VIEW FUNCTIONS & UTILITIES
+    // ============================================================
+
+    /// @notice Calculate contribution amount with custom fee rate
+    /// @param amount The original amount including fee
+    /// @param feeRate The fee rate to apply (in basis points)
+    /// @return The contribution amount without the fee
+    /// @dev Uses formula: contribution = (amount * FEE_DENOMINATOR) / (FEE_DENOMINATOR + feePercent)
+    /// @dev This ensures fee isn't charged on the fee portion itself
+    function calculateContributionWithoutFee(
+        uint256 amount,
+        uint256 feeRate
+    ) public view returns (uint256) {
+        return (amount * BASE_POINTS) / (BASE_POINTS + feeRate);
+    }
+
+    /// @notice Get the total number of packs created
+    /// @return The length of the packs array
+    function getPacksLength() external view returns (uint256) {
+        return packs.length;
+    }
+
+    /// @notice Fulfills an order with the specified parameters
+    /// @dev Public function for try/catch in fulfill()
+    /// @param to Address to send the transaction to
+    /// @param data Calldata for the transaction
+    /// @param amount Amount of ETH to send
+    /// @return success Whether the transaction was successful
+    function _fulfillOrder(address to, bytes calldata data, uint256 amount) public returns (bool success) {
+        (success,) = to.call{value: amount}(data);
+    }
+
+    // ============================================================
+    // INTERNAL HELPERS - COMMIT FLOW
+    // ============================================================
 
     function _commit(
         address receiver_,
@@ -359,58 +834,9 @@ contract Packs is
         nftFulfillmentExpiresAt[commitId] = block.timestamp + nftFulfillmentExpiryTime;
     }
 
-    /// @notice Get the index of the bucket selected for a given RNG value
-    /// @param rng RNG value (0-10000)
-    /// @param buckets Array of bucket data
-    /// @return bucketIndex_ Index of the selected bucket
-    function _getBucketIndex(uint256 rng, BucketData[] memory buckets) internal pure returns (uint256 bucketIndex_) {
-        uint256 cumulativeOdds = 0;
-        for (uint256 i = 0; i < buckets.length; i++) {
-            cumulativeOdds += buckets[i].oddsBps;
-            if (rng < cumulativeOdds) {
-                return i;
-            }
-        }
-        revert BucketSelectionFailed();
-    }
-
-    /// @notice Fulfills a commit with the result of the random number generation
-    /// @param commitId_ ID of the commit to fulfill
-    /// @param marketplace_ Address where the order should be executed
-    /// @param orderData_ Calldata for the order execution
-    /// @param orderAmount_ Amount of ETH to send with the order
-    /// @param token_ Address of the token being transferred (zero address for ETH)
-    /// @param tokenId_ ID of the token if it's an NFT
-    /// @param payoutAmount_ Amount of ETH to send to the receiver on payout choice
-    /// @param commitSignature_ Signature used for commit data
-    /// @param fulfillmentSignature_ Signature used for orderData (and to validate orderData)
-    /// @param choice_ Choice made by the receiver (Payout = 0, NFT = 1)
-    /// @dev Emits a Fulfillment event on success
-    function fulfill(
-        uint256 commitId_,
-        address marketplace_,
-        bytes calldata orderData_,
-        uint256 orderAmount_,
-        address token_,
-        uint256 tokenId_,
-        uint256 payoutAmount_,
-        bytes calldata commitSignature_,
-        bytes calldata fulfillmentSignature_,
-        FulfillmentOption choice_
-    ) public payable whenNotPaused {
-        _fulfill(
-            commitId_,
-            marketplace_,
-            orderData_,
-            orderAmount_,
-            token_,
-            tokenId_,
-            payoutAmount_,
-            commitSignature_,
-            fulfillmentSignature_,
-            choice_
-        );
-    }
+    // ============================================================
+    // INTERNAL HELPERS - FULFILL FLOW
+    // ============================================================
 
     function _fulfill(
         uint256 commitId_,
@@ -550,6 +976,21 @@ contract Packs is
         if (orderAmount_ > bucket.maxValue) revert Errors.InvalidAmount();
         if (payoutAmount_ < bucket.minValue) revert Errors.InvalidAmount();
         if (payoutAmount_ > bucket.maxValue) revert Errors.InvalidAmount();
+    }
+
+    /// @notice Get the index of the bucket selected for a given RNG value
+    /// @param rng RNG value (0-10000)
+    /// @param buckets Array of bucket data
+    /// @return bucketIndex_ Index of the selected bucket
+    function _getBucketIndex(uint256 rng, BucketData[] memory buckets) internal pure returns (uint256 bucketIndex_) {
+        uint256 cumulativeOdds = 0;
+        for (uint256 i = 0; i < buckets.length; i++) {
+            cumulativeOdds += buckets[i].oddsBps;
+            if (rng < cumulativeOdds) {
+                return i;
+            }
+        }
+        revert BucketSelectionFailed();
     }
 
     /// @dev Determines actual fulfillment type based on choice and expiry
@@ -761,84 +1202,9 @@ contract Packs is
         );
     }
 
-    /// @notice Fulfills a commit with the result of the random number generation
-    /// @param commitDigest_ Digest of the commit to fulfill
-    /// @param marketplace_ Address where the order should be executed
-    /// @param orderData_ Calldata for the order execution
-    /// @param orderAmount_ Amount of ETH to send with the order
-    /// @param token_ Address of the token being transferred (zero address for ETH)
-    /// @param tokenId_ ID of the token if it's an NFT
-    /// @param payoutAmount_ Amount of ETH to send to the receiver on payout choice
-    /// @param commitSignature_ Signature used for commit data
-    /// @param fulfillmentSignature_ Signature used for fulfillment data
-    /// @param choice_ Choice made by the receiver
-    /// @dev Only callable by the cosigner of the commit
-    /// @dev Emits a Fulfillment event on success
-    function fulfillByDigest(
-        bytes32 commitDigest_,
-        address marketplace_,
-        bytes calldata orderData_,
-        uint256 orderAmount_,
-        address token_,
-        uint256 tokenId_,
-        uint256 payoutAmount_,
-        bytes calldata commitSignature_,
-        bytes calldata fulfillmentSignature_,
-        FulfillmentOption choice_
-    ) external payable whenNotPaused {
-        return fulfill(
-            commitIdByDigest[commitDigest_],
-            marketplace_,
-            orderData_,
-            orderAmount_,
-            token_,
-            tokenId_,
-            payoutAmount_,
-            commitSignature_,
-            fulfillmentSignature_,
-            choice_
-        );
-    }
-
-    /// @notice Allows the admin to withdraw ETH from the treasury balance
-    /// @param amount The amount of ETH to withdraw
-    /// @dev Only callable by admin role
-    /// @dev Emits a Withdrawal event
-    function withdrawTreasury(uint256 amount) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (amount == 0) revert Errors.InvalidAmount();
-        if (amount > treasuryBalance) revert Errors.InsufficientBalance();
-        treasuryBalance -= amount;
-
-        (bool success,) = payable(fundsReceiver).call{value: amount}("");
-        if (!success) revert WithdrawalFailed();
-
-        emit TreasuryWithdrawal(msg.sender, amount, fundsReceiver);
-    }
-
-    /// @notice Allows the admin to withdraw all ETH from the contract
-    /// @dev Only callable by admin role
-    /// @dev Emits a Withdrawal event
-    function emergencyWithdraw() external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
-        treasuryBalance = 0;
-        commitBalance = 0;
-
-        uint256 currentBalance = address(this).balance;
-
-        _rescueETH(fundsReceiver, currentBalance);
-
-        _pause();
-        emit EmergencyWithdrawal(msg.sender, currentBalance, fundsReceiver);
-    }
-
-    /// @notice Allows the receiver or cosigner to cancel a commit in the event that the commit is not or cannot be fulfilled
-    /// @param commitId_ ID of the commit to cancel
-    /// @dev Only callable by the receiver or cosigner
-    /// @dev It's safe to allow receiver to call cancel as the commit should be fulfilled within commitCancellableTime
-    /// @dev If not fulfilled before commitCancellableTime, it indicates a fulfillment issue so commit should be refunded
-    /// @dev Emits a CommitCancelled event
-    function cancel(uint256 commitId_) external nonReentrant onlyCommitOwnerOrCosigner(commitId_) {
-        _cancel(commitId_);
-    }
+    // ============================================================
+    // INTERNAL HELPERS - CANCEL FLOW
+    // ============================================================
 
     function _cancel(uint256 commitId_) internal {
         // Validate cancellation request
@@ -898,197 +1264,9 @@ contract Packs is
         }
     }
 
-    // ############################################################
-    // ############ RESCUE FUNCTIONS ############
-    // ############################################################
-
-    function rescueERC20(address token, address to, uint256 amount) external onlyRole(RESCUE_ROLE) {
-        address[] memory tokens = new address[](1);
-        address[] memory tos = new address[](1);
-        uint256[] memory amounts = new uint256[](1);
-
-        tokens[0] = token;
-        tos[0] = to;
-        amounts[0] = amount;
-
-        _rescueERC20Batch(tokens, tos, amounts);
-    }
-
-    function rescueERC721(address token, address to, uint256 tokenId) external onlyRole(RESCUE_ROLE) {
-        address[] memory tokens = new address[](1);
-        address[] memory tos = new address[](1);
-        uint256[] memory tokenIds = new uint256[](1);
-
-        tokens[0] = token;
-        tos[0] = to;
-        tokenIds[0] = tokenId;
-
-        _rescueERC721Batch(tokens, tos, tokenIds);
-    }
-
-    function rescueERC1155(address token, address to, uint256 tokenId, uint256 amount) external onlyRole(RESCUE_ROLE) {
-        address[] memory tokens = new address[](1);
-        address[] memory tos = new address[](1);
-        uint256[] memory tokenIds = new uint256[](1);
-        uint256[] memory amounts = new uint256[](1);
-
-        tokens[0] = token;
-        tos[0] = to;
-        tokenIds[0] = tokenId;
-        amounts[0] = amount;
-
-        _rescueERC1155Batch(tokens, tos, tokenIds, amounts);
-    }
-
-    function rescueERC20Batch(address[] calldata tokens, address[] calldata tos, uint256[] calldata amounts)
-        external
-        onlyRole(RESCUE_ROLE)
-    {
-        _rescueERC20Batch(tokens, tos, amounts);
-    }
-
-    function rescueERC721Batch(address[] calldata tokens, address[] calldata tos, uint256[] calldata tokenIds)
-        external
-        onlyRole(RESCUE_ROLE)
-    {
-        _rescueERC721Batch(tokens, tos, tokenIds);
-    }
-
-    function rescueERC1155Batch(
-        address[] calldata tokens,
-        address[] calldata tos,
-        uint256[] calldata tokenIds,
-        uint256[] calldata amounts
-    ) external onlyRole(RESCUE_ROLE) {
-        _rescueERC1155Batch(tokens, tos, tokenIds, amounts);
-    }
-
-    // ############################################################
-    // ############ GETTERS & SETTERS ############
-    // ############################################################
-
-    /// @notice Adds a new authorized cosigner
-    /// @param cosigner_ Address to add as cosigner
-    /// @dev Only callable by admin role
-    /// @dev Emits a CoSignerAdded event
-    function addCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (cosigner_ == address(0)) revert Errors.InvalidAddress();
-        if (isCosigner[cosigner_]) revert AlreadyCosigner();
-        isCosigner[cosigner_] = true;
-        emit CosignerAdded(cosigner_);
-    }
-
-    /// @notice Removes an authorized cosigner
-    /// @param cosigner_ Address to remove as cosigner
-    /// @dev Only callable by admin role
-    /// @dev Emits a CoSignerRemoved event
-    function removeCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
-        isCosigner[cosigner_] = false;
-        emit CosignerRemoved(cosigner_);
-    }
-
-    /// @notice Sets the commit cancellable time.
-    /// @param commitCancellableTime_ New commit cancellable time
-    /// @dev Only callable by admin role
-    /// @dev Emits a CommitCancellableTimeUpdated event
-    function setCommitCancellableTime(uint256 commitCancellableTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (commitCancellableTime_ < MIN_COMMIT_CANCELLABLE_TIME) {
-            revert InvalidCommitCancellableTime();
-        }
-        uint256 oldCommitCancellableTime = commitCancellableTime;
-        commitCancellableTime = commitCancellableTime_;
-        emit CommitCancellableTimeUpdated(oldCommitCancellableTime, commitCancellableTime_);
-    }
-
-    /// @notice Sets the NFT fulfillment expiry time
-    /// @param nftFulfillmentExpiryTime_ New NFT fulfillment expiry time
-    /// @dev Only callable by admin role
-    /// @dev Emits a NftFulfillmentExpiryTimeUpdated event
-    function setNftFulfillmentExpiryTime(uint256 nftFulfillmentExpiryTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (nftFulfillmentExpiryTime_ < MIN_NFT_FULFILLMENT_EXPIRY_TIME) {
-            revert InvalidNftFulfillmentExpiryTime();
-        }
-        uint256 oldNftFulfillmentExpiryTime = nftFulfillmentExpiryTime;
-        nftFulfillmentExpiryTime = nftFulfillmentExpiryTime_;
-        emit NftFulfillmentExpiryTimeUpdated(oldNftFulfillmentExpiryTime, nftFulfillmentExpiryTime_);
-    }
-
-    /// @notice Sets the maximum allowed reward
-    /// @param maxReward_ New maximum reward value
-    /// @dev Only callable by admin role
-    function setMaxReward(uint256 maxReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (maxReward_ == 0) revert InvalidReward();
-        if (maxReward_ < minReward) revert InvalidReward();
-
-        uint256 oldMaxReward = maxReward;
-        maxReward = maxReward_;
-        emit MaxRewardUpdated(oldMaxReward, maxReward_);
-    }
-
-    /// @notice Sets the minimum allowed reward
-    /// @param minReward_ New minimum reward value
-    /// @dev Only callable by admin role
-    function setMinReward(uint256 minReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (minReward_ == 0) revert InvalidReward();
-        if (minReward_ > maxReward) revert InvalidReward();
-
-        uint256 oldMinReward = minReward;
-        minReward = minReward_;
-        emit MinRewardUpdated(oldMinReward, minReward_);
-    }
-
-    /// @notice Sets the minimum pack price
-    /// @param minPackPrice_ New minimum pack price
-    /// @dev Only callable by admin role
-    /// @dev Emits a MinPackPriceUpdated event
-    function setMinPackPrice(uint256 minPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (minPackPrice_ == 0) revert InvalidPackPrice();
-        if (minPackPrice_ > maxPackPrice) revert InvalidPackPrice();
-
-        uint256 oldMinPackPrice = minPackPrice;
-        minPackPrice = minPackPrice_;
-        emit MinPackPriceUpdated(oldMinPackPrice, minPackPrice_);
-    }
-
-    /// @notice Sets the maximum pack price
-    /// @param maxPackPrice_ New maximum pack price
-    /// @dev Only callable by admin role
-    /// @dev Emits a MaxPackPriceUpdated event
-    function setMaxPackPrice(uint256 maxPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (maxPackPrice_ == 0) revert InvalidPackPrice();
-        if (maxPackPrice_ < minPackPrice) revert InvalidPackPrice();
-
-        uint256 oldMaxPackPrice = maxPackPrice;
-        maxPackPrice = maxPackPrice_;
-        emit MaxPackPriceUpdated(oldMaxPackPrice, maxPackPrice_);
-    }
-
-    /// @notice Sets the minimum pack reward multiplier
-    /// @param minPackRewardMultiplier_ New minimum pack reward multiplier
-    /// @dev Only callable by admin role
-    /// @dev Emits a MinPackRewardMultiplierUpdated event
-    function setMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (minPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
-        if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert InvalidPackRewardMultiplier();
-
-        uint256 oldMinPackRewardMultiplier = minPackRewardMultiplier;
-        minPackRewardMultiplier = minPackRewardMultiplier_;
-        emit MinPackRewardMultiplierUpdated(oldMinPackRewardMultiplier, minPackRewardMultiplier_);
-    }
-
-    /// @notice Sets the maximum pack reward multiplier
-    /// @param maxPackRewardMultiplier_ New maximum pack reward multiplier
-    /// @dev Only callable by admin role
-    /// @dev Emits a MaxPackRewardMultiplierUpdated event
-    function setMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (maxPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
-        if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert InvalidPackRewardMultiplier();
-
-        uint256 oldMaxPackRewardMultiplier = maxPackRewardMultiplier;
-        maxPackRewardMultiplier = maxPackRewardMultiplier_;
-        emit MaxPackRewardMultiplierUpdated(oldMaxPackRewardMultiplier, maxPackRewardMultiplier_);
-    }
+    // ============================================================
+    // INTERNAL HELPERS - SHARED
+    // ============================================================
 
     /// @notice Deposits ETH into the treasury
     /// @dev Called internally when receiving ETH
@@ -1098,135 +1276,11 @@ contract Packs is
         emit TreasuryDeposit(msg.sender, amount);
     }
 
-    /// @notice Pauses the contract
-    /// @dev Only callable by admin role
-    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _pause();
-    }
-
-    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _unpause();
-    }
-
-    /// @notice Handles receiving ETH
-    /// @dev Required for contract to receive ETH
-    receive() external payable {
-        _depositTreasury(msg.value);
-    }
-
-    /// @notice Handles receiving ERC1155 tokens
-    /// @dev Required for contract to receive ERC1155 tokens
-    function onERC1155Received(address operator, address from, uint256 id, uint256 value, bytes calldata data)
-        external
-        pure
-        returns (bytes4)
-    {
-        return this.onERC1155Received.selector;
-    }
-
-    /// @notice Handles receiving batch ERC1155 tokens
-    /// @dev Required for contract to receive batch ERC1155 tokens
-    function onERC1155BatchReceived(
-        address operator,
-        address from,
-        uint256[] calldata ids,
-        uint256[] calldata values,
-        bytes calldata data
-    ) external pure returns (bytes4) {
-        return this.onERC1155BatchReceived.selector;
-    }
-
-    /// @notice Handles receiving ERC721 tokens
-    /// @dev Required for contract to receive ERC721 tokens via safeTransferFrom
-    function onERC721Received(
-        address operator,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
-    ) external pure returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
-
-    /// @notice Fulfills an order with the specified parameters
-    /// @dev Public function for try/catch in fulfill()
-    /// @param to Address to send the transaction to
-    /// @param data Calldata for the transaction
-    /// @param amount Amount of ETH to send
-    /// @return success Whether the transaction was successful
-    function _fulfillOrder(address to, bytes calldata data, uint256 amount) public returns (bool success) {
-        (success,) = to.call{value: amount}(data);
-    }
-
-    /// @notice Transfers the funds receiver manager role
-    /// @param newFundsReceiverManager_ New funds receiver manager
-    /// @dev Only callable by funds receiver manager role
-    function transferFundsReceiverManager(address newFundsReceiverManager_)
-        external
-        onlyRole(FUNDS_RECEIVER_MANAGER_ROLE)
-    {
-        if (newFundsReceiverManager_ == address(0)) {
-            revert InvalidFundsReceiverManager();
-        }
-        _transferFundsReceiverManager(newFundsReceiverManager_);
-    }
-
-    /// @notice Transfers the funds receiver manager role
-    /// @param newFundsReceiverManager_ New funds receiver manager
-    function _transferFundsReceiverManager(address newFundsReceiverManager_) internal {
-        _revokeRole(FUNDS_RECEIVER_MANAGER_ROLE, msg.sender);
-        _grantRole(FUNDS_RECEIVER_MANAGER_ROLE, newFundsReceiverManager_);
-        emit FundsReceiverManagerTransferred(msg.sender, newFundsReceiverManager_);
-    }
-
-    /// @notice Sets the funds receiver
-    /// @param fundsReceiver_ Address to set as funds receiver
-    /// @dev Only callable by funds receiver manager role
-    function setFundsReceiver(address fundsReceiver_) external onlyRole(FUNDS_RECEIVER_MANAGER_ROLE) {
-        _setFundsReceiver(fundsReceiver_);
-    }
-
-    /// @notice Sets the funds receiver
-    /// @param fundsReceiver_ Address to set as funds receiver
-    function _setFundsReceiver(address fundsReceiver_) internal {
-        if (fundsReceiver_ == address(0)) revert Errors.InvalidAddress();
-        if (hasRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiver_)) {
-            revert InvalidFundsReceiverManager();
-        }
-        address oldFundsReceiver = fundsReceiver;
-        fundsReceiver = payable(fundsReceiver_);
-        emit FundsReceiverUpdated(oldFundsReceiver, fundsReceiver_);
-    }
-
-    function setProtocolFee(uint256 protocolFee_) external onlyRole(OPS_ROLE) {
-        _setProtocolFee(protocolFee_);
-    }
-
     function _setProtocolFee(uint256 protocolFee_) internal {
         if (protocolFee_ > BASE_POINTS) revert InvalidProtocolFee();
         uint256 oldProtocolFee = protocolFee;
         protocolFee = protocolFee_;
         emit ProtocolFeeUpdated(oldProtocolFee, protocolFee_);
-    }
-
-    /// @notice Calculate contribution amount with custom fee rate
-    /// @param amount The original amount including fee
-    /// @param feeRate The fee rate to apply (in basis points)
-    /// @return The contribution amount without the fee
-    /// @dev Uses formula: contribution = (amount * FEE_DENOMINATOR) / (FEE_DENOMINATOR + feePercent)
-    /// @dev This ensures fee isn't charged on the fee portion itself
-    function calculateContributionWithoutFee(
-        uint256 amount,
-        uint256 feeRate
-    ) public view returns (uint256) {
-        return (amount * BASE_POINTS) / (BASE_POINTS + feeRate);
-    }
-
-    /// @notice Sets the flat fee. Is a static amount that comes off the top of the commit amount.
-    /// @param flatFee_ New flat fee
-    /// @dev Only callable by ops role
-    /// @dev Emits a FlatFeeUpdated event
-    function setFlatFee(uint256 flatFee_) external onlyRole(OPS_ROLE) {
-        _setFlatFee(flatFee_);
     }
 
     function _setFlatFee(uint256 flatFee_) internal {
@@ -1249,9 +1303,23 @@ contract Packs is
         }
     }
 
-    /// @notice Get the total number of packs created
-    /// @return The length of the packs array
-    function getPacksLength() external view returns (uint256) {
-        return packs.length;
+    /// @notice Sets the funds receiver
+    /// @param fundsReceiver_ Address to set as funds receiver
+    function _setFundsReceiver(address fundsReceiver_) internal {
+        if (fundsReceiver_ == address(0)) revert Errors.InvalidAddress();
+        if (hasRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiver_)) {
+            revert InvalidFundsReceiverManager();
+        }
+        address oldFundsReceiver = fundsReceiver;
+        fundsReceiver = payable(fundsReceiver_);
+        emit FundsReceiverUpdated(oldFundsReceiver, fundsReceiver_);
+    }
+
+    /// @notice Transfers the funds receiver manager role
+    /// @param newFundsReceiverManager_ New funds receiver manager
+    function _transferFundsReceiverManager(address newFundsReceiverManager_) internal {
+        _revokeRole(FUNDS_RECEIVER_MANAGER_ROLE, msg.sender);
+        _grantRole(FUNDS_RECEIVER_MANAGER_ROLE, newFundsReceiverManager_);
+        emit FundsReceiverManagerTransferred(msg.sender, newFundsReceiverManager_);
     }
 }
