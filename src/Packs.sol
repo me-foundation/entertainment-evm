@@ -186,7 +186,6 @@ contract Packs is
         return _commit(receiver_, cosigner_, seed_, packType_, buckets_, signature_);
     }
 
-    /// @dev Internal commit orchestration
     function _commit(
         address receiver_,
         address cosigner_,
