@@ -119,33 +119,12 @@ contract Packs is
     event FlatFeeUpdated(uint256 oldFlatFee, uint256 newFlatFee);
 
     // ============================================================
-    // ERRORS
-    // ============================================================
-
-    error AlreadyCosigner();
-    error AlreadyFulfilled();
-    error InvalidCommitOwner();
-    error InvalidBuckets();
-    error InvalidReward();
-    error InvalidPackPrice();
-    error InvalidPackRewardMultiplier();
-    error InvalidCommitId();
-    error WithdrawalFailed();
-    error InvalidCommitCancellableTime();
-    error InvalidNftFulfillmentExpiryTime();
-    error CommitIsCancelled();
-    error CommitNotCancellable();
-    error InvalidFundsReceiverManager();
-    error BucketSelectionFailed();
-    error InvalidProtocolFee();
-
-    // ============================================================
     // MODIFIERS
     // ============================================================
 
     modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
         if (packs[commitId_].receiver != msg.sender && packs[commitId_].cosigner != msg.sender) {
-            revert InvalidCommitOwner();
+            revert Errors.InvalidCommitOwner();
         }
         _;
     }
@@ -306,12 +285,12 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a Withdrawal event
     function withdrawTreasury(uint256 amount) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (amount == 0) revert Errors.InvalidAmount();
-        if (amount > treasuryBalance) revert Errors.InsufficientBalance();
+        if (amount == 0) revert Errors.WithdrawAmountZero();
+        if (amount > treasuryBalance) revert Errors.WithdrawAmountExceedsTreasury();
         treasuryBalance -= amount;
 
         (bool success,) = payable(fundsReceiver).call{value: amount}("");
-        if (!success) revert WithdrawalFailed();
+        if (!success) revert Errors.WithdrawalFailed();
 
         emit TreasuryWithdrawal(msg.sender, amount, fundsReceiver);
     }
@@ -348,8 +327,8 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a CoSignerAdded event
     function addCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (cosigner_ == address(0)) revert Errors.InvalidAddress();
-        if (isCosigner[cosigner_]) revert AlreadyCosigner();
+        if (cosigner_ == address(0)) revert Errors.CosignerAddressZero();
+        if (isCosigner[cosigner_]) revert Errors.AlreadyCosigner();
         isCosigner[cosigner_] = true;
         emit CosignerAdded(cosigner_);
     }
@@ -359,7 +338,7 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a CoSignerRemoved event
     function removeCosigner(address cosigner_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
+        if (!isCosigner[cosigner_]) revert Errors.NotActiveCosigner();
         isCosigner[cosigner_] = false;
         emit CosignerRemoved(cosigner_);
     }
@@ -372,7 +351,7 @@ contract Packs is
     /// @dev Emits a CommitCancellableTimeUpdated event
     function setCommitCancellableTime(uint256 commitCancellableTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (commitCancellableTime_ < MIN_COMMIT_CANCELLABLE_TIME) {
-            revert InvalidCommitCancellableTime();
+            revert Errors.InvalidCommitCancellableTime();
         }
         uint256 oldCommitCancellableTime = commitCancellableTime;
         commitCancellableTime = commitCancellableTime_;
@@ -385,7 +364,7 @@ contract Packs is
     /// @dev Emits a NftFulfillmentExpiryTimeUpdated event
     function setNftFulfillmentExpiryTime(uint256 nftFulfillmentExpiryTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (nftFulfillmentExpiryTime_ < MIN_NFT_FULFILLMENT_EXPIRY_TIME) {
-            revert InvalidNftFulfillmentExpiryTime();
+            revert Errors.InvalidNftFulfillmentExpiryTime();
         }
         uint256 oldNftFulfillmentExpiryTime = nftFulfillmentExpiryTime;
         nftFulfillmentExpiryTime = nftFulfillmentExpiryTime_;
@@ -398,8 +377,8 @@ contract Packs is
     /// @param minReward_ New minimum reward value
     /// @dev Only callable by admin role
     function setMinReward(uint256 minReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (minReward_ == 0) revert InvalidReward();
-        if (minReward_ > maxReward) revert InvalidReward();
+        if (minReward_ == 0) revert Errors.InvalidReward();
+        if (minReward_ > maxReward) revert Errors.InvalidReward();
 
         uint256 oldMinReward = minReward;
         minReward = minReward_;
@@ -410,8 +389,8 @@ contract Packs is
     /// @param maxReward_ New maximum reward value
     /// @dev Only callable by admin role
     function setMaxReward(uint256 maxReward_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (maxReward_ == 0) revert InvalidReward();
-        if (maxReward_ < minReward) revert InvalidReward();
+        if (maxReward_ == 0) revert Errors.InvalidReward();
+        if (maxReward_ < minReward) revert Errors.InvalidReward();
 
         uint256 oldMaxReward = maxReward;
         maxReward = maxReward_;
@@ -425,8 +404,8 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MinPackPriceUpdated event
     function setMinPackPrice(uint256 minPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (minPackPrice_ == 0) revert InvalidPackPrice();
-        if (minPackPrice_ > maxPackPrice) revert InvalidPackPrice();
+        if (minPackPrice_ == 0) revert Errors.InvalidPackPrice();
+        if (minPackPrice_ > maxPackPrice) revert Errors.InvalidPackPrice();
 
         uint256 oldMinPackPrice = minPackPrice;
         minPackPrice = minPackPrice_;
@@ -438,8 +417,8 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MaxPackPriceUpdated event
     function setMaxPackPrice(uint256 maxPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (maxPackPrice_ == 0) revert InvalidPackPrice();
-        if (maxPackPrice_ < minPackPrice) revert InvalidPackPrice();
+        if (maxPackPrice_ == 0) revert Errors.InvalidPackPrice();
+        if (maxPackPrice_ < minPackPrice) revert Errors.InvalidPackPrice();
 
         uint256 oldMaxPackPrice = maxPackPrice;
         maxPackPrice = maxPackPrice_;
@@ -453,8 +432,8 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MinPackRewardMultiplierUpdated event
     function setMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (minPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
-        if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert InvalidPackRewardMultiplier();
+        if (minPackRewardMultiplier_ == 0) revert Errors.InvalidPackRewardMultiplier();
+        if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert Errors.InvalidPackRewardMultiplier();
 
         uint256 oldMinPackRewardMultiplier = minPackRewardMultiplier;
         minPackRewardMultiplier = minPackRewardMultiplier_;
@@ -466,8 +445,8 @@ contract Packs is
     /// @dev Only callable by admin role
     /// @dev Emits a MaxPackRewardMultiplierUpdated event
     function setMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (maxPackRewardMultiplier_ == 0) revert InvalidPackRewardMultiplier();
-        if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert InvalidPackRewardMultiplier();
+        if (maxPackRewardMultiplier_ == 0) revert Errors.InvalidPackRewardMultiplier();
+        if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert Errors.InvalidPackRewardMultiplier();
 
         uint256 oldMaxPackRewardMultiplier = maxPackRewardMultiplier;
         maxPackRewardMultiplier = maxPackRewardMultiplier_;
@@ -505,7 +484,7 @@ contract Packs is
         onlyRole(FUNDS_RECEIVER_MANAGER_ROLE)
     {
         if (newFundsReceiverManager_ == address(0)) {
-            revert InvalidFundsReceiverManager();
+            revert Errors.InvalidFundsReceiverManager();
         }
         _transferFundsReceiverManager(newFundsReceiverManager_);
     }
@@ -711,29 +690,29 @@ contract Packs is
 
     /// @dev Validates payment amount and calculates pack price after fees
     function _validateAndCalculatePackPrice(uint256 totalAmount) internal view returns (uint256) {
-        if (totalAmount == 0) revert Errors.InvalidAmount();
-        if (totalAmount <= flatFee) revert Errors.InvalidAmount();
+        if (totalAmount == 0) revert Errors.CommitAmountZero();
+        if (totalAmount <= flatFee) revert Errors.CommitAmountTooLowForFlatFee();
         
         uint256 packPrice = calculateContributionWithoutFee(totalAmount, protocolFee) - flatFee;
         
-        if (packPrice < minPackPrice) revert Errors.InvalidAmount();
-        if (packPrice > maxPackPrice) revert Errors.InvalidAmount();
+        if (packPrice < minPackPrice) revert Errors.PackPriceBelowMinimum();
+        if (packPrice > maxPackPrice) revert Errors.PackPriceAboveMaximum();
         
         return packPrice;
     }
 
     /// @dev Validates receiver and cosigner addresses
     function _validateCommitAddresses(address receiver_, address cosigner_) internal view {
-        if (receiver_ == address(0)) revert Errors.InvalidAddress();
-        if (cosigner_ == address(0)) revert Errors.InvalidAddress();
-        if (!isCosigner[cosigner_]) revert Errors.InvalidAddress();
+        if (receiver_ == address(0)) revert Errors.ReceiverAddressZero();
+        if (cosigner_ == address(0)) revert Errors.CosignerAddressZeroInCommit();
+        if (!isCosigner[cosigner_]) revert Errors.CosignerNotActive();
     }
 
     /// @dev Validates bucket configuration and odds
     function _validateBuckets(BucketData[] memory buckets_, uint256 packPrice) internal view {
         // Validate bucket count
-        if (buckets_.length < MIN_BUCKETS) revert InvalidBuckets();
-        if (buckets_.length > MAX_BUCKETS) revert InvalidBuckets();
+        if (buckets_.length < MIN_BUCKETS) revert Errors.InvalidBuckets();
+        if (buckets_.length > MAX_BUCKETS) revert Errors.InvalidBuckets();
 
         // Validate each bucket's configuration
         uint256 totalOdds = 0;
@@ -743,31 +722,31 @@ contract Packs is
             
             // Check ascending order between buckets
             if (i < buckets_.length - 1 && buckets_[i].maxValue > buckets_[i + 1].minValue) {
-                revert InvalidBuckets();
+                revert Errors.InvalidBuckets();
             }
             
             totalOdds += buckets_[i].oddsBps;
         }
 
         // Total odds must equal 100%
-        if (totalOdds != BASE_POINTS) revert InvalidBuckets();
+        if (totalOdds != BASE_POINTS) revert Errors.InvalidBuckets();
     }
 
     /// @dev Validates a single bucket's min/max values
     function _validateBucketValues(BucketData memory bucket, uint256 packPrice) internal view {
-        if (bucket.minValue == 0) revert InvalidReward();
-        if (bucket.maxValue == 0) revert InvalidReward();
-        if (bucket.minValue > bucket.maxValue) revert InvalidReward();
-        if (bucket.minValue < minReward) revert InvalidReward();
-        if (bucket.maxValue > maxReward) revert InvalidReward();
-        if (bucket.minValue < packPrice * minPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
-        if (bucket.maxValue > packPrice * maxPackRewardMultiplier / BASE_POINTS) revert InvalidReward();
+        if (bucket.minValue == 0) revert Errors.InvalidReward();
+        if (bucket.maxValue == 0) revert Errors.InvalidReward();
+        if (bucket.minValue > bucket.maxValue) revert Errors.InvalidReward();
+        if (bucket.minValue < minReward) revert Errors.InvalidReward();
+        if (bucket.maxValue > maxReward) revert Errors.InvalidReward();
+        if (bucket.minValue < packPrice * minPackRewardMultiplier / BASE_POINTS) revert Errors.InvalidReward();
+        if (bucket.maxValue > packPrice * maxPackRewardMultiplier / BASE_POINTS) revert Errors.InvalidReward();
     }
 
     /// @dev Validates a single bucket's odds
     function _validateBucketOdds(BucketData memory bucket) internal pure {
-        if (bucket.oddsBps == 0) revert InvalidBuckets();
-        if (bucket.oddsBps > BASE_POINTS) revert InvalidBuckets();
+        if (bucket.oddsBps == 0) revert Errors.InvalidBuckets();
+        if (bucket.oddsBps > BASE_POINTS) revert Errors.InvalidBuckets();
     }
 
     /// @dev Verifies the pack was cosigned and returns pack hash
@@ -781,8 +760,8 @@ contract Packs is
         bytes32 packHash = hashPack(packType_, packPrice, buckets_);
         address signer = verifyHash(packHash, signature_);
         
-        if (signer != expectedCosigner) revert Errors.InvalidAddress();
-        if (!isCosigner[signer]) revert Errors.InvalidAddress();
+        if (signer != expectedCosigner) revert Errors.PackSignerMismatch();
+        if (!isCosigner[signer]) revert Errors.PackSignerNotCosigner();
         
         return packHash;
     }
@@ -912,14 +891,14 @@ contract Packs is
         uint256 orderAmount_,
         uint256 payoutAmount_
     ) internal returns (CommitData memory) {
-        if (commitId_ >= packs.length) revert InvalidCommitId();
-        if (msg.sender != packs[commitId_].cosigner) revert Errors.Unauthorized();
-        if (marketplace_ == address(0)) revert Errors.InvalidAddress();
+        if (commitId_ >= packs.length) revert Errors.InvalidCommitId();
+        if (msg.sender != packs[commitId_].cosigner) revert Errors.OnlyCosignerCanFulfill();
+        if (marketplace_ == address(0)) revert Errors.MarketplaceAddressZero();
         if (msg.value > 0) _depositTreasury(msg.value);
-        if (orderAmount_ > treasuryBalance) revert Errors.InsufficientBalance();
-        if (isFulfilled[commitId_]) revert AlreadyFulfilled();
-        if (isCancelled[commitId_]) revert CommitIsCancelled();
-        if (payoutAmount_ > orderAmount_) revert Errors.InvalidAmount();
+        if (orderAmount_ > treasuryBalance) revert Errors.InsufficientTreasuryBalance();
+        if (isFulfilled[commitId_]) revert Errors.AlreadyFulfilled();
+        if (isCancelled[commitId_]) revert Errors.CommitIsCancelled();
+        if (payoutAmount_ > orderAmount_) revert Errors.PayoutExceedsOrderAmount();
 
         return packs[commitId_];
     }
@@ -939,8 +918,8 @@ contract Packs is
     ) internal view returns (uint256 rng, bytes32 digest) {
         // Verify commit signature
         address commitCosigner = verifyCommit(commitData, commitSignature_);
-        if (commitCosigner != commitData.cosigner) revert Errors.InvalidAddress();
-        if (!isCosigner[commitCosigner]) revert Errors.InvalidAddress();
+        if (commitCosigner != commitData.cosigner) revert Errors.CommitSignerMismatch();
+        if (!isCosigner[commitCosigner]) revert Errors.CommitSignerNotCosigner();
 
         // Generate RNG and digest
         rng = PRNG.rng(commitSignature_);
@@ -958,8 +937,8 @@ contract Packs is
             choice_
         );
         address fulfillmentCosigner = verifyHash(fulfillmentHash, fulfillmentSignature_);
-        if (fulfillmentCosigner != commitData.cosigner) revert Errors.InvalidAddress();
-        if (!isCosigner[fulfillmentCosigner]) revert Errors.InvalidAddress();
+        if (fulfillmentCosigner != commitData.cosigner) revert Errors.FulfillmentSignerMismatch();
+        if (!isCosigner[fulfillmentCosigner]) revert Errors.FulfillmentSignerNotCosigner();
     }
 
     /// @dev Determines outcome bucket and validates amounts are within range
@@ -972,10 +951,10 @@ contract Packs is
         bucketIndex = _getBucketIndex(rng, buckets);
         bucket = buckets[bucketIndex];
         
-        if (orderAmount_ < bucket.minValue) revert Errors.InvalidAmount();
-        if (orderAmount_ > bucket.maxValue) revert Errors.InvalidAmount();
-        if (payoutAmount_ < bucket.minValue) revert Errors.InvalidAmount();
-        if (payoutAmount_ > bucket.maxValue) revert Errors.InvalidAmount();
+        if (orderAmount_ < bucket.minValue) revert Errors.OrderAmountBelowBucketMin();
+        if (orderAmount_ > bucket.maxValue) revert Errors.OrderAmountAboveBucketMax();
+        if (payoutAmount_ < bucket.minValue) revert Errors.PayoutAmountBelowBucketMin();
+        if (payoutAmount_ > bucket.maxValue) revert Errors.PayoutAmountAboveBucketMax();
     }
 
     /// @notice Get the index of the bucket selected for a given RNG value
@@ -990,7 +969,7 @@ contract Packs is
                 return i;
             }
         }
-        revert BucketSelectionFailed();
+        revert Errors.BucketSelectionFailed();
     }
 
     /// @dev Determines actual fulfillment type based on choice and expiry
@@ -1226,11 +1205,11 @@ contract Packs is
 
     /// @dev Validates that the commit can be cancelled
     function _validateCancellationRequest(uint256 commitId_) internal view {
-        if (commitId_ >= packs.length) revert InvalidCommitId();
-        if (isFulfilled[commitId_]) revert AlreadyFulfilled();
-        if (isCancelled[commitId_]) revert CommitIsCancelled();
+        if (commitId_ >= packs.length) revert Errors.InvalidCommitId();
+        if (isFulfilled[commitId_]) revert Errors.AlreadyFulfilled();
+        if (isCancelled[commitId_]) revert Errors.CommitIsCancelled();
         if (block.timestamp < commitCancellableAt[commitId_]) {
-            revert CommitNotCancellable();
+            revert Errors.CommitNotCancellable();
         }
     }
 
@@ -1277,7 +1256,7 @@ contract Packs is
     }
 
     function _setProtocolFee(uint256 protocolFee_) internal {
-        if (protocolFee_ > BASE_POINTS) revert InvalidProtocolFee();
+        if (protocolFee_ > BASE_POINTS) revert Errors.InvalidProtocolFee();
         uint256 oldProtocolFee = protocolFee;
         protocolFee = protocolFee_;
         emit ProtocolFeeUpdated(oldProtocolFee, protocolFee_);
@@ -1306,9 +1285,9 @@ contract Packs is
     /// @notice Sets the funds receiver
     /// @param fundsReceiver_ Address to set as funds receiver
     function _setFundsReceiver(address fundsReceiver_) internal {
-        if (fundsReceiver_ == address(0)) revert Errors.InvalidAddress();
+        if (fundsReceiver_ == address(0)) revert Errors.FundsReceiverAddressZero();
         if (hasRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiver_)) {
-            revert InvalidFundsReceiverManager();
+            revert Errors.InvalidFundsReceiverManager();
         }
         address oldFundsReceiver = fundsReceiver;
         fundsReceiver = payable(fundsReceiver_);
