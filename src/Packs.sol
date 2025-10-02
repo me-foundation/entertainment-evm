@@ -837,34 +837,65 @@ contract Packs is
     /// @dev If not fulfilled before commitCancellableTime, it indicates a fulfillment issue so commit should be refunded
     /// @dev Emits a CommitCancelled event
     function cancel(uint256 commitId_) external nonReentrant onlyCommitOwnerOrCosigner(commitId_) {
+        _cancel(commitId_);
+    }
+
+    function _cancel(uint256 commitId_) internal {
+        // Validate cancellation request
+        _validateCancellationRequest(commitId_);
+        
+        // Mark as cancelled
+        isCancelled[commitId_] = true;
+        
+        // Calculate refund and update balances
+        CommitData memory commitData = packs[commitId_];
+        uint256 totalRefund = _calculateAndUpdateRefund(commitId_, commitData.packPrice);
+        
+        // Process refund to receiver
+        _processRefund(commitId_, commitData.receiver, totalRefund, commitData);
+        
+        // Emit cancellation event
+        emit CommitCancelled(commitId_, hashCommit(commitData));
+    }
+
+    /// @dev Validates that the commit can be cancelled
+    function _validateCancellationRequest(uint256 commitId_) internal view {
         if (commitId_ >= packs.length) revert InvalidCommitId();
         if (isFulfilled[commitId_]) revert AlreadyFulfilled();
         if (isCancelled[commitId_]) revert CommitIsCancelled();
         if (block.timestamp < commitCancellableAt[commitId_]) {
             revert CommitNotCancellable();
         }
+    }
 
-        isCancelled[commitId_] = true;
-
-        CommitData memory commitData = packs[commitId_];
-
-        uint256 commitAmount = commitData.packPrice;
-        commitBalance -= commitAmount;
-
+    /// @dev Calculates total refund and updates balances
+    function _calculateAndUpdateRefund(
+        uint256 commitId_,
+        uint256 packPrice
+    ) internal returns (uint256 totalRefund) {
+        // Refund pack price
+        commitBalance -= packPrice;
+        
         // Also refund protocol fees
         uint256 protocolFeesPaid = feesPaid[commitId_];
         protocolBalance -= protocolFeesPaid;
         
-        uint256 totalRefund = commitAmount + protocolFeesPaid;
+        totalRefund = packPrice + protocolFeesPaid;
+    }
 
-        (bool success,) = payable(commitData.receiver).call{value: totalRefund}("");
+    /// @dev Processes refund to receiver with fallback to treasury
+    function _processRefund(
+        uint256 commitId_,
+        address receiver,
+        uint256 amount,
+        CommitData memory commitData
+    ) internal {
+        (bool success,) = payable(receiver).call{value: amount}("");
         if (!success) {
-            // If the transfer fails, fall back to treasury so the admin can rescue later
-            treasuryBalance += totalRefund;
-            emit TransferFailure(commitId_, commitData.receiver, totalRefund, hashCommit(commitData));
+            // If the transfer fails, fall back to treasury so admin can rescue later
+            treasuryBalance += amount;
+            emit TransferFailure(commitId_, receiver, amount, hashCommit(commitData));
         }
-
-        emit CommitCancelled(commitId_, hashCommit(commitData));
     }
 
     // ############################################################
