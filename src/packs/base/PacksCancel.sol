@@ -14,6 +14,7 @@ abstract contract PacksCancel is PacksStorage {
     // ============================================================
     
     event CommitCancelled(uint256 indexed commitId, bytes32 digest);
+    event CancellationRefundFailed(uint256 indexed commitId, address indexed receiver, uint256 amount, bytes32 digest);
     
     // ============================================================
     // CANCEL LOGIC
@@ -48,7 +49,7 @@ abstract contract PacksCancel is PacksStorage {
         (bool success,) = payable(receiver).call{value: amount}("");
         if (!success) {
             treasuryBalance += amount;
-            emit TransferFailure(commitId_, receiver, amount, hashCommit(commitData));
+            emit CancellationRefundFailed(commitId_, receiver, amount, hashCommit(commitData));
         }
     }
 }
