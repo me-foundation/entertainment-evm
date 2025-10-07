@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import {Packs} from "./Packs.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import {IPRNG} from "./common/interfaces/IPRNG.sol";
+import {IPRNG} from "../common/interfaces/IPRNG.sol";
 
 contract PacksInitializable is Packs, UUPSUpgradeable {
     error InvalidZeroAddress();
@@ -69,3 +69,4 @@ contract PacksInitializable is Packs, UUPSUpgradeable {
             revert InvalidZeroAddress();
     }
 }
+

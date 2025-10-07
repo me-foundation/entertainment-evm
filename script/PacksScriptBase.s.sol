@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import "forge-std/Script.sol";
-import "../src/PacksInitializable.sol";
+import "../src/packs/PacksInitializable.sol";
 import "../src/PRNG.sol";
 import "../src/common/SignatureVerifier/PacksSignatureVerifierUpgradeable.sol";
 

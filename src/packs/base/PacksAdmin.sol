@@ -2,12 +2,17 @@
 pragma solidity 0.8.28;
 
 import "./PacksStorage.sol";
+import {MEAccessControlUpgradeable} from "../../common/MEAccessControlUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+
 import {Errors} from "../../common/Errors.sol";
+import {TokenRescuer} from "../../common/TokenRescuer.sol";
 
 /// @title PacksAdmin
-/// @notice Handles admin configuration functions for Packs contract
+/// @notice Handles admin configuration, treasury management, pause controls, and token rescue for Packs contract
 /// @dev Abstract contract with admin helpers - storage accessed from PacksStorage
-abstract contract PacksAdmin is PacksStorage {
+abstract contract PacksAdmin is MEAccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable, PacksStorage, TokenRescuer {
     
     // ============================================================
     // EVENTS
@@ -29,6 +34,8 @@ abstract contract PacksAdmin is PacksStorage {
     event MaxPackRewardMultiplierUpdated(uint256 oldMaxPackRewardMultiplier, uint256 newMaxPackRewardMultiplier);
     event ProtocolFeeUpdated(uint256 oldProtocolFee, uint256 newProtocolFee);
     event FlatFeeUpdated(uint256 oldFlatFee, uint256 newFlatFee);
+    event TreasuryWithdrawal(address indexed sender, uint256 amount, address fundsReceiver);
+    event EmergencyWithdrawal(address indexed sender, uint256 amount, address fundsReceiver);
     
     // ============================================================
     // ADMIN CONFIGURATION
@@ -142,15 +149,110 @@ abstract contract PacksAdmin is PacksStorage {
     
     function _setFundsReceiver(address fundsReceiver_) internal virtual {
         if (fundsReceiver_ == address(0)) revert Errors.FundsReceiverAddressZero();
-        if (_checkHasRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiver_)) {
+        if (hasRole(FUNDS_RECEIVER_MANAGER_ROLE, fundsReceiver_)) {
             revert Errors.InvalidFundsReceiverManager();
         }
         address oldFundsReceiver = fundsReceiver;
         fundsReceiver = payable(fundsReceiver_);
         emit FundsReceiverUpdated(oldFundsReceiver, fundsReceiver_);
     }
+
+      // ============================================================
+    // TREASURY LOGIC
+    // ============================================================
+    
+    function _withdrawTreasury(uint256 amount) internal {
+        if (amount == 0) revert Errors.WithdrawAmountZero();
+        if (amount > treasuryBalance) revert Errors.WithdrawAmountExceedsTreasury();
+        treasuryBalance -= amount;
+
+        (bool success,) = payable(fundsReceiver).call{value: amount}("");
+        if (!success) revert Errors.WithdrawalFailed();
+
+        emit TreasuryWithdrawal(msg.sender, amount, fundsReceiver);
+    }
+    
+    function _emergencyWithdraw() internal virtual {
+        treasuryBalance = 0;
+        commitBalance = 0;
+        protocolBalance = 0;
+
+        uint256 currentBalance = address(this).balance;
+        _rescueETH(fundsReceiver, currentBalance);
+        // Pause must be called by inheriting contract that has PausableUpgradeable
+        _pause();
+        emit EmergencyWithdrawal(msg.sender, currentBalance, fundsReceiver);
+    }
+    
     
     function _transferFundsReceiverManager(address newFundsReceiverManager_) internal virtual;
     
-    function _checkHasRole(bytes32 role, address account) internal view virtual returns (bool);
+    // ============================================================
+    // RESCUE FUNCTIONS (Token Recovery)
+    // ============================================================
+
+    function rescueERC20(address token, address to, uint256 amount) external {
+        _checkRole(RESCUE_ROLE, msg.sender);
+        address[] memory tokens = new address[](1);
+        address[] memory tos = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+
+        tokens[0] = token;
+        tos[0] = to;
+        amounts[0] = amount;
+
+        _rescueERC20Batch(tokens, tos, amounts);
+    }
+
+    function rescueERC721(address token, address to, uint256 tokenId) external {
+        _checkRole(RESCUE_ROLE, msg.sender);
+        address[] memory tokens = new address[](1);
+        address[] memory tos = new address[](1);
+        uint256[] memory tokenIds = new uint256[](1);
+
+        tokens[0] = token;
+        tos[0] = to;
+        tokenIds[0] = tokenId;
+
+        _rescueERC721Batch(tokens, tos, tokenIds);
+    }
+
+    function rescueERC1155(address token, address to, uint256 tokenId, uint256 amount) external {
+        _checkRole(RESCUE_ROLE, msg.sender);
+        address[] memory tokens = new address[](1);
+        address[] memory tos = new address[](1);
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory amounts = new uint256[](1);
+
+        tokens[0] = token;
+        tos[0] = to;
+        tokenIds[0] = tokenId;
+        amounts[0] = amount;
+
+        _rescueERC1155Batch(tokens, tos, tokenIds, amounts);
+    }
+
+    function rescueERC20Batch(address[] calldata tokens, address[] calldata tos, uint256[] calldata amounts)
+        external
+    {
+        _checkRole(RESCUE_ROLE, msg.sender);
+        _rescueERC20Batch(tokens, tos, amounts);
+    }
+
+    function rescueERC721Batch(address[] calldata tokens, address[] calldata tos, uint256[] calldata tokenIds)
+        external
+    {
+        _checkRole(RESCUE_ROLE, msg.sender);
+        _rescueERC721Batch(tokens, tos, tokenIds);
+    }
+
+    function rescueERC1155Batch(
+        address[] calldata tokens,
+        address[] calldata tos,
+        uint256[] calldata tokenIds,
+        uint256[] calldata amounts
+    ) external {
+        _checkRole(RESCUE_ROLE, msg.sender);
+        _rescueERC1155Batch(tokens, tos, tokenIds, amounts);
+    }
 }
