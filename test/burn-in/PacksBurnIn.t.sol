@@ -37,7 +37,7 @@ contract PacksBurnInTest is Test {
     
     // Production contract addresses on Base mainnet
     address public constant PACKS_V1_IMPLEMENTATION = 0x90BaCf195755C76B2bf2b31f8E23e9313586a57F;
-    address public constant PACKS_NEXT_IMPLEMENTATION = 0x90BaCf195755C76B2bf2b31f8E23e9313586a57F;
+    address public constant PACKS_NEXT_IMPLEMENTATION = 0x40Cb777f142cfB3acDe713bcA0d70631dfA77977;
 
 
     address public constant PACKS_PROXY = 0xf541d82630A5ba513eB709c41d06ac3D009C0248;
@@ -430,20 +430,8 @@ contract PacksBurnInTest is Test {
         // Record paused state
         bool pausedBefore = packs.paused();
         
-        // Get packs array length by checking if pack 0 exists
-        uint256 packsLengthBefore = 0;
-        try packs.packs(0) returns (uint256, address, address, uint256, uint256, uint256, bytes32) {
-            // Count how many packs exist by iterating
-            for (uint256 i = 0; i < 1000; i++) { // Reasonable upper limit
-                try packs.packs(i) returns (uint256, address, address, uint256, uint256, uint256, bytes32) {
-                    packsLengthBefore++;
-                } catch {
-                    break;
-                }
-            }
-        } catch {
-            packsLengthBefore = 0;
-        }
+        // Get packs array length directly (O(1))
+        uint256 packsLengthBefore = packs.getPacksLength();
         
         console.log("=== PRE-UPGRADE STATE ===");
         console.log("Implementation:", currentImplementation);
@@ -514,19 +502,8 @@ contract PacksBurnInTest is Test {
         // Check paused state
         bool pausedAfter = packs.paused();
         
-        // Check packs array length
-        uint256 packsLengthAfter = 0;
-        try packs.packs(0) returns (uint256, address, address, uint256, uint256, uint256, bytes32) {
-            for (uint256 i = 0; i < 1000; i++) {
-                try packs.packs(i) returns (uint256, address, address, uint256, uint256, uint256, bytes32) {
-                    packsLengthAfter++;
-                } catch {
-                    break;
-                }
-            }
-        } catch {
-            packsLengthAfter = 0;
-        }
+        // Get packs array length directly (O(1))
+        uint256 packsLengthAfter = packs.getPacksLength();
         
         // Assert all state variables are preserved
         assertEq(prngAfter, prngBefore, "PRNG address should be preserved");
