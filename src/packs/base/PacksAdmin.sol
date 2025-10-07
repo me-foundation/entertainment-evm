@@ -9,6 +9,31 @@ import {Errors} from "../../common/Errors.sol";
 /// @dev Abstract contract with admin helpers - storage accessed from PacksStorage
 abstract contract PacksAdmin is PacksStorage {
     
+    // ============================================================
+    // EVENTS
+    // ============================================================
+    
+    event CosignerAdded(address indexed cosigner);
+    event CosignerRemoved(address indexed cosigner);
+    event MaxRewardUpdated(uint256 oldMaxReward, uint256 newMaxReward);
+    event MaxPackPriceUpdated(uint256 oldMaxPackPrice, uint256 newMaxPackPrice);
+    event MinRewardUpdated(uint256 oldMinReward, uint256 newMinReward);
+    event MinPackPriceUpdated(uint256 oldMinPackPrice, uint256 newMinPackPrice);
+    event CommitCancellableTimeUpdated(uint256 oldCommitCancellableTime, uint256 newCommitCancellableTime);
+    event NftFulfillmentExpiryTimeUpdated(uint256 oldNftFulfillmentExpiryTime, uint256 newNftFulfillmentExpiryTime);
+    event FundsReceiverUpdated(address indexed oldFundsReceiver, address indexed newFundsReceiver);
+    event FundsReceiverManagerTransferred(
+        address indexed oldFundsReceiverManager, address indexed newFundsReceiverManager
+    );
+    event MinPackRewardMultiplierUpdated(uint256 oldMinPackRewardMultiplier, uint256 newMinPackRewardMultiplier);
+    event MaxPackRewardMultiplierUpdated(uint256 oldMaxPackRewardMultiplier, uint256 newMaxPackRewardMultiplier);
+    event ProtocolFeeUpdated(uint256 oldProtocolFee, uint256 newProtocolFee);
+    event FlatFeeUpdated(uint256 oldFlatFee, uint256 newFlatFee);
+    
+    // ============================================================
+    // ADMIN CONFIGURATION
+    // ============================================================
+    
     // ---------- Cosigner Management ----------
     
     function _addCosigner(address cosigner_) internal {
