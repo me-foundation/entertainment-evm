@@ -77,6 +77,40 @@ contract MockERC1155 is ERC1155, IERC1155MInitializableV1_0_2 {
     }
 }
 
+// Malicious receiver that reverts on ERC1155 receipt
+contract MaliciousReceiver {
+    function onERC1155Received(
+        address,
+        address,
+        uint256,
+        uint256,
+        bytes memory
+    ) external pure returns (bytes4) {
+        revert("I refuse to accept tokens!");
+    }
+}
+
+// Mock ERC1155 that fails to mint (reverts)
+contract FailingERC1155 is IERC1155MInitializableV1_0_2 {
+    address public owner;
+    
+    constructor() {
+        owner = msg.sender;
+    }
+    
+    function ownerMint(
+        address,
+        uint256,
+        uint32
+    ) external pure {
+        revert("Mint failed!");
+    }
+    
+    function transferOwnership(address newOwner) external {
+        owner = newOwner;
+    }
+}
+
 contract TestLuckyBuyOpenEdition is Test {
     PRNG prng;
     MockLuckyBuy luckyBuy;
@@ -99,6 +133,16 @@ contract TestLuckyBuyOpenEdition is Test {
     bytes32 orderHash = hex"";
     uint256 amount = 1 ether;
     uint256 reward = 10 ether; // 10% odds
+    
+    // Define events to check
+    event OpenEditionMintFailure(
+        uint256 indexed commitId,
+        address indexed receiver,
+        address indexed token,
+        uint256 tokenId,
+        uint256 amount,
+        bytes32 digest
+    );
 
     function setUp() public {
         vm.startPrank(admin);
@@ -236,10 +280,12 @@ contract TestLuckyBuyOpenEdition is Test {
         assertEq(openEditionToken.balanceOf(address(user), 1), 1);
     }
     function testOpenEditionTransferFail() public {
-        // out of base points
+        // Test that fulfill continues even when mint fails
+        
+        FailingERC1155 failingToken = new FailingERC1155();
 
         vm.prank(admin);
-        luckyBuy.setOpenEditionToken(address(1), 1, 1);
+        luckyBuy.setOpenEditionToken(address(failingToken), 1, 1);
 
         uint256 commitAmount = 0.01 ether;
         uint256 rewardAmount = 1 ether;
@@ -289,10 +335,29 @@ contract TestLuckyBuyOpenEdition is Test {
             rewardAmount
         );
 
-        // Fulfill the commit
-        vm.startPrank(user);
-        // This revert happens because there is no code at the address. The error will be different in different cases. E.g. bad address vs no balance
-        vm.expectRevert();
+        // Fulfill the commit - should NOT revert even though mint fails
+        vm.startPrank(cosigner);
+        
+        // Expect the mint failure event
+        vm.expectEmit(true, true, true, true);
+        emit OpenEditionMintFailure(
+            commitId,
+            user,
+            address(failingToken),
+            1,
+            1,
+            luckyBuy.hash(LuckyBuySignatureVerifierUpgradeable.CommitData({
+                id: commitId,
+                receiver: user,
+                cosigner: cosigner,
+                seed: seed,
+                counter: 0,
+                orderHash: orderHash,
+                amount: commitAmount,
+                reward: rewardAmount
+            }))
+        );
+        
         luckyBuy.fulfill(
             commitId,
             address(0), // marketplace
@@ -306,7 +371,88 @@ contract TestLuckyBuyOpenEdition is Test {
         );
         vm.stopPrank();
 
-        assertEq(openEditionToken.balanceOf(address(user), 1), 0);
+        // Verify commit was fulfilled despite mint failure
+        assertTrue(luckyBuy.isFulfilled(commitId));
+    }
+
+    function testOpenEditionMaliciousReceiverDoesNotRevert() public {
+        // Test that fulfill continues even when receiver reverts on ERC1155 callback
+        
+        MaliciousReceiver maliciousReceiver = new MaliciousReceiver();
+
+        uint256 commitAmount = 0.01 ether;
+        uint256 rewardAmount = 1 ether;
+        // Create order hash for a simple ETH transfer
+        bytes32 orderHash = luckyBuy.hashOrder(
+            address(0),
+            rewardAmount,
+            "",
+            address(0),
+            0
+        );
+
+        vm.startPrank(user);
+        // Create commit with malicious receiver
+        uint256 commitId = luckyBuy.commit{value: commitAmount}(
+            address(maliciousReceiver), // receiver that will revert
+            cosigner,
+            seed,
+            orderHash,
+            rewardAmount
+        );
+        vm.stopPrank();
+
+        // Sign the commit
+        bytes memory signature = signCommit(
+            commitId,
+            address(maliciousReceiver),
+            seed,
+            0, // counter
+            orderHash,
+            commitAmount,
+            rewardAmount
+        );
+
+        // Fulfill should succeed even though receiver reverts
+        vm.startPrank(cosigner);
+        
+        // Expect the mint failure event
+        vm.expectEmit(true, true, true, true);
+        emit OpenEditionMintFailure(
+            commitId,
+            address(maliciousReceiver),
+            address(openEditionToken),
+            1,
+            1,
+            luckyBuy.hash(LuckyBuySignatureVerifierUpgradeable.CommitData({
+                id: commitId,
+                receiver: address(maliciousReceiver),
+                cosigner: cosigner,
+                seed: seed,
+                counter: 0,
+                orderHash: orderHash,
+                amount: commitAmount,
+                reward: rewardAmount
+            }))
+        );
+        
+        luckyBuy.fulfill(
+            commitId,
+            address(0),
+            "",
+            rewardAmount,
+            address(0),
+            0,
+            signature,
+            address(0),
+            0
+        );
+        vm.stopPrank();
+
+        // Verify commit was fulfilled
+        assertTrue(luckyBuy.isFulfilled(commitId));
+        // Malicious receiver has no tokens (mint failed silently)
+        assertEq(openEditionToken.balanceOf(address(maliciousReceiver), 1), 0);
     }
 
     // This is a very obtuse test.
