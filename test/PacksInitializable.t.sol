@@ -2,8 +2,8 @@
 pragma solidity 0.8.28;
 
 import {Test, console} from "forge-std/Test.sol";
-import {PacksInitializable} from "../src/PacksInitializable.sol";
-import {Packs} from "../src/Packs.sol";
+import {PacksInitializable} from "../src/packs/PacksInitializable.sol";
+import {Packs} from "../src/packs/Packs.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {PRNG} from "../src/PRNG.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";

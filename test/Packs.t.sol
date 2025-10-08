@@ -6,7 +6,7 @@ import "forge-std/Test.sol";
 import "../src/common/SignatureVerifier/PacksSignatureVerifierUpgradeable.sol";
 import "src/common/Errors.sol";
 import "src/PRNG.sol";
-import "src/Packs.sol";
+import "src/packs/Packs.sol";
 import {TokenRescuer} from "../src/common/TokenRescuer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -36,6 +36,15 @@ contract MockERC1155 is ERC1155 {
 
     function mint(address to, uint256 id, uint256 amount) external {
         _mint(to, id, amount, "");
+    }
+    
+    // Unsafe mint that bypasses receiver check - simulates buggy token contracts
+    function unsafeMint(address to, uint256 id, uint256 amount) external {
+        uint256[] memory ids = new uint256[](1);
+        uint256[] memory amounts = new uint256[](1);
+        ids[0] = id;
+        amounts[0] = amount;
+        _update(address(0), to, ids, amounts);
     }
 }
 
@@ -2299,7 +2308,8 @@ contract TestPacks is Test {
     function testRescueERC1155() public {
         // Deploy mock ERC1155
         MockERC1155 token = new MockERC1155();
-        token.mint(address(packs), 1, 100);
+        // Use unsafeMint to bypass receiver check - simulates buggy token contract
+        token.unsafeMint(address(packs), 1, 100);
 
         // Deploy ERC1155 receiver
         SimpleERC1155Receiver receiver = new SimpleERC1155Receiver();
@@ -2399,8 +2409,9 @@ contract TestPacks is Test {
     function testRescueERC1155Batch() public {
         // Deploy mock ERC1155
         MockERC1155 token = new MockERC1155();
-        token.mint(address(packs), 1, 100);
-        token.mint(address(packs), 2, 200);
+        // Use unsafeMint to bypass receiver check - simulates buggy token contract
+        token.unsafeMint(address(packs), 1, 100);
+        token.unsafeMint(address(packs), 2, 200);
 
         // Deploy ERC1155 receiver
         SimpleERC1155Receiver receiver = new SimpleERC1155Receiver();
