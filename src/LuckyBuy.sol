@@ -156,6 +156,14 @@ contract LuckyBuy is
         bytes32 digest
     );
     event MaxBulkSizeUpdated(uint256 oldMaxBulkSize, uint256 newMaxBulkSize);
+    event OpenEditionMintFailure(
+        uint256 indexed commitId,
+        address indexed receiver,
+        address indexed token,
+        uint256 tokenId,
+        uint256 amount,
+        bytes32 digest
+    );
 
     error AlreadyCosigner();
     error AlreadyFulfilled();
@@ -507,11 +515,22 @@ contract LuckyBuy is
             );
         } else {
             if (openEditionToken != address(0)) {
-                IERC1155MInitializableV1_0_2(openEditionToken).ownerMint(
+                try IERC1155MInitializableV1_0_2(openEditionToken).ownerMint(
                     commitData.receiver,
                     openEditionTokenId,
                     openEditionTokenAmount
-                );
+                ) {
+                    // success - no-op (ERC1155 TransferSingle event already emitted)
+                } catch {
+                    emit OpenEditionMintFailure(
+                        commitData.id,
+                        commitData.receiver,
+                        openEditionToken,
+                        openEditionTokenId,
+                        openEditionTokenAmount,
+                        digest
+                    );
+                }
             }
             // emit the failure
             emit Fulfillment(
