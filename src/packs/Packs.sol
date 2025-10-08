@@ -5,14 +5,12 @@ import {Errors} from "../common/Errors.sol";
 
 import "./base/PacksCommit.sol";
 import "./base/PacksFulfill.sol";
-import "./base/PacksCancel.sol";
 import "./base/PacksAdmin.sol";
 
 contract Packs is
     PacksAdmin,
     PacksCommit,
-    PacksFulfill,
-    PacksCancel
+    PacksFulfill
 {
     // ============================================================
     // MODIFIERS
