@@ -51,9 +51,6 @@ contract Packs is
         minPackPrice = 0.01 ether;
         maxPackPrice = 0.25 ether;
 
-        minPackRewardMultiplier = 5000;
-        maxPackRewardMultiplier = 300000;
-
         // Initialize expiries
         commitCancellableTime = 1 hours;
         nftFulfillmentExpiryTime = 10 minutes;
@@ -180,14 +177,6 @@ contract Packs is
 
     function setMaxPackPrice(uint256 maxPackPrice_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _updateMaxPackPrice(maxPackPrice_);
-    }
-
-    function setMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _updateMinPackRewardMultiplier(minPackRewardMultiplier_);
-    }
-
-    function setMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _updateMaxPackRewardMultiplier(maxPackRewardMultiplier_);
     }
 
     function setProtocolFee(uint256 protocolFee_) external onlyRole(OPS_ROLE) {

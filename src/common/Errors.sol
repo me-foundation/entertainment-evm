@@ -53,7 +53,6 @@ library Errors {
     error InvalidBuckets();
     error InvalidReward();
     error InvalidPackPrice();
-    error InvalidPackRewardMultiplier();
     error InvalidCommitId();
     error WithdrawalFailed();
     error InvalidCommitCancellableTime();
