@@ -106,6 +106,14 @@ The protocol has several critical security considerations that should be careful
 
 These security considerations should be carefully reviewed during the security audit, with particular attention to the cosigner system and random number generation implementation.
 
+## Upgrade Commands
+
+```
+forge script script/UpgradeLuckyBuy.s.sol:UpgradeLuckyBuy --sig "run(address)" 0xProxy --rpc-url ... --chain-id ... --account ... --broadcast
+forge script script/UpgradeLuckyBuy.s.sol:UpgradeLuckyBuy --sig "run(address,address)" 0xProxy 0xImpl --rpc-url ... --chain-id ... --account ... --broadcast
+forge script script/UpgradeLuckyBuy.s.sol:UpgradeLuckyBuy --sig "run(address,address,bytes)" 0xProxy 0xImpl 0xCalldata --rpc-url ... --chain-id ... --account ... --broadcast
+```
+
 ## Fee Calculations
 
 The LuckyBuy protocol implements a multi-tier fee structure:
