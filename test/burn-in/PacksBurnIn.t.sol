@@ -187,11 +187,12 @@ contract PacksBurnInTest is Test {
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         address currentImplementation = address(uint160(uint256(vm.load(PACKS_PROXY, implementationSlot))));
         
+        console.log("Current implementation on mainnet:", currentImplementation);
+        console.log("PACKS_V1_IMPLEMENTATION constant:", PACKS_V1_IMPLEMENTATION);
+        console.log("PACKS_NEXT_IMPLEMENTATION constant:", PACKS_NEXT_IMPLEMENTATION);
+        
         // Verify it matches our expected V1 implementation
         assertEq(currentImplementation, PACKS_V1_IMPLEMENTATION, "Current implementation should be V1");
-        
-        console.log("Current implementation:", currentImplementation);
-        console.log("Expected V1 implementation:", PACKS_V1_IMPLEMENTATION);
     }
         
     // ============ HAPPY PATH END-TO-END TESTS ============
