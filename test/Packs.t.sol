@@ -212,8 +212,8 @@ contract TestPacks is Test {
         assertEq(packs.maxReward(), 5 ether);
         assertEq(packs.minPackPrice(), 0.01 ether);
         assertEq(packs.maxPackPrice(), 0.25 ether);
-        assertEq(packs.minPackRewardMultiplier(), 5000);
-        assertEq(packs.maxPackRewardMultiplier(), 300000);
+        assertEq(packs.minPackRewardMultiplier(), 0); // deprecated and unused
+        assertEq(packs.maxPackRewardMultiplier(), 0); // deprecated and unused
     }
 
     function testCommitSuccess() public {

@@ -43,8 +43,8 @@ abstract contract PacksStorage is PacksSignatureVerifierUpgradeable {
     uint256 public minPackPrice;
     uint256 public maxPackPrice;
 
-    uint256 public minPackRewardMultiplier;
-    uint256 public maxPackRewardMultiplier;
+    uint256 public minPackRewardMultiplier; // deprecated. These slots are unused but have to remain here. 
+    uint256 public maxPackRewardMultiplier; // deprecated. These slots are unused but have to remain here. 
 
     uint256 public constant MIN_BUCKETS = 1;
     uint256 public constant MAX_BUCKETS = 5;

@@ -48,9 +48,6 @@ contract PacksInitializable is Packs, UUPSUpgradeable {
         minPackPrice = 0.01 ether;
         maxPackPrice = 0.25 ether;
 
-        minPackRewardMultiplier = 5000;
-        maxPackRewardMultiplier = 300000;
-
         // Initialize expiries
         commitCancellableTime = 1 days;
         nftFulfillmentExpiryTime = 10 minutes;

@@ -30,8 +30,6 @@ abstract contract PacksAdmin is MEAccessControlUpgradeable, ReentrancyGuardUpgra
     event FundsReceiverManagerTransferred(
         address indexed oldFundsReceiverManager, address indexed newFundsReceiverManager
     );
-    event MinPackRewardMultiplierUpdated(uint256 oldMinPackRewardMultiplier, uint256 newMinPackRewardMultiplier);
-    event MaxPackRewardMultiplierUpdated(uint256 oldMaxPackRewardMultiplier, uint256 newMaxPackRewardMultiplier);
     event ProtocolFeeUpdated(uint256 oldProtocolFee, uint256 newProtocolFee);
     event FlatFeeUpdated(uint256 oldFlatFee, uint256 newFlatFee);
     event TreasuryWithdrawal(address indexed sender, uint256 amount, address fundsReceiver);
@@ -111,25 +109,7 @@ abstract contract PacksAdmin is MEAccessControlUpgradeable, ReentrancyGuardUpgra
         maxPackPrice = maxPackPrice_;
         emit MaxPackPriceUpdated(oldMaxPackPrice, maxPackPrice_);
     }
-    
-    // ---------- Multipliers ----------
-    
-    function _updateMinPackRewardMultiplier(uint256 minPackRewardMultiplier_) internal {
-        if (minPackRewardMultiplier_ == 0) revert Errors.InvalidPackRewardMultiplier();
-        if (minPackRewardMultiplier_ > maxPackRewardMultiplier) revert Errors.InvalidPackRewardMultiplier();
-        uint256 oldMinPackRewardMultiplier = minPackRewardMultiplier;
-        minPackRewardMultiplier = minPackRewardMultiplier_;
-        emit MinPackRewardMultiplierUpdated(oldMinPackRewardMultiplier, minPackRewardMultiplier_);
-    }
-    
-    function _updateMaxPackRewardMultiplier(uint256 maxPackRewardMultiplier_) internal {
-        if (maxPackRewardMultiplier_ == 0) revert Errors.InvalidPackRewardMultiplier();
-        if (maxPackRewardMultiplier_ < minPackRewardMultiplier) revert Errors.InvalidPackRewardMultiplier();
-        uint256 oldMaxPackRewardMultiplier = maxPackRewardMultiplier;
-        maxPackRewardMultiplier = maxPackRewardMultiplier_;
-        emit MaxPackRewardMultiplierUpdated(oldMaxPackRewardMultiplier, maxPackRewardMultiplier_);
-    }
-    
+        
     // ---------- Fees ----------
     
     function _setProtocolFee(uint256 protocolFee_) internal {

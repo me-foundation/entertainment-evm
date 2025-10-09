@@ -112,8 +112,7 @@ abstract contract PacksCommit is PacksStorage {
         if (bucket.minValue > bucket.maxValue) revert Errors.InvalidReward();
         if (bucket.minValue < minReward) revert Errors.InvalidReward();
         if (bucket.maxValue > maxReward) revert Errors.InvalidReward();
-        if (bucket.minValue < packPrice * minPackRewardMultiplier / BASE_POINTS) revert Errors.InvalidReward();
-        if (bucket.maxValue > packPrice * maxPackRewardMultiplier / BASE_POINTS) revert Errors.InvalidReward();
+        
     }
     
     function _validateBucketOdds(BucketData memory bucket) internal pure {
