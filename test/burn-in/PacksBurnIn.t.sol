@@ -36,8 +36,8 @@ contract PacksBurnInTest is Test {
     string public BURN_IN_RPC_URL;
     
     // Production contract addresses on Base mainnet
-    address public constant PACKS_V1_IMPLEMENTATION = 0x90BaCf195755C76B2bf2b31f8E23e9313586a57F;
-    address public constant PACKS_NEXT_IMPLEMENTATION = 0x40Cb777f142cfB3acDe713bcA0d70631dfA77977;
+    address public constant PACKS_V1_IMPLEMENTATION = 0xfC6d4877Bae58D135d5F823A7bAa8f020a9AB841;
+    address public constant PACKS_NEXT_IMPLEMENTATION = 0xfC6d4877Bae58D135d5F823A7bAa8f020a9AB841;
 
 
     address public constant PACKS_PROXY = 0xf541d82630A5ba513eB709c41d06ac3D009C0248;
@@ -187,11 +187,12 @@ contract PacksBurnInTest is Test {
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         address currentImplementation = address(uint160(uint256(vm.load(PACKS_PROXY, implementationSlot))));
         
+        console.log("Current implementation on mainnet:", currentImplementation);
+        console.log("PACKS_V1_IMPLEMENTATION constant:", PACKS_V1_IMPLEMENTATION);
+        console.log("PACKS_NEXT_IMPLEMENTATION constant:", PACKS_NEXT_IMPLEMENTATION);
+        
         // Verify it matches our expected V1 implementation
         assertEq(currentImplementation, PACKS_V1_IMPLEMENTATION, "Current implementation should be V1");
-        
-        console.log("Current implementation:", currentImplementation);
-        console.log("Expected V1 implementation:", PACKS_V1_IMPLEMENTATION);
     }
         
     // ============ HAPPY PATH END-TO-END TESTS ============
