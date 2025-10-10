@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "./common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
+import "../common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 
-import {IERC1155MInitializableV1_0_2} from "./common/interfaces/IERC1155MInitializableV1_0_2.sol";
+import {IERC1155MInitializableV1_0_2} from "../common/interfaces/IERC1155MInitializableV1_0_2.sol";
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "./common/MEAccessControlUpgradeable.sol";
+import "../common/MEAccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {IPRNG} from "./common/interfaces/IPRNG.sol";
-import {TokenRescuer} from "./common/TokenRescuer.sol";
-import {Errors} from "./common/Errors.sol";
+import {IPRNG} from "../common/interfaces/IPRNG.sol";
+import {TokenRescuer} from "../common/TokenRescuer.sol";
+import {Errors} from "../common/Errors.sol";
 
 contract LuckyBuy is
     MEAccessControlUpgradeable,

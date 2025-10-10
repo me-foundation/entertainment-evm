@@ -2,10 +2,10 @@
 pragma solidity ^0.8.28;
 
 import "forge-std/Script.sol";
-// import "../src/LuckyBuy.sol";
-import "../src/LuckyBuyInitializable.sol";
-import "../src/PRNG.sol";
-import "../src/PayoutContract.sol";
+// import "../src/lucky_buy/LuckyBuy.sol";
+import "../src/lucky_buy/LuckyBuyInitializable.sol";
+import "../src/common/PRNG.sol";
+import "../src/lucky_buy/PayoutContract.sol";
 
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";

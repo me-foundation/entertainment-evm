@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
-import "src/PRNG.sol";
+import "src/common/PRNG.sol";
 
 contract MockPRNG is PRNG {
     function exposed_rng(
