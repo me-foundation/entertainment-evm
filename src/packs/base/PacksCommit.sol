@@ -61,14 +61,15 @@ abstract contract PacksCommit is PacksStorage {
         uint256 seed_,
         PackType packType_,
         BucketData[] memory buckets_,
-        bytes memory signature_
+        bytes memory signature_,
+        uint256 packPrice,
+        uint256 totalAmount
     ) internal returns (uint256) {
-        uint256 packPrice = _validateAndCalculatePackPrice(msg.value);
         _validateCommitAddresses(receiver_, cosigner_);
         _validateBuckets(buckets_, packPrice);
         bytes32 packHash = _verifyPackSignature(packType_, packPrice, buckets_, signature_, cosigner_);
         uint256 commitId = _createCommit(receiver_, cosigner_, seed_, packPrice, buckets_, packHash);
-        _processCommitFees(commitId, packPrice);
+        _processCommitFees(commitId, packPrice, totalAmount);
         _setCommitExpiryTimes(commitId);
         
         bytes32 digest = hashCommit(packs[commitId]);
@@ -175,8 +176,8 @@ abstract contract PacksCommit is PacksStorage {
         return commitId;
     }
     
-    function _processCommitFees(uint256 commitId, uint256 packPrice) internal {
-        feesPaid[commitId] = msg.value - packPrice;
+    function _processCommitFees(uint256 commitId, uint256 packPrice, uint256 totalAmount) internal {
+        feesPaid[commitId] = totalAmount - packPrice;
         protocolBalance += feesPaid[commitId];
         _handleFlatFeePayment();
         commitBalance += packPrice;
@@ -211,16 +212,12 @@ abstract contract PacksCommit is PacksStorage {
         if (msg.value != totalRequired) revert Errors.CommitAmountZero();
 
         commitIds = new uint256[](commitRequests_.length);
-        uint256 remainingValue = msg.value;
 
         for (uint256 i = 0; i < commitRequests_.length; i++) {
             CommitRequest calldata request = commitRequests_[i];
             
-            if (request.amount == 0 || remainingValue < request.amount) {
-                revert Errors.InvalidAmount();
-            }
-            
-            remainingValue -= request.amount;
+            if (request.amount == 0) revert Errors.InvalidAmount();
+            if (request.amount <= flatFee) revert Errors.CommitAmountTooLowForFlatFee();
             
             // Calculate pack price for this commit
             uint256 packPrice = calculateContributionWithoutFee(request.amount, protocolFee) - flatFee;
@@ -228,32 +225,18 @@ abstract contract PacksCommit is PacksStorage {
             if (packPrice < minPackPrice) revert Errors.PackPriceBelowMinimum();
             if (packPrice > maxPackPrice) revert Errors.PackPriceAboveMaximum();
             
-            _validateCommitAddresses(request.receiver, request.cosigner);
-            _validateBuckets(request.buckets, packPrice);
-            bytes32 packHash = _verifyPackSignature(request.packType, packPrice, request.buckets, request.signature, request.cosigner);
-            
-            uint256 commitId = _createCommit(request.receiver, request.cosigner, request.seed, packPrice, request.buckets, packHash);
-            commitIds[i] = commitId;
-            
-            // Process fees
-            feesPaid[commitId] = request.amount - packPrice;
-            protocolBalance += feesPaid[commitId];
-            commitBalance += packPrice;
-            _handleFlatFeePayment();
-            
-            _setCommitExpiryTimes(commitId);
-            
-            bytes32 digest = hashCommit(packs[commitId]);
-            commitIdByDigest[digest] = commitId;
-            
-            emit Commit(
-                msg.sender, commitId, request.receiver, request.cosigner, request.seed, 
-                packs[commitId].counter, packPrice, packHash, digest, 
-                feesPaid[commitId], flatFee
+            // Reuse _commit for all the logic
+            commitIds[i] = _commit(
+                request.receiver,
+                request.cosigner,
+                request.seed,
+                request.packType,
+                request.buckets,
+                request.signature,
+                packPrice,
+                request.amount
             );
         }
-
-        if (remainingValue != 0) revert Errors.InvalidAmount();
 
         return commitIds;
     }

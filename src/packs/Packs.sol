@@ -68,7 +68,8 @@ contract Packs is
         BucketData[] memory buckets_,
         bytes memory signature_
     ) external payable whenNotPaused returns (uint256) {
-        return _commit(receiver_, cosigner_, seed_, packType_, buckets_, signature_);
+        uint256 packPrice = _validateAndCalculatePackPrice(msg.value);
+        return _commit(receiver_, cosigner_, seed_, packType_, buckets_, signature_, packPrice, msg.value);
     }
 
     /// @notice Commit to a pack using a request struct
@@ -77,13 +78,16 @@ contract Packs is
     function commit(
         CommitRequest calldata commitRequest_
     ) external payable whenNotPaused returns (uint256) {
+        uint256 packPrice = _validateAndCalculatePackPrice(msg.value);
         return _commit(
             commitRequest_.receiver,
             commitRequest_.cosigner,
             commitRequest_.seed,
             commitRequest_.packType,
             commitRequest_.buckets,
-            commitRequest_.signature
+            commitRequest_.signature,
+            packPrice,
+            msg.value
         );
     }
 
