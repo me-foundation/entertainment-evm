@@ -3678,5 +3678,145 @@ contract TestPacks is Test {
         assertEq(storedPackPrice, packPrice);
     }
 
+    // ============================================================
+    // ADDITIONAL COVERAGE TESTS
+    // ============================================================
+
+    function testGetPacksLength() public {
+        // Initially should be 0
+        assertEq(packs.getPacksLength(), 0);
+        
+        // Create a commit
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        packs.commit{value: packPrice}(
+            receiver,
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+        
+        // Should now be 1
+        assertEq(packs.getPacksLength(), 1);
+    }
+
+    function testSetMinPackPrice() public {
+        // Test that only admin can set
+        vm.expectRevert();
+        vm.prank(user);
+        packs.setMinPackPrice(0.02 ether);
+        
+        // Test that admin can set valid value
+        vm.startPrank(admin);
+        packs.setMinPackPrice(0.02 ether);
+        assertEq(packs.minPackPrice(), 0.02 ether);
+        
+        // Test that zero value reverts
+        vm.expectRevert(Errors.InvalidPackPrice.selector);
+        packs.setMinPackPrice(0);
+        
+        // Test that value greater than max reverts
+        vm.expectRevert(Errors.InvalidPackPrice.selector);
+        packs.setMinPackPrice(1 ether);
+        vm.stopPrank();
+    }
+
+    function testSetProtocolFee() public {
+        // Test that only OPS_ROLE can set
+        vm.expectRevert();
+        vm.prank(user);
+        packs.setProtocolFee(500);
+        
+        // Test that admin (has OPS_ROLE) can set valid value
+        vm.startPrank(admin);
+        packs.setProtocolFee(500);
+        assertEq(packs.protocolFee(), 500);
+        
+        // Test that value > 10000 reverts
+        vm.expectRevert(Errors.InvalidProtocolFee.selector);
+        packs.setProtocolFee(10001);
+        vm.stopPrank();
+    }
+
+    function testPauseAndUnpause() public {
+        // Test pause
+        vm.prank(admin);
+        packs.pause();
+        assertTrue(packs.paused());
+        
+        // Test unpause
+        vm.prank(admin);
+        packs.unpause();
+        assertFalse(packs.paused());
+    }
+
+    function testSetMinRewardValid() public {
+        vm.startPrank(admin);
+        
+        // Set a valid min reward
+        packs.setMinReward(0.02 ether);
+        assertEq(packs.minReward(), 0.02 ether);
+        
+        // Test that zero value reverts
+        vm.expectRevert(Errors.InvalidReward.selector);
+        packs.setMinReward(0);
+        
+        vm.stopPrank();
+    }
+
+    function testSetMaxPackPriceValid() public {
+        vm.startPrank(admin);
+        
+        // Set a valid max pack price
+        packs.setMaxPackPrice(0.5 ether);
+        assertEq(packs.maxPackPrice(), 0.5 ether);
+        
+        // Test that zero value reverts
+        vm.expectRevert(Errors.InvalidPackPrice.selector);
+        packs.setMaxPackPrice(0);
+        
+        vm.stopPrank();
+    }
+
+    function testSetMaxRewardEdgeCases() public {
+        vm.startPrank(admin);
+        
+        // Test that zero value reverts
+        vm.expectRevert(Errors.InvalidReward.selector);
+        packs.setMaxReward(0);
+        
+        // Test that value less than min reverts
+        vm.expectRevert(Errors.InvalidReward.selector);
+        packs.setMaxReward(0.005 ether);
+        
+        vm.stopPrank();
+    }
+
+    function testWithdrawTreasuryZeroAmount() public {
+        // Fund treasury
+        vm.deal(address(packs), 1 ether);
+        (bool success, ) = payable(address(packs)).call{value: 1 ether}("");
+        require(success, "Failed to fund contract");
+        
+        vm.prank(admin);
+        vm.expectRevert(Errors.WithdrawAmountZero.selector);
+        packs.withdrawTreasury(0);
+    }
+
+    function testSetFundsReceiverSameAsManager() public {
+        // Grant funds receiver manager role to bob
+        vm.prank(fundsReceiverManager);
+        packs.transferFundsReceiverManager(bob);
+        
+        // Try to set bob as funds receiver (should fail)
+        vm.prank(bob);
+        vm.expectRevert(Errors.InvalidFundsReceiverManager.selector);
+        packs.setFundsReceiver(bob);
+    }
+
 
 }
