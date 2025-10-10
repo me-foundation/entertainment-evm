@@ -36,11 +36,11 @@ contract PacksBurnInTest is Test {
     string public BURN_IN_RPC_URL;
     
     // Production contract addresses on Base mainnet
-    address public constant PACKS_V1_IMPLEMENTATION = 0xfC6d4877Bae58D135d5F823A7bAa8f020a9AB841;
-    address public constant PACKS_NEXT_IMPLEMENTATION = 0x4f97C5D0be4c62567f7D2271a90aa965ea266f4E;
+    address public constant PACKS_V1_IMPLEMENTATION = 0x9D0eA37D250c26bB61DF09E8fF9Dad73b4DED26d;
+    address public constant PACKS_NEXT_IMPLEMENTATION = 0x9D0eA37D250c26bB61DF09E8fF9Dad73b4DED26d;
 
 
-    address public constant PACKS_PROXY = 0xf541d82630A5ba513eB709c41d06ac3D009C0248;
+    address public constant PACKS_PROXY = 0x137610c761255f2f5c869a11467cc51FDfEd200f;
     address public constant FUNDS_RECEIVER = 0x2918F39540df38D4c33cda3bCA9edFccd8471cBE;
     address public constant FUNDS_RECEIVER_MANAGER = 0x7C51fAEe5666B47b2F7E81b7a6A8DEf4C76D47E3;
     
@@ -199,7 +199,7 @@ contract PacksBurnInTest is Test {
     
     function testHappyPathCommitAndFulfillPayout() public {        
         
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af; // From deployment
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78; // From deployment
         vm.startPrank(currentAdmin);
         packs.addCosigner(cosigner);
         vm.stopPrank();
@@ -263,9 +263,9 @@ contract PacksBurnInTest is Test {
 
         // Now fulfill with payout  
         address marketplace = address(0x123); // Mock marketplace
-        // Since RNG will select bucket 1 (0.6-2.0 ETH range), use a value in that range
-        uint256 orderAmount = 1.0 ether; // Within bucket 1 range
-        uint256 expectedPayoutAmount = 1.0 ether; // Full payout
+        // RNG 3701 will select bucket 0 (0.125-0.5 ETH range), use a value in that range
+        uint256 orderAmount = 0.4 ether; // Within bucket 0 range
+        uint256 expectedPayoutAmount = 0.4 ether; // Full payout
         bytes memory fulfillmentSignature = _signFulfillment(
             digest,
             marketplace,
@@ -289,20 +289,21 @@ contract PacksBurnInTest is Test {
         
         // Determine which bucket was selected
         uint256 cumulativeOdds = 0;
-        uint256 selectedBucket = 0;
+        uint256 selectedBucket = type(uint256).max;
         for (uint256 i = 0; i < buckets.length; i++) {
             cumulativeOdds += buckets[i].oddsBps;
             console.log("Bucket", i, "- Odds:", buckets[i].oddsBps);
             console.log("  Cumulative Odds:", cumulativeOdds);
             console.log("  Min Value:", buckets[i].minValue);
             console.log("  Max Value:", buckets[i].maxValue);
-            if (rng < cumulativeOdds && selectedBucket == 0) {
+            if (rng < cumulativeOdds && selectedBucket == type(uint256).max) {
                 selectedBucket = i;
                 console.log("  >>> SELECTED BUCKET <<<");
             }
         }
         
         console.log("Selected Bucket Index:", selectedBucket);
+        assertEq(selectedBucket, 0, "RNG 3701 should select bucket 0");
         console.log("Order Amount (wei):", orderAmount);
         console.log("Expected Payout (wei):", expectedPayoutAmount);
         console.log("Marketplace:", marketplace);
@@ -314,8 +315,8 @@ contract PacksBurnInTest is Test {
             cosigner,     // sender
             commitId,     // commitId
             rng,          // rng
-            1500,         // odds (bucket 1 odds - 15%)
-            1,            // bucketIndex (bucket 1)
+            8000,         // odds (bucket 0 odds - 80%)
+            0,            // bucketIndex (bucket 0)
             expectedPayoutAmount, // payout
             address(0),   // token
             0,            // tokenId  
@@ -373,7 +374,7 @@ contract PacksBurnInTest is Test {
         console.log("Target implementation:", PACKS_NEXT_IMPLEMENTATION);
         
         // Impersonate the admin to perform upgrade
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78;
         vm.startPrank(currentAdmin);
         
         // Perform the upgrade
@@ -424,7 +425,7 @@ contract PacksBurnInTest is Test {
         uint256 user2PackCountBefore = packs.packCount(user2);
         
         // Record admin roles
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78;
         bool hasAdminRoleBefore = packs.hasRole(packs.DEFAULT_ADMIN_ROLE(), currentAdmin);
         bool hasFundsManagerRoleBefore = packs.hasRole(packs.FUNDS_RECEIVER_MANAGER_ROLE(), FUNDS_RECEIVER_MANAGER);
         
@@ -584,7 +585,7 @@ contract PacksBurnInTest is Test {
         console.log("Target implementation:", PACKS_NEXT_IMPLEMENTATION);
         
         // Impersonate the admin to perform upgrade
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78;
         vm.startPrank(currentAdmin);
         
         // Perform the upgrade
@@ -665,8 +666,8 @@ contract PacksBurnInTest is Test {
 
         // Now fulfill with payout  
         address marketplace = address(0x123);
-        uint256 orderAmount = 1.0 ether;
-        uint256 expectedPayoutAmount = 1.0 ether;
+        uint256 orderAmount = 0.4 ether; // Within bucket 0 range (RNG 3701 selects bucket 0)
+        uint256 expectedPayoutAmount = 0.4 ether;
         bytes memory fulfillmentSignature = _signFulfillment(
             digest,
             marketplace,
@@ -690,20 +691,21 @@ contract PacksBurnInTest is Test {
         
         // Determine which bucket was selected
         uint256 cumulativeOdds = 0;
-        uint256 selectedBucket = 0;
+        uint256 selectedBucket = type(uint256).max;
         for (uint256 i = 0; i < buckets.length; i++) {
             cumulativeOdds += buckets[i].oddsBps;
             console.log("Bucket", i, "- Odds:", buckets[i].oddsBps);
             console.log("  Cumulative Odds:", cumulativeOdds);
             console.log("  Min Value:", buckets[i].minValue);
             console.log("  Max Value:", buckets[i].maxValue);
-            if (rng < cumulativeOdds && selectedBucket == 0) {
+            if (rng < cumulativeOdds && selectedBucket == type(uint256).max) {
                 selectedBucket = i;
                 console.log("  >>> SELECTED BUCKET <<<");
             }
         }
         
         console.log("Selected Bucket Index:", selectedBucket);
+        assertEq(selectedBucket, 0, "RNG 3701 should select bucket 0");
         console.log("Order Amount (wei):", orderAmount);
         console.log("Expected Payout (wei):", expectedPayoutAmount);
         console.log("Marketplace:", marketplace);
@@ -715,8 +717,8 @@ contract PacksBurnInTest is Test {
             cosigner,     // sender
             commitId,     // commitId
             rng,          // rng
-            1500,         // odds (bucket 1 odds - 15%)
-            1,            // bucketIndex (bucket 1)
+            8000,         // odds (bucket 0 odds - 80%)
+            0,            // bucketIndex (bucket 0)
             expectedPayoutAmount, // payout
             address(0),   // token
             0,            // tokenId  
@@ -781,7 +783,7 @@ contract PacksBurnInTest is Test {
         console.log("Current implementation:", currentImplementation);
         
         // Add our test cosigner
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78;
         vm.prank(currentAdmin);
         packs.addCosigner(cosigner);
         console.log("Test cosigner added:", cosigner);
@@ -841,8 +843,8 @@ contract PacksBurnInTest is Test {
         
         // Fulfill with payout
         address marketplace = address(0x123);
-        uint256 orderAmount = 1.0 ether;
-        uint256 expectedPayoutAmount = 1.0 ether;
+        uint256 orderAmount = 0.4 ether; // Within bucket 0 range (RNG 3701 selects bucket 0)
+        uint256 expectedPayoutAmount = 0.4 ether;
         bytes memory fulfillmentSignature = _signFulfillment(
             digest,
             marketplace,

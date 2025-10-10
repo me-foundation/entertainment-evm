@@ -15,7 +15,7 @@ contract Packs is
     // ============================================================
     // MODIFIERS
     // ============================================================
-
+    
     modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
         if (packs[commitId_].receiver != msg.sender && packs[commitId_].cosigner != msg.sender) {
             revert Errors.InvalidCommitOwner();
@@ -68,7 +68,33 @@ contract Packs is
         BucketData[] memory buckets_,
         bytes memory signature_
     ) external payable whenNotPaused returns (uint256) {
-        return _commit(receiver_, cosigner_, seed_, packType_, buckets_, signature_);
+        uint256 packPrice = _validateAndCalculatePackPrice(msg.value);
+        return _commit(receiver_, cosigner_, seed_, packType_, buckets_, signature_, packPrice, msg.value);
+    }
+
+    /// @notice Commit to a pack using a request struct
+    /// @param commitRequest_ The commit request containing all parameters
+    /// @return The commit ID
+    function commit(
+        CommitRequest calldata commitRequest_
+    ) external payable whenNotPaused returns (uint256) {
+        uint256 packPrice = _validateAndCalculatePackPrice(msg.value);
+        return _commit(
+            commitRequest_.receiver,
+            commitRequest_.cosigner,
+            commitRequest_.seed,
+            commitRequest_.packType,
+            commitRequest_.buckets,
+            commitRequest_.signature,
+            packPrice,
+            msg.value
+        );
+    }
+
+    function commitBatch(
+        CommitRequest[] calldata commitRequests_
+    ) external payable whenNotPaused returns (uint256[] memory) {
+        return _commitBatch(commitRequests_);
     }
 
     function fulfill(
@@ -97,6 +123,25 @@ contract Packs is
         );
     }
 
+    /// @notice Fulfill a pack using a request struct with digest
+    /// @param fulfillRequest_ The fulfill request containing digest and all parameters
+    function fulfill(
+        FulfillRequest calldata fulfillRequest_
+    ) external payable whenNotPaused {
+        _fulfill(
+            commitIdByDigest[fulfillRequest_.digest],
+            fulfillRequest_.marketplace,
+            fulfillRequest_.orderData,
+            fulfillRequest_.orderAmount,
+            fulfillRequest_.token,
+            fulfillRequest_.tokenId,
+            fulfillRequest_.payoutAmount,
+            fulfillRequest_.commitSignature,
+            fulfillRequest_.fulfillmentSignature,
+            fulfillRequest_.choice
+        );
+    }
+
     function fulfillByDigest(
         bytes32 commitDigest_,
         address marketplace_,
@@ -121,6 +166,12 @@ contract Packs is
             fulfillmentSignature_,
             choice_
         );
+    }
+
+    function fulfillBatch(
+        FulfillRequest[] calldata fulfillRequests_
+    ) external payable whenNotPaused {
+        _fulfillBatch(fulfillRequests_);
     }
 
     function cancel(uint256 commitId_) external nonReentrant onlyCommitOwnerOrCosigner(commitId_) {
