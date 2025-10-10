@@ -7,6 +7,8 @@ import "../src/common/SignatureVerifier/PacksSignatureVerifierUpgradeable.sol";
 import "src/common/Errors.sol";
 import "src/PRNG.sol";
 import "src/packs/Packs.sol";
+import "src/packs/base/PacksCommit.sol";
+import "src/packs/base/PacksFulfill.sol";
 import {TokenRescuer} from "../src/common/TokenRescuer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -3007,6 +3009,671 @@ contract TestPacks is Test {
         assertEq(packs.commitBalance(), initialCommitBalance + packPrice);
         
         // Verify stored pack price is the actual pack price (after fee deduction)
+        (,,,,,uint256 storedPackPrice,) = packs.packs(commitId);
+        assertEq(storedPackPrice, packPrice);
+    }
+
+    // ============================================================
+    // BATCH FUNCTION TESTS
+    // ============================================================
+
+    function testCommitBatchBasic() public {
+        uint256 batchSize = 3;
+        PacksCommit.CommitRequest[] memory requests = new PacksCommit.CommitRequest[](batchSize);
+        
+        uint256 totalValue = 0;
+        for (uint256 i = 0; i < batchSize; i++) {
+            uint256 amount = packPrice + (i * 0.001 ether);
+            bytes memory signature = signPack(amount, buckets);
+            
+            requests[i] = PacksCommit.CommitRequest({
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed + i,
+                packType: PacksSignatureVerifierUpgradeable.PackType.NFT,
+                buckets: buckets,
+                signature: signature,
+                amount: amount
+            });
+            
+            totalValue += amount;
+        }
+        
+        vm.startPrank(user);
+        vm.deal(user, totalValue);
+        
+        uint256[] memory commitIds = packs.commitBatch{value: totalValue}(requests);
+        vm.stopPrank();
+        
+        // Verify all commits were created
+        assertEq(commitIds.length, batchSize);
+        assertEq(packs.packCount(receiver), batchSize);
+        
+        // Verify each commit was stored correctly
+        for (uint256 i = 0; i < batchSize; i++) {
+            (
+                uint256 id,
+                address storedReceiver,
+                address storedCosigner,
+                uint256 storedSeed,
+                ,
+                uint256 storedPackPrice,
+            ) = packs.packs(commitIds[i]);
+            
+            assertEq(id, commitIds[i]);
+            assertEq(storedReceiver, receiver);
+            assertEq(storedCosigner, cosigner);
+            assertEq(storedSeed, seed + i);
+            assertEq(storedPackPrice, packPrice + (i * 0.001 ether));
+        }
+    }
+
+    function testCommitBatchEmptyArray() public {
+        PacksCommit.CommitRequest[] memory requests = new PacksCommit.CommitRequest[](0);
+        
+        vm.startPrank(user);
+        vm.expectRevert(Errors.InvalidBuckets.selector);
+        packs.commitBatch(requests);
+        vm.stopPrank();
+    }
+
+    function testCommitBatchInsufficientValue() public {
+        uint256 batchSize = 2;
+        PacksCommit.CommitRequest[] memory requests = new PacksCommit.CommitRequest[](batchSize);
+        
+        uint256 totalRequired = 0;
+        for (uint256 i = 0; i < batchSize; i++) {
+            bytes memory signature = signPack(packPrice, buckets);
+            
+            requests[i] = PacksCommit.CommitRequest({
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed + i,
+                packType: PacksSignatureVerifierUpgradeable.PackType.NFT,
+                buckets: buckets,
+                signature: signature,
+                amount: packPrice
+            });
+            
+            totalRequired += packPrice;
+        }
+        
+        vm.startPrank(user);
+        vm.deal(user, totalRequired - 0.001 ether); // Send less than required
+        
+        vm.expectRevert(Errors.CommitAmountZero.selector);
+        packs.commitBatch{value: totalRequired - 0.001 ether}(requests);
+        vm.stopPrank();
+    }
+
+    function testCommitBatchExcessValue() public {
+        uint256 batchSize = 2;
+        PacksCommit.CommitRequest[] memory requests = new PacksCommit.CommitRequest[](batchSize);
+        
+        uint256 totalRequired = 0;
+        for (uint256 i = 0; i < batchSize; i++) {
+            bytes memory signature = signPack(packPrice, buckets);
+            
+            requests[i] = PacksCommit.CommitRequest({
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed + i,
+                packType: PacksSignatureVerifierUpgradeable.PackType.NFT,
+                buckets: buckets,
+                signature: signature,
+                amount: packPrice
+            });
+            
+            totalRequired += packPrice;
+        }
+        
+        vm.startPrank(user);
+        vm.deal(user, totalRequired + 0.001 ether); // Send more than required
+        
+        vm.expectRevert(Errors.CommitAmountZero.selector);
+        packs.commitBatch{value: totalRequired + 0.001 ether}(requests);
+        vm.stopPrank();
+    }
+
+    function testCommitBatchWhenPaused() public {
+        vm.prank(admin);
+        packs.pause();
+        
+        PacksCommit.CommitRequest[] memory requests = new PacksCommit.CommitRequest[](1);
+        bytes memory signature = signPack(packPrice, buckets);
+        
+        requests[0] = PacksCommit.CommitRequest({
+            receiver: receiver,
+            cosigner: cosigner,
+            seed: seed,
+            packType: PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets: buckets,
+            signature: signature,
+            amount: packPrice
+        });
+        
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        vm.expectRevert();
+        packs.commitBatch{value: packPrice}(requests);
+        vm.stopPrank();
+    }
+
+    function testFulfillBatchBasic() public {
+        // First create multiple commits
+        uint256 batchSize = 3;
+        uint256[] memory commitIds = new uint256[](batchSize);
+        
+        for (uint256 i = 0; i < batchSize; i++) {
+            vm.startPrank(user);
+            vm.deal(user, packPrice);
+            bytes memory packSignature = signPack(packPrice, buckets);
+            commitIds[i] = packs.commit{value: packPrice}(
+                receiver,
+                cosigner,
+                seed + i,
+                PacksSignatureVerifierUpgradeable.PackType.NFT,
+                buckets,
+                packSignature
+            );
+            vm.stopPrank();
+        }
+        
+        // Fund contract treasury for payouts
+        vm.deal(user, 10 ether);
+        (bool success, ) = payable(address(packs)).call{value: 10 ether}("");
+        require(success, "Failed to fund contract");
+        
+        // Prepare fulfill requests
+        PacksFulfill.FulfillRequest[] memory requests = new PacksFulfill.FulfillRequest[](batchSize);
+        
+        for (uint256 i = 0; i < batchSize; i++) {
+            bytes memory commitSignature = signCommit(
+                commitIds[i],
+                receiver,
+                seed + i,
+                i,
+                packPrice,
+                buckets
+            );
+            
+            uint256 orderAmount = 0.015 ether;
+            uint256 payoutAmount = 0.0135 ether;
+            
+            bytes memory fulfillmentSignature = signFulfillment(
+                commitIds[i],
+                receiver,
+                seed + i,
+                i,
+                packPrice,
+                buckets,
+                marketplace,
+                orderAmount,
+                "",
+                address(0),
+                0,
+                payoutAmount,
+                PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+                cosigner
+            );
+            
+            // Calculate digest for this commit
+            PacksSignatureVerifierUpgradeable.CommitData memory commitData = PacksSignatureVerifierUpgradeable.CommitData({
+                id: commitIds[i],
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed + i,
+                counter: i,
+                packPrice: packPrice,
+                buckets: buckets,
+                packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
+            });
+            bytes32 digest = packs.hashCommit(commitData);
+            
+            requests[i] = PacksFulfill.FulfillRequest({
+                digest: digest,
+                marketplace: marketplace,
+                orderData: "",
+                orderAmount: orderAmount,
+                token: address(0),
+                tokenId: 0,
+                payoutAmount: payoutAmount,
+                commitSignature: commitSignature,
+                fulfillmentSignature: fulfillmentSignature,
+                choice: PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout
+            });
+        }
+        
+        uint256 receiverInitialBalance = receiver.balance;
+        
+        vm.prank(cosigner);
+        packs.fulfillBatch(requests);
+        
+        // Verify all commits were fulfilled
+        for (uint256 i = 0; i < batchSize; i++) {
+            assertTrue(packs.isFulfilled(commitIds[i]));
+        }
+        
+        // Verify receiver got all payouts
+        assertEq(receiver.balance, receiverInitialBalance + (0.0135 ether * batchSize));
+    }
+
+    function testFulfillBatchEmptyArray() public {
+        PacksFulfill.FulfillRequest[] memory requests = new PacksFulfill.FulfillRequest[](0);
+        
+        vm.prank(cosigner);
+        vm.expectRevert(Errors.InvalidBuckets.selector);
+        packs.fulfillBatch(requests);
+    }
+
+    function testFulfillBatchWhenPaused() public {
+        // Create commit first
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        uint256 commitId = packs.commit{value: packPrice}(
+            receiver,
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+        
+        // Fund contract
+        vm.deal(address(packs), 10 ether);
+        
+        // Pause contract
+        vm.prank(admin);
+        packs.pause();
+        
+        // Try to fulfill batch when paused
+        bytes memory commitSignature = signCommit(commitId, receiver, seed, 0, packPrice, buckets);
+        bytes memory fulfillmentSignature = signFulfillment(
+            commitId,
+            receiver,
+            seed,
+            0,
+            packPrice,
+            buckets,
+            marketplace,
+            0.015 ether,
+            "",
+            address(0),
+            0,
+            0.0135 ether,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+            cosigner
+        );
+        
+        // Calculate digest
+        PacksSignatureVerifierUpgradeable.CommitData memory commitData = PacksSignatureVerifierUpgradeable.CommitData({
+            id: commitId,
+            receiver: receiver,
+            cosigner: cosigner,
+            seed: seed,
+            counter: 0,
+            packPrice: packPrice,
+            buckets: buckets,
+            packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
+        });
+        bytes32 digest = packs.hashCommit(commitData);
+        
+        PacksFulfill.FulfillRequest[] memory requests = new PacksFulfill.FulfillRequest[](1);
+        requests[0] = PacksFulfill.FulfillRequest({
+            digest: digest,
+            marketplace: marketplace,
+            orderData: "",
+            orderAmount: 0.015 ether,
+            token: address(0),
+            tokenId: 0,
+            payoutAmount: 0.0135 ether,
+            commitSignature: commitSignature,
+            fulfillmentSignature: fulfillmentSignature,
+            choice: PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout
+        });
+        
+        vm.prank(cosigner);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        packs.fulfillBatch(requests);
+    }
+
+    function testFulfillBatchOneFailsReverts() public {
+        // Create multiple commits
+        uint256 batchSize = 3;
+        uint256[] memory commitIds = new uint256[](batchSize);
+        
+        for (uint256 i = 0; i < batchSize; i++) {
+            vm.startPrank(user);
+            vm.deal(user, packPrice);
+            bytes memory packSignature = signPack(packPrice, buckets);
+            commitIds[i] = packs.commit{value: packPrice}(
+                receiver,
+                cosigner,
+                seed + i,
+                PacksSignatureVerifierUpgradeable.PackType.NFT,
+                buckets,
+                packSignature
+            );
+            vm.stopPrank();
+        }
+        
+        // Fund contract treasury for payouts
+        vm.deal(user, 10 ether);
+        (bool fundSuccess, ) = payable(address(packs)).call{value: 10 ether}("");
+        require(fundSuccess, "Failed to fund contract");
+        
+        // Prepare fulfill requests, but make one invalid (wrong signature)
+        PacksFulfill.FulfillRequest[] memory requests = new PacksFulfill.FulfillRequest[](batchSize);
+        
+        for (uint256 i = 0; i < batchSize; i++) {
+            bytes memory commitSignature = signCommit(
+                commitIds[i],
+                receiver,
+                seed + i,
+                i,
+                packPrice,
+                buckets
+            );
+            
+            uint256 orderAmount = 0.015 ether;
+            uint256 payoutAmount = 0.0135 ether;
+            
+            // Make middle request invalid
+            address signerToUse = (i == 1) ? bob : cosigner;
+            
+            bytes memory fulfillmentSignature = signFulfillment(
+                commitIds[i],
+                receiver,
+                seed + i,
+                i,
+                packPrice,
+                buckets,
+                marketplace,
+                orderAmount,
+                "",
+                address(0),
+                0,
+                payoutAmount,
+                PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+                signerToUse
+            );
+            
+            // Calculate digest for this commit
+            PacksSignatureVerifierUpgradeable.CommitData memory commitData = PacksSignatureVerifierUpgradeable.CommitData({
+                id: commitIds[i],
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed + i,
+                counter: i,
+                packPrice: packPrice,
+                buckets: buckets,
+                packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
+            });
+            bytes32 digest = packs.hashCommit(commitData);
+            
+            requests[i] = PacksFulfill.FulfillRequest({
+                digest: digest,
+                marketplace: marketplace,
+                orderData: "",
+                orderAmount: orderAmount,
+                token: address(0),
+                tokenId: 0,
+                payoutAmount: payoutAmount,
+                commitSignature: commitSignature,
+                fulfillmentSignature: fulfillmentSignature,
+                choice: PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout
+            });
+        }
+        
+        vm.prank(cosigner);
+        vm.expectRevert(Errors.FulfillmentSignerMismatch.selector);
+        packs.fulfillBatch(requests);
+        
+        // Verify none were fulfilled (all or nothing)
+        for (uint256 i = 0; i < batchSize; i++) {
+            assertFalse(packs.isFulfilled(commitIds[i]));
+        }
+    }
+
+    function testCommitBatchWithFlatFee() public {
+        // Set flat fee
+        vm.prank(admin);
+        packs.setFlatFee(0.001 ether);
+        
+        uint256 batchSize = 2;
+        PacksCommit.CommitRequest[] memory requests = new PacksCommit.CommitRequest[](batchSize);
+        
+        uint256 totalValue = 0;
+        for (uint256 i = 0; i < batchSize; i++) {
+            uint256 packPrice = 0.01 ether;
+            uint256 totalAmountWithFee = packPrice + 0.001 ether;
+            bytes memory signature = signPack(packPrice, buckets);
+            
+            requests[i] = PacksCommit.CommitRequest({
+                receiver: receiver,
+                cosigner: cosigner,
+                seed: seed + i,
+                packType: PacksSignatureVerifierUpgradeable.PackType.NFT,
+                buckets: buckets,
+                signature: signature,
+                amount: totalAmountWithFee
+            });
+            
+            totalValue += totalAmountWithFee;
+        }
+        
+        uint256 initialFundsReceiverBalance = fundsReceiver.balance;
+        
+        vm.startPrank(user);
+        vm.deal(user, totalValue);
+        
+        uint256[] memory commitIds = packs.commitBatch{value: totalValue}(requests);
+        vm.stopPrank();
+        
+        // Verify flat fees were collected
+        assertEq(fundsReceiver.balance, initialFundsReceiverBalance + (0.001 ether * batchSize));
+        
+        // Verify commits were created with correct pack prices (after fee deduction)
+        for (uint256 i = 0; i < batchSize; i++) {
+            (,,,,,uint256 storedPackPrice,) = packs.packs(commitIds[i]);
+            assertEq(storedPackPrice, 0.01 ether);
+        }
+    }
+
+    function testCommitBatchMultipleReceivers() public {
+        address receiver2 = address(0x999);
+        uint256 batchSize = 2;
+        PacksCommit.CommitRequest[] memory requests = new PacksCommit.CommitRequest[](batchSize);
+        
+        address[] memory receivers = new address[](2);
+        receivers[0] = receiver;
+        receivers[1] = receiver2;
+        
+        uint256 totalValue = 0;
+        for (uint256 i = 0; i < batchSize; i++) {
+            bytes memory signature = signPack(packPrice, buckets);
+            
+            requests[i] = PacksCommit.CommitRequest({
+                receiver: receivers[i],
+                cosigner: cosigner,
+                seed: seed + i,
+                packType: PacksSignatureVerifierUpgradeable.PackType.NFT,
+                buckets: buckets,
+                signature: signature,
+                amount: packPrice
+            });
+            
+            totalValue += packPrice;
+        }
+        
+        vm.startPrank(user);
+        vm.deal(user, totalValue);
+        
+        uint256[] memory commitIds = packs.commitBatch{value: totalValue}(requests);
+        vm.stopPrank();
+        
+        // Verify each receiver has their commits
+        assertEq(packs.packCount(receiver), 1);
+        assertEq(packs.packCount(receiver2), 1);
+        
+        // Verify commit ownership
+        (,address storedReceiver1,,,,, ) = packs.packs(commitIds[0]);
+        (,address storedReceiver2,,,,, ) = packs.packs(commitIds[1]);
+        assertEq(storedReceiver1, receiver);
+        assertEq(storedReceiver2, receiver2);
+    }
+
+    // ============================================================
+    // STRUCT OVERLOAD TESTS
+    // ============================================================
+
+    function testCommitWithStruct() public {
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        
+        PacksCommit.CommitRequest memory request = PacksCommit.CommitRequest({
+            receiver: receiver,
+            cosigner: cosigner,
+            seed: seed,
+            packType: PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets: buckets,
+            signature: packSignature,
+            amount: packPrice
+        });
+        
+        uint256 commitId = packs.commit{value: packPrice}(request);
+        vm.stopPrank();
+        
+        // Verify commit was created correctly
+        assertEq(commitId, 0);
+        assertEq(packs.packCount(receiver), 1);
+        
+        (
+            uint256 id,
+            address storedReceiver,
+            address storedCosigner,
+            uint256 storedSeed,
+            ,
+            uint256 storedPackPrice,
+        ) = packs.packs(commitId);
+        
+        assertEq(id, 0);
+        assertEq(storedReceiver, receiver);
+        assertEq(storedCosigner, cosigner);
+        assertEq(storedSeed, seed);
+        assertEq(storedPackPrice, packPrice);
+    }
+
+    function testFulfillWithStruct() public {
+        // First create a commit
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        uint256 commitId = packs.commit{value: packPrice}(
+            receiver,
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+        
+        // Fund contract for payout
+        vm.deal(user, 10 ether);
+        (bool success, ) = payable(address(packs)).call{value: 10 ether}("");
+        require(success, "Failed to fund contract");
+        
+        // Prepare fulfill request
+        bytes memory commitSignature = signCommit(commitId, receiver, seed, 0, packPrice, buckets);
+        uint256 orderAmount = 0.015 ether;
+        uint256 payoutAmount = 0.0135 ether;
+        
+        bytes memory fulfillmentSignature = signFulfillment(
+            commitId,
+            receiver,
+            seed,
+            0,
+            packPrice,
+            buckets,
+            marketplace,
+            orderAmount,
+            "",
+            address(0),
+            0,
+            payoutAmount,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+            cosigner
+        );
+        
+        // Calculate digest
+        PacksSignatureVerifierUpgradeable.CommitData memory commitData = PacksSignatureVerifierUpgradeable.CommitData({
+            id: commitId,
+            receiver: receiver,
+            cosigner: cosigner,
+            seed: seed,
+            counter: 0,
+            packPrice: packPrice,
+            buckets: buckets,
+            packHash: packs.hashPack(PacksSignatureVerifierUpgradeable.PackType.NFT, packPrice, buckets)
+        });
+        bytes32 digest = packs.hashCommit(commitData);
+        
+        PacksFulfill.FulfillRequest memory request = PacksFulfill.FulfillRequest({
+            digest: digest,
+            marketplace: marketplace,
+            orderData: "",
+            orderAmount: orderAmount,
+            token: address(0),
+            tokenId: 0,
+            payoutAmount: payoutAmount,
+            commitSignature: commitSignature,
+            fulfillmentSignature: fulfillmentSignature,
+            choice: PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout
+        });
+        
+        uint256 receiverInitialBalance = receiver.balance;
+        
+        vm.prank(cosigner);
+        packs.fulfill(request);
+        
+        // Verify fulfillment
+        assertTrue(packs.isFulfilled(commitId));
+        assertEq(receiver.balance, receiverInitialBalance + payoutAmount);
+    }
+
+    function testCommitStructWithFlatFee() public {
+        // Set flat fee
+        vm.prank(admin);
+        packs.setFlatFee(0.001 ether);
+        
+        uint256 totalAmount = packPrice + 0.001 ether;
+        uint256 initialFundsReceiverBalance = fundsReceiver.balance;
+        
+        vm.startPrank(user);
+        vm.deal(user, totalAmount);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        
+        PacksCommit.CommitRequest memory request = PacksCommit.CommitRequest({
+            receiver: receiver,
+            cosigner: cosigner,
+            seed: seed,
+            packType: PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets: buckets,
+            signature: packSignature,
+            amount: totalAmount
+        });
+        
+        uint256 commitId = packs.commit{value: totalAmount}(request);
+        vm.stopPrank();
+        
+        // Verify flat fee was collected
+        assertEq(fundsReceiver.balance, initialFundsReceiverBalance + 0.001 ether);
+        
+        // Verify commit was created with correct pack price (after fee deduction)
         (,,,,,uint256 storedPackPrice,) = packs.packs(commitId);
         assertEq(storedPackPrice, packPrice);
     }

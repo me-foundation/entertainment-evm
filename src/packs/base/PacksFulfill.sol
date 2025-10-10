@@ -10,6 +10,23 @@ import {Errors} from "../../common/Errors.sol";
 abstract contract PacksFulfill is PacksStorage {
     
     // ============================================================
+    // STRUCTS
+    // ============================================================
+    
+    struct FulfillRequest {
+        bytes32 digest;
+        address marketplace;
+        bytes orderData;
+        uint256 orderAmount;
+        address token;
+        uint256 tokenId;
+        uint256 payoutAmount;
+        bytes commitSignature;
+        bytes fulfillmentSignature;
+        FulfillmentOption choice;
+    }
+    
+    // ============================================================
     // EVENTS
     // ============================================================
     
@@ -248,5 +265,28 @@ abstract contract PacksFulfill is PacksStorage {
     function _depositTreasury(uint256 amount) internal {
         treasuryBalance += amount;
         emit TreasuryDeposit(msg.sender, amount);
+    }
+
+    function _fulfillBatch(
+        FulfillRequest[] calldata fulfillRequests_
+    ) internal {
+        if (fulfillRequests_.length == 0) revert Errors.InvalidBuckets();
+
+        for (uint256 i = 0; i < fulfillRequests_.length; i++) {
+            FulfillRequest calldata request = fulfillRequests_[i];
+            
+            _fulfill(
+                commitIdByDigest[request.digest],
+                request.marketplace,
+                request.orderData,
+                request.orderAmount,
+                request.token,
+                request.tokenId,
+                request.payoutAmount,
+                request.commitSignature,
+                request.fulfillmentSignature,
+                request.choice
+            );
+        }
     }
 }

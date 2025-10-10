@@ -10,6 +10,20 @@ import {Errors} from "../../common/Errors.sol";
 abstract contract PacksCommit is PacksStorage {
     
     // ============================================================
+    // STRUCTS
+    // ============================================================
+    
+    struct CommitRequest {
+        address receiver;
+        address cosigner;
+        uint256 seed;
+        PackType packType;
+        BucketData[] buckets;
+        bytes signature;
+        uint256 amount;
+    }
+    
+    // ============================================================
     // EVENTS
     // ============================================================
     
@@ -182,6 +196,66 @@ abstract contract PacksCommit is PacksStorage {
         } else if (flatFee > 0) {
             treasuryBalance += flatFee;
         }
+    }
+
+    function _commitBatch(
+        CommitRequest[] calldata commitRequests_
+    ) internal returns (uint256[] memory commitIds) {
+        if (commitRequests_.length == 0) revert Errors.InvalidBuckets();
+
+        // Verify total msg.value matches sum of amounts
+        uint256 totalRequired = 0;
+        for (uint256 i = 0; i < commitRequests_.length; i++) {
+            totalRequired += commitRequests_[i].amount;
+        }
+        if (msg.value != totalRequired) revert Errors.CommitAmountZero();
+
+        commitIds = new uint256[](commitRequests_.length);
+        uint256 remainingValue = msg.value;
+
+        for (uint256 i = 0; i < commitRequests_.length; i++) {
+            CommitRequest calldata request = commitRequests_[i];
+            
+            if (request.amount == 0 || remainingValue < request.amount) {
+                revert Errors.InvalidAmount();
+            }
+            
+            remainingValue -= request.amount;
+            
+            // Calculate pack price for this commit
+            uint256 packPrice = calculateContributionWithoutFee(request.amount, protocolFee) - flatFee;
+            
+            if (packPrice < minPackPrice) revert Errors.PackPriceBelowMinimum();
+            if (packPrice > maxPackPrice) revert Errors.PackPriceAboveMaximum();
+            
+            _validateCommitAddresses(request.receiver, request.cosigner);
+            _validateBuckets(request.buckets, packPrice);
+            bytes32 packHash = _verifyPackSignature(request.packType, packPrice, request.buckets, request.signature, request.cosigner);
+            
+            uint256 commitId = _createCommit(request.receiver, request.cosigner, request.seed, packPrice, request.buckets, packHash);
+            commitIds[i] = commitId;
+            
+            // Process fees
+            feesPaid[commitId] = request.amount - packPrice;
+            protocolBalance += feesPaid[commitId];
+            commitBalance += packPrice;
+            _handleFlatFeePayment();
+            
+            _setCommitExpiryTimes(commitId);
+            
+            bytes32 digest = hashCommit(packs[commitId]);
+            commitIdByDigest[digest] = commitId;
+            
+            emit Commit(
+                msg.sender, commitId, request.receiver, request.cosigner, request.seed, 
+                packs[commitId].counter, packPrice, packHash, digest, 
+                feesPaid[commitId], flatFee
+            );
+        }
+
+        if (remainingValue != 0) revert Errors.InvalidAmount();
+
+        return commitIds;
     }
 
     // ============================================================
