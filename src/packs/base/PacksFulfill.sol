@@ -193,7 +193,7 @@ abstract contract PacksFulfill is PacksStorage {
         FulfillmentOption fulfillmentType,
         bytes32 digest
     ) internal {
-        bool success = _tryFulfillNFTOrder(marketplace_, orderData_, orderAmount_);
+        (bool success,) = marketplace_.call{value: orderAmount_}(orderData_);   
         
         if (success) {
             treasuryBalance -= orderAmount_;
@@ -210,14 +210,7 @@ abstract contract PacksFulfill is PacksStorage {
                 orderAmount_, address(0), 0, 0, commitData.receiver, choice_, fulfillmentType, digest);
         }
     }
-    
-    function _tryFulfillNFTOrder(address marketplace_, bytes calldata orderData_, uint256 orderAmount_) internal returns (bool) {
-        try this._fulfillOrder(marketplace_, orderData_, orderAmount_) returns (bool result) {
-            return result;
-        } catch {
-            return false;
-        }
-    }
+
     
     function _executePayoutFulfillment(
         uint256 commitId_,
@@ -239,10 +232,6 @@ abstract contract PacksFulfill is PacksStorage {
 
         emit Fulfillment(msg.sender, commitId_, rng, bucket.oddsBps, bucketIndex,
             payoutAmount_, address(0), 0, 0, commitData.receiver, choice_, fulfillmentType, digest);
-    }
-    
-    function _fulfillOrder(address to, bytes calldata data, uint256 amount) public virtual returns (bool success) {
-        (success,) = to.call{value: amount}(data);
     }
     
     function _depositTreasury(uint256 amount) internal {
