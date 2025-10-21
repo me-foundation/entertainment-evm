@@ -148,6 +148,8 @@ contract TestPacks is Test {
         uint256 amount,
         address fundsReceiver
     );
+    event CommitCancellableTimeUpdated(uint256 oldCommitCancellableTime, uint256 newCommitCancellableTime);
+    event CommitUserCancellableTimeUpdated(uint256 oldCommitUserCancellableTime, uint256 newCommitUserCancellableTime);
 
     address marketplace;
 
@@ -190,6 +192,9 @@ contract TestPacks is Test {
         });
 
         marketplace = address(0x123);
+
+        // Set user cancellable time to a high value so cancel tests don't need to set it
+        packs.setCommitUserCancellableTime(7 days);
 
         vm.stopPrank();
     }
@@ -1241,7 +1246,7 @@ contract TestPacks is Test {
         vm.stopPrank();
 
         // Wait for cancellation time
-        vm.warp(block.timestamp + 2 days);
+        vm.warp(block.timestamp + 1 days + 1 minutes);
 
         // Calculate the actual digest that will be emitted
         PacksSignatureVerifierUpgradeable.CommitData
@@ -1293,7 +1298,7 @@ contract TestPacks is Test {
         vm.stopPrank();
 
         // Wait for cancellation time
-        vm.warp(block.timestamp + 2 days);
+        vm.warp(block.timestamp + 1 days + 1 minutes);
 
         // Calculate the actual digest that will be emitted
         PacksSignatureVerifierUpgradeable.CommitData
@@ -1369,12 +1374,228 @@ contract TestPacks is Test {
         vm.stopPrank();
 
         // Wait for cancellation time
-        vm.warp(block.timestamp + 2 days);
+        vm.warp(block.timestamp + 1 days + 1 minutes);
 
         // Try to cancel as non-cosigner
-        vm.expectRevert(Errors.InvalidCommitOwner.selector);
+        vm.expectRevert(Errors.InvalidCosigner.selector);
         vm.prank(bob);
         packs.cancel(commitId);
+    }
+
+    function testCancelByUser() public {
+        // Create commit
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        uint256 commitId = packs.commit{value: packPrice}(
+            user, // receiver
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+
+        uint256 initialBalance = user.balance;
+        vm.stopPrank();
+
+        // Wait for user cancellation time (7 days as set in setUp)
+        vm.warp(block.timestamp + 7 days + 1 minutes);
+
+        // Calculate the actual digest that will be emitted
+        PacksSignatureVerifierUpgradeable.CommitData
+            memory commitData = PacksSignatureVerifierUpgradeable.CommitData({
+                id: commitId,
+                receiver: user,
+                cosigner: cosigner,
+                seed: seed,
+                counter: 0,
+                packPrice: packPrice,
+                buckets: buckets,
+                packHash: packs.hashPack(
+                    PacksSignatureVerifierUpgradeable.PackType.NFT,
+                    packPrice,
+                    buckets
+                )
+            });
+        bytes32 digest = packs.hashCommit(commitData);
+
+        vm.expectEmit(true, false, false, true);
+        emit CommitCancelled(commitId, digest);
+
+        vm.prank(user);
+        packs.cancelByUser(commitId);
+
+        assertTrue(packs.isCancelled(commitId));
+        assertEq(user.balance, initialBalance + packPrice);
+    }
+
+    function testCancelByUserNotCancellable() public {
+        // Create commit
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        uint256 commitId = packs.commit{value: packPrice}(
+            user, // receiver
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+
+        // Try to cancel before user cancellation time
+        vm.prank(user);
+        vm.expectRevert(Errors.CommitNotCancellable.selector);
+        packs.cancelByUser(commitId);
+    }
+
+    function testCancelByUserNotOwner() public {
+        // Create commit
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        uint256 commitId = packs.commit{value: packPrice}(
+            user, // receiver
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+
+        // Wait for user cancellation time
+        vm.warp(block.timestamp + 7 days + 1 minutes);
+
+        // Try to cancel as non-owner
+        vm.expectRevert(Errors.InvalidCommitOwner.selector);
+        vm.prank(bob);
+        packs.cancelByUser(commitId);
+    }
+
+    function testCancelByUserNotByCosigner() public {
+        // Create commit
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        uint256 commitId = packs.commit{value: packPrice}(
+            user, // receiver
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+
+        // Wait for user cancellation time
+        vm.warp(block.timestamp + 7 days + 1 minutes);
+
+        // Try to cancel as cosigner using cancelByUser
+        vm.expectRevert(Errors.InvalidCommitOwner.selector);
+        vm.prank(cosigner);
+        packs.cancelByUser(commitId);
+    }
+
+    function testCancelByUserAfterFulfillment() public {
+        // Create commit
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        uint256 commitId = packs.commit{value: packPrice}(
+            receiver,
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+
+        // Fund contract treasury
+        vm.deal(user, 10 ether);
+        (bool success, ) = payable(address(packs)).call{value: 10 ether}("");
+        require(success, "Failed to fund contract");
+        vm.stopPrank();
+
+        // Fulfill the commit
+        bytes memory commitSignature = signCommit(
+            commitId,
+            receiver,
+            seed,
+            0,
+            packPrice,
+            buckets
+        );
+
+        uint256 orderAmount = 0.015 ether;
+        bytes memory fulfillmentSignature = signFulfillment(
+            commitId,
+            receiver,
+            seed,
+            0,
+            packPrice,
+            buckets,
+            marketplace,
+            orderAmount,
+            "",
+            address(0),
+            0,
+            0.0135 ether,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout,
+            cosigner
+        );
+
+        vm.prank(cosigner);
+        packs.fulfill(
+            commitId,
+            marketplace,
+            "",
+            orderAmount,
+            address(0),
+            0,
+            0.0135 ether,
+            commitSignature,
+            fulfillmentSignature,
+            PacksSignatureVerifierUpgradeable.FulfillmentOption.Payout
+        );
+
+        // Wait for user cancellation time
+        vm.warp(block.timestamp + 7 days + 1 minutes);
+
+        // Try to cancel already fulfilled commit
+        vm.expectRevert(Errors.AlreadyFulfilled.selector);
+        vm.prank(receiver);
+        packs.cancelByUser(commitId);
+    }
+
+    function testCancelByUserAlreadyCancelled() public {
+        // Create commit
+        vm.startPrank(user);
+        vm.deal(user, packPrice);
+        bytes memory packSignature = signPack(packPrice, buckets);
+        uint256 commitId = packs.commit{value: packPrice}(
+            user, // receiver
+            cosigner,
+            seed,
+            PacksSignatureVerifierUpgradeable.PackType.NFT,
+            buckets,
+            packSignature
+        );
+        vm.stopPrank();
+
+        // Wait for user cancellation time
+        vm.warp(block.timestamp + 7 days + 1 minutes);
+
+        // Cancel the first time
+        vm.prank(user);
+        packs.cancelByUser(commitId);
+
+        // Try to cancel again
+        vm.expectRevert(Errors.CommitIsCancelled.selector);
+        vm.prank(user);
+        packs.cancelByUser(commitId);
     }
 
     function testWithdrawTreasurySuccess() public {
@@ -2654,6 +2875,151 @@ contract TestPacks is Test {
         // Test minimum cancellable time
         vm.expectRevert(Errors.InvalidCommitCancellableTime.selector);
         packs.setCommitCancellableTime(30 seconds); // Less than MIN_COMMIT_CANCELLABLE_TIME
+        vm.stopPrank();
+    }
+
+    function testSetCommitCancellableTimeAboveUserCancellableTime() public {
+        vm.startPrank(admin);
+        // Try to set commitCancellableTime above commitUserCancellableTime
+        vm.expectRevert(Errors.InvalidCommitCancellableTime.selector);
+        packs.setCommitCancellableTime(8 days); // Greater than 7 days (set in setUp)
+        vm.stopPrank();
+    }
+
+    function testSetCommitCancellableTimeEqualToUserCancellableTime() public {
+        vm.startPrank(admin);
+        // Should be able to set exactly equal to commitUserCancellableTime
+        packs.setCommitCancellableTime(7 days);
+        assertEq(packs.commitCancellableTime(), 7 days);
+        vm.stopPrank();
+    }
+
+    function testSetCommitCancellableTimeAtMinimum() public {
+        vm.startPrank(admin);
+        // Test setting at minimum allowed (1 minute)
+        packs.setCommitCancellableTime(1 minutes);
+        assertEq(packs.commitCancellableTime(), 1 minutes);
+        vm.stopPrank();
+    }
+
+    function testSetCommitCancellableTimeBelowMinimum() public {
+        vm.startPrank(admin);
+        // Test setting below minimum (< 1 minute)
+        vm.expectRevert(Errors.InvalidCommitCancellableTime.selector);
+        packs.setCommitCancellableTime(59 seconds);
+        vm.stopPrank();
+    }
+
+    function testSetCommitCancellableTimeEmitsEvent() public {
+        vm.startPrank(admin);
+        uint256 oldTime = packs.commitCancellableTime();
+        uint256 newTime = 2 days;
+        
+        vm.expectEmit(true, true, true, true);
+        emit CommitCancellableTimeUpdated(oldTime, newTime);
+        
+        packs.setCommitCancellableTime(newTime);
+        vm.stopPrank();
+    }
+
+    function testSetCommitUserCancellableTimeSecurity() public {
+        vm.startPrank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(
+                    keccak256(
+                        "AccessControlUnauthorizedAccount(address,bytes32)"
+                    )
+                ),
+                user,
+                bytes32(0) // DEFAULT_ADMIN_ROLE
+            )
+        );
+        packs.setCommitUserCancellableTime(10 days);
+        vm.stopPrank();
+
+        vm.startPrank(admin);
+        packs.setCommitUserCancellableTime(10 days);
+        assertEq(packs.commitUserCancellableTime(), 10 days);
+        vm.stopPrank();
+    }
+
+    function testSetCommitUserCancellableTimeBelowCosignerTime() public {
+        vm.startPrank(admin);
+        // First set cosigner time to 2 days
+        packs.setCommitCancellableTime(2 days);
+        
+        // Try to set user time below cosigner time
+        vm.expectRevert(Errors.InvalidCommitUserCancellableTime.selector);
+        packs.setCommitUserCancellableTime(1 days);
+        vm.stopPrank();
+    }
+
+    function testSetCommitUserCancellableTimeEqualToCosignerTime() public {
+        vm.startPrank(admin);
+        // First set cosigner time to 2 days
+        packs.setCommitCancellableTime(2 days);
+        
+        // Should be able to set user time equal to cosigner time
+        packs.setCommitUserCancellableTime(2 days);
+        assertEq(packs.commitUserCancellableTime(), 2 days);
+        vm.stopPrank();
+    }
+
+    function testSetCommitUserCancellableTimeAtMinimum() public {
+        vm.startPrank(admin);
+        // First set cosigner time below 1 hour
+        packs.setCommitCancellableTime(30 minutes);
+        
+        // Test setting at minimum allowed (1 hour)
+        packs.setCommitUserCancellableTime(1 hours);
+        assertEq(packs.commitUserCancellableTime(), 1 hours);
+        vm.stopPrank();
+    }
+
+    function testSetCommitUserCancellableTimeBelowMinimum() public {
+        vm.startPrank(admin);
+        // First set cosigner time very low
+        packs.setCommitCancellableTime(1 minutes);
+        
+        // Test setting below minimum (< 1 hour)
+        vm.expectRevert(Errors.InvalidCommitUserCancellableTime.selector);
+        packs.setCommitUserCancellableTime(59 minutes);
+        vm.stopPrank();
+    }
+
+    function testSetCommitUserCancellableTimeEmitsEvent() public {
+        vm.startPrank(admin);
+        uint256 oldTime = packs.commitUserCancellableTime();
+        uint256 newTime = 10 days;
+        
+        vm.expectEmit(true, true, true, true);
+        emit CommitUserCancellableTimeUpdated(oldTime, newTime);
+        
+        packs.setCommitUserCancellableTime(newTime);
+        vm.stopPrank();
+    }
+
+    function testSetBothCancellableTimesInCorrectOrder() public {
+        vm.startPrank(admin);
+        // Set user time first to a high value
+        packs.setCommitUserCancellableTime(10 days);
+        // Then set cosigner time below it
+        packs.setCommitCancellableTime(5 days);
+        
+        assertEq(packs.commitUserCancellableTime(), 10 days);
+        assertEq(packs.commitCancellableTime(), 5 days);
+        vm.stopPrank();
+    }
+
+    function testSetBothCancellableTimesInWrongOrder() public {
+        vm.startPrank(admin);
+        // Set cosigner time to 5 days
+        packs.setCommitCancellableTime(5 days);
+        
+        // Try to set user time below cosigner time - should fail
+        vm.expectRevert(Errors.InvalidCommitUserCancellableTime.selector);
+        packs.setCommitUserCancellableTime(3 days);
         vm.stopPrank();
     }
 
