@@ -27,6 +27,7 @@ abstract contract PacksCommit is PacksStorage {
         uint256 flatFee
     );    
     event CommitCancelled(uint256 indexed commitId, bytes32 digest);
+    event CommitCancelledByUser(uint256 indexed commitId, bytes32 digest);
     event CancellationRefundFailed(uint256 indexed commitId, address indexed receiver, uint256 amount, bytes32 digest);
     
     // ============================================================
@@ -206,7 +207,7 @@ abstract contract PacksCommit is PacksStorage {
         CommitData memory commitData = packs[commitId_];
         uint256 totalRefund = _calculateAndUpdateRefund(commitId_, commitData.packPrice);
         _processRefund(commitId_, commitData.receiver, totalRefund, commitData);
-        emit CommitCancelled(commitId_, hashCommit(commitData));
+        emit CommitCancelledByUser(commitId_, hashCommit(commitData));
     }
     
     function _validateCancellationRequest(uint256 commitId_) internal view {
