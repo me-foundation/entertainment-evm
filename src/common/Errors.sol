@@ -11,6 +11,7 @@ library Errors {
     error InsufficientBalance();
     error ArrayLengthMismatch();
     error Unauthorized();
+    error InvalidCosigner();
     
     // Specific amount errors
     error WithdrawAmountZero();
@@ -63,4 +64,5 @@ library Errors {
     error InvalidFundsReceiverManager();
     error BucketSelectionFailed();
     error InvalidProtocolFee();
+    error CommitUserCancellableTimeNotSet();
 }

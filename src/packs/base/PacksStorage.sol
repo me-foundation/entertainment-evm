@@ -56,7 +56,7 @@ abstract contract PacksStorage is PacksSignatureVerifierUpgradeable {
     mapping(uint256 commitId => uint256 protocolFee) public feesPaid;
     uint256 public flatFee = 0;
 
-    uint256 public commitUserCancellableTime = 1 hours;
+    uint256 public commitUserCancellableTime; // rely on init/constructor
     mapping(uint256 commitId => uint256 cancellableAt) public commitUserCancellableAt;
     uint256 public constant MIN_COMMIT_USER_CANCELLABLE_TIME = 1 hours;
 }

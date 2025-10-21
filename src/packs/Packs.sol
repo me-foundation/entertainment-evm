@@ -24,7 +24,7 @@ contract Packs is
     }
 
     modifier onlyCosigner(uint256 commitId_) {
-        if (packs[commitId_].cosigner != msg.sender) {
+        if (!isCosigner[msg.sender]) {
             revert Errors.InvalidCosigner();
         }
         _;
@@ -61,7 +61,8 @@ contract Packs is
         maxPackPrice = 0.25 ether;
 
         // Initialize expiries
-        commitCancellableTime = 1 hours;
+        commitCancellableTime = 6 minutes;
+        commitUserCancellableTime = 1 hours;
         nftFulfillmentExpiryTime = 10 minutes;
     }
 

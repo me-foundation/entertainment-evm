@@ -222,6 +222,15 @@ abstract contract PacksCommit is PacksStorage {
         if (commitId_ >= packs.length) revert Errors.InvalidCommitId();
         if (isFulfilled[commitId_]) revert Errors.AlreadyFulfilled();
         if (isCancelled[commitId_]) revert Errors.CommitIsCancelled();
+
+        uint256 userCancellableAt = commitUserCancellableAt[commitId_];
+    
+        // Handle commits created before upgrade (legacy commits have 0 timestamp)
+        // These are all internal. On the next major version this code can be removed.
+        if (userCancellableAt == 0) {
+            revert Errors.CommitUserCancellableTimeNotSet();
+        }
+
         if (block.timestamp < commitUserCancellableAt[commitId_]) {
             revert Errors.CommitNotCancellable();
         }
