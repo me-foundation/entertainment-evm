@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import "../src/common/SignatureVerifier/PacksSignatureVerifierUpgradeable.sol";
 import "src/common/Errors.sol";
-import "src/PRNG.sol";
+import "src/common/PRNG.sol";
 import "src/packs/Packs.sol";
 import {TokenRescuer} from "../src/common/TokenRescuer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

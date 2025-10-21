@@ -2,8 +2,8 @@
 pragma solidity 0.8.28;
 
 import "forge-std/Test.sol";
-import "src/LuckyBuy.sol";
-import "src/PRNG.sol";
+import "src/lucky_buy/LuckyBuy.sol";
+import "src/common/PRNG.sol";
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import {IERC1155MInitializableV1_0_2} from "src/common/interfaces/IERC1155MInitializableV1_0_2.sol";
 import "../src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";

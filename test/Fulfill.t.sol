@@ -12,8 +12,8 @@ pragma solidity ^0.8.28;
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "forge-std/Test.sol";
-import "src/LuckyBuy.sol";
-import "src/PRNG.sol";
+import "src/lucky_buy/LuckyBuy.sol";
+import "src/common/PRNG.sol";
 // I grabbed this data from the Magic Eden API. This is a seaport order that is valid as of FORK_BLOCK:
 // curl 'https://api-mainnet.magiceden.us/v3/rtp/ethereum/execute/buy/v7' \
 //   -H 'accept: application/json, text/plain, */*' \
