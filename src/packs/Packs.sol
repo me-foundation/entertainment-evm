@@ -24,7 +24,7 @@ contract Packs is
     }
 
     modifier onlyCosigner(uint256 commitId_) {
-        if (!isCosigner[msg.sender]) {
+        if (packs[commitId_].cosigner != msg.sender) {
             revert Errors.InvalidCosigner();
         }
         _;
