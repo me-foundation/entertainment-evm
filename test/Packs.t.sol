@@ -138,6 +138,7 @@ contract TestPacks is Test {
     );
 
     event CommitCancelled(uint256 indexed commitId, bytes32 digest);
+    event CommitCancelledByUser(uint256 indexed commitId, bytes32 digest);
     event TreasuryWithdrawal(
         address indexed sender,
         uint256 amount,
@@ -1421,7 +1422,7 @@ contract TestPacks is Test {
         bytes32 digest = packs.hashCommit(commitData);
 
         vm.expectEmit(true, false, false, true);
-        emit CommitCancelled(commitId, digest);
+        emit CommitCancelledByUser(commitId, digest);
 
         vm.prank(user);
         packs.cancelByUser(commitId);
