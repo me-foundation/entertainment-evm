@@ -42,8 +42,8 @@ The system consists of the following components:
 
 ### Core Contracts
 
-- **LuckyBuy.sol**: Core contract handling commits, verification, and fulfillment
-- **PRNG.sol**: Secure random number generation using commit/reveal, CRC32 and signatures
+- **lucky_buy/LuckyBuy.sol**: Core contract handling commits, verification, and fulfillment
+- **common/PRNG.sol**: Secure random number generation using commit/reveal, CRC32 and signatures
 
 ### Common Components
 
@@ -194,4 +194,4 @@ Example depoyment script for Ethereum Sepolia testnet:
 
 ## Verification
 
-`forge verify-contract 0x0178070d088C235e1Dc2696D257f90B3ded475a3 src/LuckyBuy.sol:LuckyBuy --constructor-args $(cast abi-encode "constructor(uint256,uint256,uint256,address,address,address)" 500 825000000000000 250 0x2918F39540df38D4c33cda3bCA9edFccd8471cBE 0xBdAa680FcD544acc373c5f190449575768Ac4822 0x7C51fAEe5666B47b2F7E81b7a6A8DEf4C76D47E3) --chain-id 1 --watch`
+`forge verify-contract 0x0178070d088C235e1Dc2696D257f90B3ded475a3 src/lucky_buy/LuckyBuy.sol:LuckyBuy --constructor-args $(cast abi-encode "constructor(uint256,uint256,uint256,address,address,address)" 500 825000000000000 250 0x2918F39540df38D4c33cda3bCA9edFccd8471cBE 0xBdAa680FcD544acc373c5f190449575768Ac4822 0x7C51fAEe5666B47b2F7E81b7a6A8DEf4C76D47E3) --chain-id 1 --watch`

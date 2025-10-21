@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import {LuckyBuy} from "./LuckyBuy.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import {IPRNG} from "./common/interfaces/IPRNG.sol";
+import {IPRNG} from "../common/interfaces/IPRNG.sol";
 
 contract LuckyBuyInitializable is LuckyBuy, UUPSUpgradeable {
     error InvalidZeroAddress();

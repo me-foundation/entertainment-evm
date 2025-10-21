@@ -2,11 +2,11 @@
 pragma solidity 0.8.28;
 
 import {Test, console} from "forge-std/Test.sol";
-import {LuckyBuyInitializable} from "../src/LuckyBuyInitializable.sol";
+import {LuckyBuyInitializable} from "../src/lucky_buy/LuckyBuyInitializable.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IPRNG} from "../src/common/interfaces/IPRNG.sol";
-import {PRNG} from "../src/PRNG.sol";
-import {LuckyBuy} from "../src/LuckyBuy.sol";
+import {PRNG} from "../src/common/PRNG.sol";
+import {LuckyBuy} from "../src/lucky_buy/LuckyBuy.sol";
 import {LuckyBuySignatureVerifierUpgradeable} from "../src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 

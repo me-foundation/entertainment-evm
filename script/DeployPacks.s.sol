@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Script.sol";
 import "../src/packs/PacksInitializable.sol";
-import "../src/PRNG.sol";
+import "../src/common/PRNG.sol";
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 

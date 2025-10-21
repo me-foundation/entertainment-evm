@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import "forge-std/Script.sol";
-import "../src/LuckyBuyInitializable.sol";
+import "../src/lucky_buy/LuckyBuyInitializable.sol";
 
 contract UpgradeLuckyBuy is Script {
     function run(address proxyAddress) external {

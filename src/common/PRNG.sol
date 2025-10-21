@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "./common/CRC32.sol";
-import {IPRNG} from "./common/interfaces/IPRNG.sol";
+import "./CRC32.sol";
+import {IPRNG} from "./interfaces/IPRNG.sol";
 
 /// @title PRNG
 /// @notice A contract that provides pseudo-random number generation based on signatures

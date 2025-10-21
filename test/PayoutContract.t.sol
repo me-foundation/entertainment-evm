@@ -2,9 +2,9 @@
 pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
-import "src/PayoutContract.sol";
-import "src/LuckyBuy.sol";
-import "src/PRNG.sol";
+import "src/lucky_buy/PayoutContract.sol";
+import "src/lucky_buy/LuckyBuy.sol";
+import "src/common/PRNG.sol";
 import "src/common/SignatureVerifier/LuckyBuySignatureVerifierUpgradeable.sol";
 
 contract MockLuckyBuy is LuckyBuy {
