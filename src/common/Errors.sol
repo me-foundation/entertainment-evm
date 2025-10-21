@@ -56,6 +56,7 @@ library Errors {
     error InvalidCommitId();
     error WithdrawalFailed();
     error InvalidCommitCancellableTime();
+    error InvalidCommitUserCancellableTime();
     error InvalidNftFulfillmentExpiryTime();
     error CommitIsCancelled();
     error CommitNotCancellable();

@@ -170,6 +170,7 @@ abstract contract PacksCommit is PacksStorage {
     
     function _setCommitExpiryTimes(uint256 commitId) internal {
         commitCancellableAt[commitId] = block.timestamp + commitCancellableTime;
+        commitUserCancellableAt[commitId] = block.timestamp + commitUserCancellableTime;
         nftFulfillmentExpiresAt[commitId] = block.timestamp + nftFulfillmentExpiryTime;
     }
     
@@ -190,6 +191,17 @@ abstract contract PacksCommit is PacksStorage {
     
     function _cancel(uint256 commitId_) internal {
         _validateCancellationRequest(commitId_);
+
+        isCancelled[commitId_] = true;
+        CommitData memory commitData = packs[commitId_];
+        uint256 totalRefund = _calculateAndUpdateRefund(commitId_, commitData.packPrice);
+        _processRefund(commitId_, commitData.receiver, totalRefund, commitData);
+        emit CommitCancelled(commitId_, hashCommit(commitData));
+    }
+
+    function _cancelByUser(uint256 commitId_) internal {
+        _validateUserCancellationRequest(commitId_);
+
         isCancelled[commitId_] = true;
         CommitData memory commitData = packs[commitId_];
         uint256 totalRefund = _calculateAndUpdateRefund(commitId_, commitData.packPrice);
@@ -202,6 +214,15 @@ abstract contract PacksCommit is PacksStorage {
         if (isFulfilled[commitId_]) revert Errors.AlreadyFulfilled();
         if (isCancelled[commitId_]) revert Errors.CommitIsCancelled();
         if (block.timestamp < commitCancellableAt[commitId_]) {
+            revert Errors.CommitNotCancellable();
+        }
+    }
+
+    function _validateUserCancellationRequest(uint256 commitId_) internal view {
+        if (commitId_ >= packs.length) revert Errors.InvalidCommitId();
+        if (isFulfilled[commitId_]) revert Errors.AlreadyFulfilled();
+        if (isCancelled[commitId_]) revert Errors.CommitIsCancelled();
+        if (block.timestamp < commitUserCancellableAt[commitId_]) {
             revert Errors.CommitNotCancellable();
         }
     }

@@ -16,12 +16,21 @@ contract Packs is
     // MODIFIERS
     // ============================================================
 
-    modifier onlyCommitOwnerOrCosigner(uint256 commitId_) {
-        if (packs[commitId_].receiver != msg.sender && packs[commitId_].cosigner != msg.sender) {
+    modifier onlyCommitOwner(uint256 commitId_) {
+        if (packs[commitId_].receiver != msg.sender) {
             revert Errors.InvalidCommitOwner();
         }
         _;
     }
+
+    modifier onlyCosigner(uint256 commitId_) {
+        if (packs[commitId_].cosigner != msg.sender) {
+            revert Errors.InvalidCosigner();
+        }
+        _;
+    }
+
+    
 
     // ============================================================
     // CONSTRUCTOR
@@ -123,8 +132,12 @@ contract Packs is
         );
     }
 
-    function cancel(uint256 commitId_) external nonReentrant onlyCommitOwnerOrCosigner(commitId_) {
+    function cancel(uint256 commitId_) external nonReentrant onlyCosigner(commitId_) {
         _cancel(commitId_);
+    }
+
+    function cancelByUser(uint256 commitId_) external nonReentrant onlyCommitOwner(commitId_) {
+        _cancelByUser(commitId_);
     }
 
     // ============================================================
@@ -157,6 +170,10 @@ contract Packs is
 
     function setCommitCancellableTime(uint256 commitCancellableTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _updateCommitCancellableTime(commitCancellableTime_);
+    }
+
+    function setCommitUserCancellableTime(uint256 commitUserCancellableTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _updateCommitUserCancellableTime(commitUserCancellableTime_);
     }
 
     function setNftFulfillmentExpiryTime(uint256 nftFulfillmentExpiryTime_) external onlyRole(DEFAULT_ADMIN_ROLE) {

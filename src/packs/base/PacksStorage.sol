@@ -55,5 +55,9 @@ abstract contract PacksStorage is PacksSignatureVerifierUpgradeable {
     uint256 public protocolBalance = 0;
     mapping(uint256 commitId => uint256 protocolFee) public feesPaid;
     uint256 public flatFee = 0;
+
+    uint256 public commitUserCancellableTime = 1 hours;
+    mapping(uint256 commitId => uint256 cancellableAt) public commitUserCancellableAt;
+    uint256 public constant MIN_COMMIT_USER_CANCELLABLE_TIME = 1 hours;
 }
 
