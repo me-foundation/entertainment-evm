@@ -11,6 +11,7 @@ library Errors {
     error InsufficientBalance();
     error ArrayLengthMismatch();
     error Unauthorized();
+    error InvalidCosigner();
     
     // Specific amount errors
     error WithdrawAmountZero();
@@ -56,10 +57,12 @@ library Errors {
     error InvalidCommitId();
     error WithdrawalFailed();
     error InvalidCommitCancellableTime();
+    error InvalidCommitUserCancellableTime();
     error InvalidNftFulfillmentExpiryTime();
     error CommitIsCancelled();
     error CommitNotCancellable();
     error InvalidFundsReceiverManager();
     error BucketSelectionFailed();
     error InvalidProtocolFee();
+    error CommitUserCancellableTimeNotSet();
 }

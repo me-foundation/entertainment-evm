@@ -27,6 +27,7 @@ abstract contract PacksCommit is PacksStorage {
         uint256 flatFee
     );    
     event CommitCancelled(uint256 indexed commitId, bytes32 digest);
+    event CommitCancelledByUser(uint256 indexed commitId, bytes32 digest);
     event CancellationRefundFailed(uint256 indexed commitId, address indexed receiver, uint256 amount, bytes32 digest);
     
     // ============================================================
@@ -170,6 +171,7 @@ abstract contract PacksCommit is PacksStorage {
     
     function _setCommitExpiryTimes(uint256 commitId) internal {
         commitCancellableAt[commitId] = block.timestamp + commitCancellableTime;
+        commitUserCancellableAt[commitId] = block.timestamp + commitUserCancellableTime;
         nftFulfillmentExpiresAt[commitId] = block.timestamp + nftFulfillmentExpiryTime;
     }
     
@@ -190,11 +192,22 @@ abstract contract PacksCommit is PacksStorage {
     
     function _cancel(uint256 commitId_) internal {
         _validateCancellationRequest(commitId_);
+
         isCancelled[commitId_] = true;
         CommitData memory commitData = packs[commitId_];
         uint256 totalRefund = _calculateAndUpdateRefund(commitId_, commitData.packPrice);
         _processRefund(commitId_, commitData.receiver, totalRefund, commitData);
         emit CommitCancelled(commitId_, hashCommit(commitData));
+    }
+
+    function _cancelByUser(uint256 commitId_) internal {
+        _validateUserCancellationRequest(commitId_);
+
+        isCancelled[commitId_] = true;
+        CommitData memory commitData = packs[commitId_];
+        uint256 totalRefund = _calculateAndUpdateRefund(commitId_, commitData.packPrice);
+        _processRefund(commitId_, commitData.receiver, totalRefund, commitData);
+        emit CommitCancelledByUser(commitId_, hashCommit(commitData));
     }
     
     function _validateCancellationRequest(uint256 commitId_) internal view {
@@ -202,6 +215,24 @@ abstract contract PacksCommit is PacksStorage {
         if (isFulfilled[commitId_]) revert Errors.AlreadyFulfilled();
         if (isCancelled[commitId_]) revert Errors.CommitIsCancelled();
         if (block.timestamp < commitCancellableAt[commitId_]) {
+            revert Errors.CommitNotCancellable();
+        }
+    }
+
+    function _validateUserCancellationRequest(uint256 commitId_) internal view {
+        if (commitId_ >= packs.length) revert Errors.InvalidCommitId();
+        if (isFulfilled[commitId_]) revert Errors.AlreadyFulfilled();
+        if (isCancelled[commitId_]) revert Errors.CommitIsCancelled();
+
+        uint256 userCancellableAt = commitUserCancellableAt[commitId_];
+    
+        // Handle commits created before upgrade (legacy commits have 0 timestamp)
+        // These are all internal. On the next major version this code can be removed.
+        if (userCancellableAt == 0) {
+            revert Errors.CommitUserCancellableTimeNotSet();
+        }
+
+        if (block.timestamp < commitUserCancellableAt[commitId_]) {
             revert Errors.CommitNotCancellable();
         }
     }

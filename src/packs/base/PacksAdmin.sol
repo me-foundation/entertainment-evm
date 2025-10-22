@@ -25,6 +25,7 @@ abstract contract PacksAdmin is MEAccessControlUpgradeable, ReentrancyGuardUpgra
     event MinRewardUpdated(uint256 oldMinReward, uint256 newMinReward);
     event MinPackPriceUpdated(uint256 oldMinPackPrice, uint256 newMinPackPrice);
     event CommitCancellableTimeUpdated(uint256 oldCommitCancellableTime, uint256 newCommitCancellableTime);
+    event CommitUserCancellableTimeUpdated(uint256 oldCommitUserCancellableTime, uint256 newCommitUserCancellableTime);
     event NftFulfillmentExpiryTimeUpdated(uint256 oldNftFulfillmentExpiryTime, uint256 newNftFulfillmentExpiryTime);
     event FundsReceiverUpdated(address indexed oldFundsReceiver, address indexed newFundsReceiver);
     event FundsReceiverManagerTransferred(
@@ -56,14 +57,33 @@ abstract contract PacksAdmin is MEAccessControlUpgradeable, ReentrancyGuardUpgra
     
     // ---------- Time Parameters ----------
     
-    function _updateCommitCancellableTime(uint256 commitCancellableTime_) internal {
-        if (commitCancellableTime_ < MIN_COMMIT_CANCELLABLE_TIME) {
-            revert Errors.InvalidCommitCancellableTime();
+        function _updateCommitCancellableTime(uint256 commitCancellableTime_) internal {
+            // Prevents the cosigner cancel being after the user cancel
+            if (commitCancellableTime_ > commitUserCancellableTime) {
+                revert Errors.InvalidCommitCancellableTime();
+            }
+
+            if (commitCancellableTime_ < MIN_COMMIT_CANCELLABLE_TIME) {
+                revert Errors.InvalidCommitCancellableTime();
+            }
+            uint256 oldCommitCancellableTime = commitCancellableTime;
+            commitCancellableTime = commitCancellableTime_;
+            emit CommitCancellableTimeUpdated(oldCommitCancellableTime, commitCancellableTime_);
         }
-        uint256 oldCommitCancellableTime = commitCancellableTime;
-        commitCancellableTime = commitCancellableTime_;
-        emit CommitCancellableTimeUpdated(oldCommitCancellableTime, commitCancellableTime_);
-    }
+
+        function _updateCommitUserCancellableTime(uint256 commitUserCancellableTime_) internal {
+            // The user cancellation time should never be less than the cosigner cancellable time
+            if (commitUserCancellableTime_ < commitCancellableTime) {
+                revert Errors.InvalidCommitUserCancellableTime();
+            }
+            
+            if (commitUserCancellableTime_ < MIN_COMMIT_USER_CANCELLABLE_TIME) {
+                revert Errors.InvalidCommitUserCancellableTime();
+            }
+            uint256 oldCommitUserCancellableTime = commitUserCancellableTime;
+            commitUserCancellableTime = commitUserCancellableTime_;
+            emit CommitUserCancellableTimeUpdated(oldCommitUserCancellableTime, commitUserCancellableTime_);
+        }
     
     function _updateNftFulfillmentExpiryTime(uint256 nftFulfillmentExpiryTime_) internal {
         if (nftFulfillmentExpiryTime_ < MIN_NFT_FULFILLMENT_EXPIRY_TIME) {

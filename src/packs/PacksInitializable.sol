@@ -49,7 +49,8 @@ contract PacksInitializable is Packs, UUPSUpgradeable {
         maxPackPrice = 0.25 ether;
 
         // Initialize expiries
-        commitCancellableTime = 1 days;
+        commitCancellableTime = 6 minutes;
+        commitUserCancellableTime = 1 hours;
         nftFulfillmentExpiryTime = 10 minutes;
 
         // Grant roles to initial owner
