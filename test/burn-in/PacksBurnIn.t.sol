@@ -264,9 +264,9 @@ contract PacksBurnInTest is Test {
 
         // Now fulfill with payout  
         address marketplace = address(0x123); // Mock marketplace
-        // Since RNG will select bucket 1 (0.6-2.0 ETH range), use a value in that range
-        uint256 orderAmount = 1.0 ether; // Within bucket 1 range
-        uint256 expectedPayoutAmount = 1.0 ether; // Full payout
+        // RNG is non-deterministic, use value within bucket 0 range (0.125-0.5 ETH)
+        uint256 orderAmount = 0.3 ether; // Within bucket 0 range
+        uint256 expectedPayoutAmount = 0.3 ether; // Full payout
         bytes memory fulfillmentSignature = _signFulfillment(
             digest,
             marketplace,
@@ -315,8 +315,8 @@ contract PacksBurnInTest is Test {
             cosigner,     // sender
             commitId,     // commitId
             rng,          // rng
-            1500,         // odds (bucket 1 odds - 15%)
-            1,            // bucketIndex (bucket 1)
+            8000,         // odds (bucket 0 odds - 80%)
+            0,            // bucketIndex (bucket 0)
             expectedPayoutAmount, // payout
             address(0),   // token
             0,            // tokenId  
@@ -666,8 +666,8 @@ contract PacksBurnInTest is Test {
 
         // Now fulfill with payout  
         address marketplace = address(0x123);
-        uint256 orderAmount = 1.0 ether;
-        uint256 expectedPayoutAmount = 1.0 ether;
+        uint256 orderAmount = 0.3 ether; // Within bucket 0 range (0.125-0.5 ETH)
+        uint256 expectedPayoutAmount = 0.3 ether;
         bytes memory fulfillmentSignature = _signFulfillment(
             digest,
             marketplace,
@@ -716,8 +716,8 @@ contract PacksBurnInTest is Test {
             cosigner,     // sender
             commitId,     // commitId
             rng,          // rng
-            1500,         // odds (bucket 1 odds - 15%)
-            1,            // bucketIndex (bucket 1)
+            8000,         // odds (bucket 0 odds - 80%)
+            0,            // bucketIndex (bucket 0)
             expectedPayoutAmount, // payout
             address(0),   // token
             0,            // tokenId  
@@ -842,8 +842,8 @@ contract PacksBurnInTest is Test {
         
         // Fulfill with payout
         address marketplace = address(0x123);
-        uint256 orderAmount = 1.0 ether;
-        uint256 expectedPayoutAmount = 1.0 ether;
+        uint256 orderAmount = 0.3 ether; // Within bucket 0 range (0.125-0.5 ETH)
+        uint256 expectedPayoutAmount = 0.3 ether;
         bytes memory fulfillmentSignature = _signFulfillment(
             digest,
             marketplace,
