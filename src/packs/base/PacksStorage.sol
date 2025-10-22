@@ -23,7 +23,7 @@ abstract contract PacksStorage is PacksSignatureVerifierUpgradeable {
     uint256 public treasuryBalance;
     uint256 public commitBalance;
 
-    uint256 public constant MIN_COMMIT_CANCELLABLE_TIME = 1 hours;
+    uint256 public constant MIN_COMMIT_CANCELLABLE_TIME = 1 minutes;
     uint256 public commitCancellableTime;
     mapping(uint256 commitId => uint256 cancellableAt) public commitCancellableAt;
 

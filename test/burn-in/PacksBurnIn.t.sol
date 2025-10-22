@@ -36,11 +36,12 @@ contract PacksBurnInTest is Test {
     string public BURN_IN_RPC_URL;
     
     // Production contract addresses on Base mainnet
-    address public constant PACKS_V1_IMPLEMENTATION = 0xfC6d4877Bae58D135d5F823A7bAa8f020a9AB841;
-    address public constant PACKS_NEXT_IMPLEMENTATION = 0x4f97C5D0be4c62567f7D2271a90aa965ea266f4E;
+    address public constant PACKS_V1_IMPLEMENTATION = 0xDd3EeA0D0ADc2a21a5ffF235cf376Af4df931237;
+    address public constant PACKS_NEXT_IMPLEMENTATION = 0x5dc8ccE71fD4962d3208C9aF03844272F345B69F;
 
 
-    address public constant PACKS_PROXY = 0xf541d82630A5ba513eB709c41d06ac3D009C0248;
+    address public constant PACKS_PROXY = 0xE20dA1FD3B90d10d45C7BBB9874D82cc9A562ca4;
+
     address public constant FUNDS_RECEIVER = 0x2918F39540df38D4c33cda3bCA9edFccd8471cBE;
     address public constant FUNDS_RECEIVER_MANAGER = 0x7C51fAEe5666B47b2F7E81b7a6A8DEf4C76D47E3;
     
@@ -199,7 +200,7 @@ contract PacksBurnInTest is Test {
     
     function testHappyPathCommitAndFulfillPayout() public {        
         
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af; // From deployment
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78; // From deployment
         vm.startPrank(currentAdmin);
         packs.addCosigner(cosigner);
         vm.stopPrank();
@@ -373,7 +374,7 @@ contract PacksBurnInTest is Test {
         console.log("Target implementation:", PACKS_NEXT_IMPLEMENTATION);
         
         // Impersonate the admin to perform upgrade
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78;
         vm.startPrank(currentAdmin);
         
         // Perform the upgrade
@@ -424,7 +425,7 @@ contract PacksBurnInTest is Test {
         uint256 user2PackCountBefore = packs.packCount(user2);
         
         // Record admin roles
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78;
         bool hasAdminRoleBefore = packs.hasRole(packs.DEFAULT_ADMIN_ROLE(), currentAdmin);
         bool hasFundsManagerRoleBefore = packs.hasRole(packs.FUNDS_RECEIVER_MANAGER_ROLE(), FUNDS_RECEIVER_MANAGER);
         
@@ -584,7 +585,7 @@ contract PacksBurnInTest is Test {
         console.log("Target implementation:", PACKS_NEXT_IMPLEMENTATION);
         
         // Impersonate the admin to perform upgrade
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78;
         vm.startPrank(currentAdmin);
         
         // Perform the upgrade
@@ -781,7 +782,7 @@ contract PacksBurnInTest is Test {
         console.log("Current implementation:", currentImplementation);
         
         // Add our test cosigner
-        address currentAdmin = 0x794A0a8fa41D64657cBa59E060408c84ddBF05Af;
+        address currentAdmin = 0xf01410D25828bE50D7f5FEA4d3063DdB01325c78;
         vm.prank(currentAdmin);
         packs.addCosigner(cosigner);
         console.log("Test cosigner added:", cosigner);
